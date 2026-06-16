@@ -37,7 +37,7 @@ npm run bnb:backtest       # offline or live CMC (with CMC_API_KEY)
 npm run bnb:live           # live gate eval for BNB + CAKE
 ```
 
-Set `CMC_API_KEY` and `CMC_MCP_API_KEY` in `.env.local` (see `.env.example`). Demo: https://trader-arc.vercel.app/bnb
+Set `CMC_API_KEY` and `CMC_MCP_API_KEY` in `.env.local` (see `.env.example`). **Conviction Constitution** panel on https://trader-arc.vercel.app/nexus (select any token).
 
 ## Quick start
 

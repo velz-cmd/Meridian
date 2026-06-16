@@ -34,6 +34,8 @@ import {
 } from "@/components/nexus/nexus-research-dossier";
 import { NexusIntelCollapsibles } from "@/components/nexus/nexus-intel-collapsibles";
 import { NexusAgentReasoningStrip } from "@/components/nexus/nexus-agent-reasoning-strip";
+import { NexusConvictionGate } from "@/components/nexus/nexus-conviction-gate";
+import { useConvictionGate } from "@/hooks/use-conviction-gate";
 import { useTokenDossier } from "@/hooks/use-token-dossier";
 import { useLiveTokenQuote, type LiveTokenQuote } from "@/hooks/use-live-token-quote";
 import { NexusIntegrationsBanner } from "@/components/nexus/nexus-integrations-banner";
@@ -109,6 +111,12 @@ export function NexusConsole() {
   const isMobile = useIsMobile();
 
   useEffect(() => {
+    if (typeof window === "undefined" || window.location.hash !== "#nexus-conviction-gate") return;
+    const el = document.getElementById("nexus-conviction-gate");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedToken?.tokenAddress]);
+
+  useEffect(() => {
     try {
       localStorage.removeItem("nexus-agent-memory");
       localStorage.removeItem("nexus-saved-scans");
@@ -119,6 +127,8 @@ export function NexusConsole() {
 
   const displayDecision = selectedToken ? tokenToDecision(selectedToken) : null;
   const tokenDossier = useTokenDossier(selectedToken, intelTier);
+  const deskAgent = tokenDossier.payload?.agent ?? selectedToken?.agent;
+  const conviction = useConvictionGate(selectedToken, deskAgent);
 
   const applyLiveQuote = useCallback((quote: LiveTokenQuote) => {
     const addr = quote.tokenAddress.toLowerCase();
@@ -561,6 +571,13 @@ export function NexusConsole() {
           loading={tokenDossier.loading}
           tier={intelTier}
           alphaThesis={alphaThesis}
+        />
+        <NexusConvictionGate
+          symbol={selectedToken.symbol}
+          agent={deskAgent}
+          data={conviction.data}
+          loading={conviction.loading}
+          error={conviction.error}
         />
         {tokenDossier.error && !tokenDossier.loading && (
           <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">

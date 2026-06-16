@@ -31,7 +31,7 @@ From [BNB Hack: AI Trading Agent Edition](https://dorahacks.io/hackathon/bnbhack
 | **Project title** | NEXUS Momentum Gate — CMC Agent Conviction Skill |
 | **Tagline** | Pre-trade veto layer: clamps agent BUY to backtestable ENTER_LONG gates via CMC MCP |
 | **GitHub** | https://github.com/ibrahim0-cursor/cursor-arc-circle (folder: `bnb-hack/`) |
-| **Demo URL** | https://trader-arc.vercel.app/bnb (backtest demo) · https://trader-arc.vercel.app/nexus (live NEXUS origin) |
+| **Demo URL** | https://trader-arc.vercel.app/nexus — **Conviction Constitution** panel (CMC + agent veto) |
 | **Track** | Strategy Skills |
 | **Video** | ≤3 min — Skill workflow + backtest metrics + agent veto demo |
 
@@ -61,7 +61,7 @@ NEXUS Momentum Gate is **not another “research this coin” skill**. It is an 
 2. **Skill demo** (60s): CMC MCP → `nexus-momentum-gate` on BNB → gate checks + tier + `agentDirective`.
 3. **Agent veto** (30s): `npm run bnb:evaluate` with `--enforce '{"action":"BUY"}'` → clamped to HOLD.
 4. **Backtest** (45s): `npm run bnb:backtest` → return, max drawdown, win rate JSON.
-5. **NEXUS desk** (30s): Live product using same gate philosophy.
+5. **NEXUS desk** (45s): `/nexus` → select BNB → **Conviction Constitution** panel → agent BUY vs veto.
 6. **Close** (15s): Open source, MIT, Agent Hub ready.
 
 ---
