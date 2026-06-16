@@ -22,7 +22,8 @@
     "bnb:smoke": "node bnb-hack/backtest/smoke.mjs",
     "bnb:evaluate": "node bnb-hack/evaluate.mjs",
     "bnb:report": "node bnb-hack/backtest/run.mjs --write-report",
-    "bnb:live": "node bnb-hack/live/eval-live.mjs --symbol BNB --symbol CAKE"
+    "bnb:live": "node bnb-hack/live/eval-live.mjs --symbol BNB --symbol CAKE",
+    "sync:cmc-vercel": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-cmc-vercel.ps1"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",

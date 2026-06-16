@@ -3,6 +3,9 @@ import { MERIDIAN_SECURITY_HEADERS } from "./src/lib/site-security";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@circle-fin/x402-batching"],
+  outputFileTracingIncludes: {
+    "/api/bnb/demo": ["./bnb-hack/**/*"],
+  },
   async headers() {
     return [
       {
