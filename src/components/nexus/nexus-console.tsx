@@ -34,8 +34,9 @@ import {
 } from "@/components/nexus/nexus-research-dossier";
 import { NexusIntelCollapsibles } from "@/components/nexus/nexus-intel-collapsibles";
 import { NexusAgentReasoningStrip } from "@/components/nexus/nexus-agent-reasoning-strip";
-import { NexusConvictionGate } from "@/components/nexus/nexus-conviction-gate";
-import { useConvictionGate } from "@/hooks/use-conviction-gate";
+import { NexusConstitutionDesk } from "@/components/nexus/nexus-constitution-desk";
+import { useConstitutionPermit } from "@/hooks/use-constitution-permit";
+import { ConstitutionProvider } from "@/contexts/nexus-constitution-context";
 import { useTokenDossier } from "@/hooks/use-token-dossier";
 import { useLiveTokenQuote, type LiveTokenQuote } from "@/hooks/use-live-token-quote";
 import { NexusIntegrationsBanner } from "@/components/nexus/nexus-integrations-banner";
@@ -111,8 +112,8 @@ export function NexusConsole() {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    if (typeof window === "undefined" || window.location.hash !== "#nexus-conviction-gate") return;
-    const el = document.getElementById("nexus-conviction-gate");
+    if (typeof window === "undefined" || window.location.hash !== "#nexus-constitution-desk") return;
+    const el = document.getElementById("nexus-constitution-desk");
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedToken?.tokenAddress]);
 
@@ -128,7 +129,7 @@ export function NexusConsole() {
   const displayDecision = selectedToken ? tokenToDecision(selectedToken) : null;
   const tokenDossier = useTokenDossier(selectedToken, intelTier);
   const deskAgent = tokenDossier.payload?.agent ?? selectedToken?.agent;
-  const conviction = useConvictionGate(selectedToken, deskAgent);
+  const constitution = useConstitutionPermit(selectedToken, deskAgent);
 
   const applyLiveQuote = useCallback((quote: LiveTokenQuote) => {
     const addr = quote.tokenAddress.toLowerCase();
@@ -565,19 +566,19 @@ export function NexusConsole() {
           />
         </div>
 
+        <NexusConstitutionDesk
+          symbol={selectedToken.symbol}
+          agent={deskAgent}
+          payload={constitution.payload}
+          loading={constitution.loading}
+          error={constitution.error}
+        />
         <NexusAgentReasoningStrip
           token={selectedToken}
           payload={tokenDossier.payload}
           loading={tokenDossier.loading}
           tier={intelTier}
           alphaThesis={alphaThesis}
-        />
-        <NexusConvictionGate
-          symbol={selectedToken.symbol}
-          agent={deskAgent}
-          data={conviction.data}
-          loading={conviction.loading}
-          error={conviction.error}
         />
         {tokenDossier.error && !tokenDossier.loading && (
           <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
@@ -701,6 +702,14 @@ export function NexusConsole() {
 
   return (
     <NexusAgentWalletProvider>
+    <ConstitutionProvider
+      value={{
+        payload: constitution.payload,
+        loading: constitution.loading,
+        error: constitution.error,
+        canExecuteBuy: constitution.canExecuteBuy,
+      }}
+    >
     <div className="relative min-h-screen text-white" data-nexus-page data-nexus-easy-mode data-arc-theme="nexus">
       <ArcBackground theme="nexus" />
 
@@ -817,6 +826,7 @@ export function NexusConsole() {
         <MeridianFooter className="hidden pb-3 pt-1 lg:block" />
       </div>
     </div>
+    </ConstitutionProvider>
     </NexusAgentWalletProvider>
   );
 }

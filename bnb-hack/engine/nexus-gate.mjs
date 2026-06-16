@@ -435,3 +435,150 @@ export function backtestSeries(series, opts = {}) {
     bars: series.length,
   };
 }
+
+/**
+ * Naive momentum agent — buys on green 24h, no constitution (baseline for counterfactual).
+ * @param {CmcTokenSnapshot[]} series
+ */
+export function backtestNaiveAgent(series, opts = {}) {
+  const fee = (opts.feeBps ?? 10) / 10_000;
+  const slip = (opts.slippageBps ?? 0) / 10_000;
+  let position = /** @type {Position} */ ("FLAT");
+  let equity = 1;
+  let peak = 1;
+  let maxDrawdown = 0;
+  const trades = [];
+  const roundTrips = [];
+
+  for (let i = 1; i < series.length; i++) {
+    const snap = series[i];
+    const prev = series[i - 1];
+    const price = snap.price ?? prev.price ?? 1;
+    const prevPrice = prev.price ?? price;
+    const ch24 = snap.change24h ?? 0;
+    const ch1 = snap.change1h ?? 0;
+
+    if (position === "LONG") equity *= price / prevPrice;
+    peak = Math.max(peak, equity);
+    maxDrawdown = Math.max(maxDrawdown, peak > 0 ? (peak - equity) / peak : 0);
+
+    let signal = /** @type {Signal} */ ("HOLD");
+    if (ch24 > 0 && ch1 > -12) signal = "ENTER_LONG";
+    if (ch24 < -8 || ch1 < -18) signal = "EXIT";
+
+    const next = nextPosition(signal, position);
+    if (next !== position) {
+      if (position === "LONG") {
+        equity *= 1 - fee - slip;
+        const lastBuy = trades.filter((x) => x.type === "buy").pop();
+        if (lastBuy) {
+          roundTrips.push({
+            entry: lastBuy.price,
+            exit: price,
+            pnlPct: ((price - lastBuy.price) / lastBuy.price) * 100,
+            bars: i - lastBuy.index,
+          });
+        }
+        trades.push({ type: "sell", index: i, price, signal: "EXIT", equity });
+      }
+      if (next === "LONG") {
+        equity *= 1 - fee - slip;
+        trades.push({ type: "buy", index: i, price, signal: "ENTER_LONG", equity });
+      }
+      position = next;
+    }
+  }
+
+  if (position === "LONG" && series.length) {
+    equity *= 1 - fee - slip;
+    const lastBuy = trades.filter((x) => x.type === "buy").pop();
+    const lastPrice = series[series.length - 1].price ?? 1;
+    if (lastBuy) {
+      roundTrips.push({
+        entry: lastBuy.price,
+        exit: lastPrice,
+        pnlPct: ((lastPrice - lastBuy.price) / lastBuy.price) * 100,
+        bars: series.length - 1 - lastBuy.index,
+        open: true,
+      });
+    }
+  }
+
+  const wins = roundTrips.filter((t) => t.pnlPct > 0).length;
+  const winRate = roundTrips.length ? wins / roundTrips.length : 0;
+
+  return {
+    label: "naive-momentum-agent",
+    totalReturnPct: Math.round((equity - 1) * 10000) / 100,
+    maxDrawdownPct: Math.round(maxDrawdown * 10000) / 100,
+    winRatePct: Math.round(winRate * 10000) / 100,
+    roundTrips: roundTrips.length,
+    trades: trades.length,
+    bars: series.length,
+  };
+}
+
+/** Side-by-side proof: constitution vs naive agent on same bars. */
+export function backtestCompare(series, opts = {}) {
+  const constitution = backtestSeries(series, opts);
+  const naiveAgent = backtestNaiveAgent(series, opts);
+  return {
+    constitution,
+    naiveAgent,
+    edge: {
+      returnDeltaPct: Math.round((constitution.totalReturnPct - naiveAgent.totalReturnPct) * 100) / 100,
+      drawdownSavedPct: Math.round((naiveAgent.maxDrawdownPct - constitution.maxDrawdownPct) * 100) / 100,
+      winRateDeltaPct: Math.round((constitution.winRatePct - naiveAgent.winRatePct) * 100) / 100,
+    },
+  };
+}
+
+/**
+ * Issue a trade permit — runtime product of the CMC Strategy Skill.
+ * @param {CmcTokenSnapshot} t
+ * @param {{ action?: string; confidence?: number; reasoning?: string } | null} agentSignal
+ */
+export function issueConstitutionPermit(t, agentSignal = null) {
+  const sym = (t.symbol ?? "TOKEN").toUpperCase();
+  const gate = evaluateNexusGate(t);
+  const structured = toStructuredOutput(t, gate);
+  const ts = new Date().toISOString();
+  const permitId = `perm_${sym}_${Date.now().toString(36)}`;
+
+  let veto = null;
+  let finalAction = gate.signal;
+  let overridden = false;
+
+  if (agentSignal?.action) {
+    veto = enforceAgentGate(t, {
+      action: agentSignal.action,
+      confidence: agentSignal.confidence,
+      reasoning: agentSignal.reasoning,
+    });
+    finalAction = veto.finalAction;
+    overridden = veto.overridden;
+  }
+
+  const grant =
+    finalAction === "ENTER_LONG" ||
+    (agentSignal?.action === "SELL" && (gate.signal === "EXIT" || gate.signal === "AVOID"));
+
+  return {
+    schema: "meridian-constitution-permit/v1",
+    permitId,
+    timestamp: ts,
+    symbol: sym,
+    status: grant ? "GRANT" : "DENY",
+    execute: grant ? (finalAction === "ENTER_LONG" ? "LONG" : "FLAT") : "FLAT",
+    agentRequested: agentSignal?.action ?? null,
+    constitutionSignal: gate.signal,
+    finalAction,
+    overridden,
+    tier: gate.tier,
+    confidence: veto?.confidence ?? gate.confidence,
+    risk: veto?.risk ?? gate.risk,
+    thesis: veto?.reasoning ?? gate.thesis,
+    gate: structured,
+    veto,
+  };
+}

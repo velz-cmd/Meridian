@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/bnb/demo": ["./bnb-hack/**/*"],
     "/api/nexus/conviction": ["./bnb-hack/**/*"],
+    "/api/constitution/permit": ["./bnb-hack/**/*"],
   },
   async headers() {
     return [

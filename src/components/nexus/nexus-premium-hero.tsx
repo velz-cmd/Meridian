@@ -25,7 +25,7 @@ export function NexusPremiumHero({ stableCount }: { stableCount: number }) {
               Financial <span className="arc-gradient-text">command terminal</span>
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--arc-text-muted)]">
-              Live feed ({stableCount} movers) · Alpha scan · Swap · Agent reasoning before every trade.
+              Live feed ({stableCount} movers) · Constitution permits · Agent reasoning before every trade.
             </p>
           </div>
         </div>

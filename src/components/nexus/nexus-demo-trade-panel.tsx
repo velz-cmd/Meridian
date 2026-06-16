@@ -8,6 +8,7 @@ import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed
 import { NexusTradeBalanceBar } from "@/components/nexus/nexus-trade-balance-bar";
 import { NexusTokenChatButton } from "@/components/nexus/nexus-token-chat";
 import { NexusAgentWalletProvider } from "@/components/nexus/nexus-agent-wallet-provider";
+import { useConstitution } from "@/contexts/nexus-constitution-context";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { nexusActionGlass, nexusGlassCta } from "@/lib/nexus-action-glass";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
@@ -68,6 +69,8 @@ export function NexusTradeHub({
 }) {
   const [internalTab, setInternalTab] = useState<TradeTab>("buy");
   const tradeTab = activeTab ?? internalTab;
+  const { canExecuteBuy, payload: constitutionPayload } = useConstitution();
+  const constitutionBlocked = tradeTab === "buy" && !canExecuteBuy;
   const [agentLive, setAgentLive] = useState(false);
   const toast = useToast();
   const { address, isConnected } = useAccount();
@@ -279,15 +282,20 @@ export function NexusTradeHub({
               amountNum > 0 && !loading && !arcPending,
             )}
             onClick={executeDemoTrade}
-            disabled={loading || arcPending || amountNum <= 0}
+            disabled={loading || arcPending || amountNum <= 0 || constitutionBlocked}
           >
             {loading || arcPending ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : null}
-            Confirm {side === "buy" ? "Buy" : "Sell"}
+            {constitutionBlocked ? "Constitution DENY — buy blocked" : `Confirm ${side === "buy" ? "Buy" : "Sell"}`}
           </button>
         ) : (
           <p className="text-center text-sm text-white/60">Connect wallet on Arc Testnet to trade</p>
+        )}
+        {constitutionBlocked && (
+          <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-100">
+            {constitutionPayload?.permit.thesis ?? "Agent BUY did not earn a constitution permit."}
+          </p>
         )}
         {error && <p className="text-sm text-rose-300">{error}</p>}
         {lastTx && (

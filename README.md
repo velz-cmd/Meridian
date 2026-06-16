@@ -22,14 +22,14 @@ Two production-grade AI agents for the **Agora Agents Hackathon** (Circle × Arc
 
 ## BNB Hack — Strategy Skills (Track 2)
 
-Submission for [BNB Hack: AI Trading Agent Edition](https://dorahacks.io/hackathon/bnbhack-twt-cmc/) — **CoinMarketCap Strategy Skills** track.
+**MERIDIAN Constitution Permit** — agents request trades; constitution issues **GRANT** or **DENY** with CMC-backed rules, counterfactual backtest, and live enforcement on NEXUS.
 
-| Deliverable | Location |
-|-------------|----------|
-| CMC Agent Hub Skill | [`bnb-hack/skills/nexus-momentum-gate/SKILL.md`](bnb-hack/skills/nexus-momentum-gate/SKILL.md) |
-| Backtestable strategy spec | [`bnb-hack/skills/nexus-momentum-gate/STRATEGY_SPEC.md`](bnb-hack/skills/nexus-momentum-gate/STRATEGY_SPEC.md) |
-| Reference engine + backtest | [`bnb-hack/engine/`](bnb-hack/engine/) · [`bnb-hack/backtest/`](bnb-hack/backtest/) |
-| Submission guide | [`bnb-hack/SUBMIT.md`](bnb-hack/SUBMIT.md) |
+| Layer | Location |
+|-------|----------|
+| **Live product** | [/nexus](https://trader-arc.vercel.app/nexus) — Constitution Permit desk + buy blocked on DENY |
+| **Runtime API** | `POST /api/constitution/permit` |
+| **CMC Skill** | [`bnb-hack/skills/nexus-momentum-gate/SKILL.md`](bnb-hack/skills/nexus-momentum-gate/SKILL.md) |
+| **Submission** | [`bnb-hack/SUBMIT.md`](bnb-hack/SUBMIT.md) |
 
 ```bash
 npm run bnb:smoke          # engine sanity check

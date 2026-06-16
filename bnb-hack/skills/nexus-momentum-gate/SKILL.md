@@ -110,6 +110,12 @@ Return JSON matching [`OUTPUT_SCHEMA.json`](./OUTPUT_SCHEMA.json):
 
 Also present human-readable summary:
 
+### Step 7 — Constitution Permit (runtime)
+
+Issue a trade permit for agent execution chains. Schema: [`PERMIT_SCHEMA.json`](./PERMIT_SCHEMA.json)
+
+Live API: `POST https://trader-arc.vercel.app/api/constitution/permit`
+
 ```
 ## NEXUS Gate · [SYMBOL]
 

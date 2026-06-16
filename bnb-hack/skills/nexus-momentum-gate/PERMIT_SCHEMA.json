@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "meridian-constitution-permit/v1",
+  "title": "MERIDIAN Constitution Permit",
+  "description": "Trade permit issued by NEXUS Constitution — runtime output of CMC Strategy Skill",
+  "type": "object",
+  "required": ["schema", "permitId", "timestamp", "symbol", "status", "gate"],
+  "properties": {
+    "schema": { "const": "meridian-constitution-permit/v1" },
+    "permitId": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "symbol": { "type": "string" },
+    "status": { "enum": ["GRANT", "DENY"] },
+    "execute": { "enum": ["LONG", "FLAT"] },
+    "agentRequested": { "type": ["string", "null"] },
+    "constitutionSignal": { "type": "string" },
+    "finalAction": { "type": "string" },
+    "overridden": { "type": "boolean" },
+    "tier": { "type": "string" },
+    "confidence": { "type": "integer" },
+    "risk": { "type": "integer" },
+    "thesis": { "type": "string" },
+    "gate": { "$ref": "nexus-momentum-gate/v1" }
+  }
+}
