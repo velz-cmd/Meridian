@@ -18,6 +18,26 @@ Two production-grade AI agents for the **Agora Agents Hackathon** (Circle × Arc
 - `/nexus` — Trading agent console
 - `/prism` — Forecasting oracle
 - `/arc` — Counter deploy / increment (wallet on Arc testnet)
+- `/bnb` — **BNB Hack Track 2** — NEXUS Momentum Gate demo (CMC Strategy Skill)
+
+## BNB Hack — Strategy Skills (Track 2)
+
+Submission for [BNB Hack: AI Trading Agent Edition](https://dorahacks.io/hackathon/bnbhack-twt-cmc/) — **CoinMarketCap Strategy Skills** track.
+
+| Deliverable | Location |
+|-------------|----------|
+| CMC Agent Hub Skill | [`bnb-hack/skills/nexus-momentum-gate/SKILL.md`](bnb-hack/skills/nexus-momentum-gate/SKILL.md) |
+| Backtestable strategy spec | [`bnb-hack/skills/nexus-momentum-gate/STRATEGY_SPEC.md`](bnb-hack/skills/nexus-momentum-gate/STRATEGY_SPEC.md) |
+| Reference engine + backtest | [`bnb-hack/engine/`](bnb-hack/engine/) · [`bnb-hack/backtest/`](bnb-hack/backtest/) |
+| Submission guide | [`bnb-hack/SUBMIT.md`](bnb-hack/SUBMIT.md) |
+
+```bash
+npm run bnb:smoke          # engine sanity check
+npm run bnb:backtest       # offline or live CMC (with CMC_API_KEY)
+npm run bnb:live           # live gate eval for BNB + CAKE
+```
+
+Set `CMC_API_KEY` and `CMC_MCP_API_KEY` in `.env.local` (see `.env.example`). Demo: https://trader-arc.vercel.app/bnb
 
 ## Quick start
 

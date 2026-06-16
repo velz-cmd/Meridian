@@ -23,6 +23,13 @@
 # local agent storage
 /.data
 
+# local grant deck (not for repo)
+MERIDIAN-Grant-Deck.html
+docs/MERIDIAN-Grant-Deck.html
+
+# CyOps hackathon (local only — submit via Gateway / separate repo, not trader-arc)
+/cyops/
+
 # misc
 .DS_Store
 *.pem

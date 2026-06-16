@@ -1,0 +1,12 @@
+{
+  "symbol": "BNB",
+  "price": 650,
+  "marketCap": 96000000000,
+  "volume24h": 1900000000,
+  "change1h": 0.8,
+  "change24h": 4.5,
+  "change7d": 14,
+  "rsi": 58,
+  "macdSignal": "bullish",
+  "fearGreed": 62
+}

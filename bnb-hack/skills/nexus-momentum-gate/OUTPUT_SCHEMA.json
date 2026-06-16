@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "nexus-momentum-gate/v1",
+  "title": "NEXUS Momentum Gate Output",
+  "description": "Structured conviction gate output for Agent Hub chaining and backtest logs",
+  "type": "object",
+  "required": [
+    "schema",
+    "symbol",
+    "timestamp",
+    "signal",
+    "tier",
+    "confidence",
+    "risk",
+    "agreement",
+    "checks",
+    "thesis",
+    "agentDirective"
+  ],
+  "properties": {
+    "schema": { "const": "nexus-momentum-gate/v1" },
+    "symbol": { "type": "string", "example": "BNB" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "signal": {
+      "type": "string",
+      "enum": ["ENTER_LONG", "HOLD", "EXIT", "AVOID"]
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["a-plus", "a", "watch", "avoid"]
+    },
+    "confidence": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "risk": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "agreement": { "type": "number", "minimum": 0, "maximum": 1 },
+    "edge": { "type": "number" },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "pass", "weight", "label"],
+        "properties": {
+          "id": { "type": "string" },
+          "pass": { "type": "boolean" },
+          "weight": { "type": "number" },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "checksPassed": { "type": "integer" },
+    "checksTotal": { "type": "integer" },
+    "gaps": { "type": "array", "items": { "type": "string" } },
+    "thesis": { "type": "string" },
+    "agentDirective": { "type": "string" },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "price": { "type": ["number", "null"] },
+        "change1h": { "type": ["number", "null"] },
+        "change24h": { "type": ["number", "null"] },
+        "change7d": { "type": ["number", "null"] },
+        "rsi": { "type": ["number", "null"] },
+        "macdSignal": { "type": ["string", "null"] },
+        "fearGreed": { "type": ["number", "null"] }
+      }
+    }
+  }
+}

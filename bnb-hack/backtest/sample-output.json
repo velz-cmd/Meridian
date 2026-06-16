@@ -1,0 +1,116 @@
+{
+  "mode": "fixture",
+  "symbol": "BNB",
+  "strategy": "nexus-momentum-gate/v1",
+  "evalNow": {
+    "schema": "nexus-momentum-gate/v1",
+    "symbol": "BNB",
+    "timestamp": "2026-06-16T20:45:47.704Z",
+    "signal": "ENTER_LONG",
+    "tier": "a-plus",
+    "confidence": 74,
+    "risk": 33,
+    "agreement": 1,
+    "edge": 44,
+    "checks": [
+      {
+        "id": "macro_fg",
+        "pass": true,
+        "weight": 8,
+        "label": "Fear & Greed not extreme greed (>85)"
+      },
+      {
+        "id": "momentum_band",
+        "pass": true,
+        "weight": 12,
+        "label": "Swing momentum: 1h≥4% or healthy 24h band"
+      },
+      {
+        "id": "intraday",
+        "pass": true,
+        "weight": 14,
+        "label": "Intraday structure not collapsing"
+      },
+      {
+        "id": "rsi",
+        "pass": true,
+        "weight": 10,
+        "label": "RSI in entry band (35–72)"
+      },
+      {
+        "id": "macd",
+        "pass": true,
+        "weight": 10,
+        "label": "MACD not bearish vs momentum"
+      },
+      {
+        "id": "turnover",
+        "pass": true,
+        "weight": 8,
+        "label": "Turnover sane (0.02–0.35)"
+      },
+      {
+        "id": "flow",
+        "pass": true,
+        "weight": 4,
+        "label": "Flow n/a (CMC-only pass)"
+      },
+      {
+        "id": "holders",
+        "pass": true,
+        "weight": 4,
+        "label": "Holder concentration controlled (<72% top10)"
+      },
+      {
+        "id": "structure",
+        "pass": true,
+        "weight": 16,
+        "label": "No rug/pump pattern flags"
+      }
+    ],
+    "checksPassed": 9,
+    "checksTotal": 9,
+    "gaps": [],
+    "thesis": "BNB: A+ setup — 9/9 checks, edge +44. Size small; invalidate on 1h roll-over.",
+    "agentDirective": "Agent may propose tactical long; cap confidence at gate value.",
+    "inputs": {
+      "price": 660,
+      "change1h": 0.8,
+      "change24h": 4,
+      "change7d": 15,
+      "rsi": 66,
+      "macdSignal": "bullish",
+      "fearGreed": 70
+    }
+  },
+  "backtest": {
+    "totalReturnPct": 12.59,
+    "maxDrawdownPct": 0.65,
+    "winRatePct": 100,
+    "roundTrips": 1,
+    "trades": 1,
+    "avgWinPct": 12.82,
+    "avgLossPct": 0,
+    "tradeLog": [
+      {
+        "type": "buy",
+        "index": 1,
+        "price": 585,
+        "signal": "ENTER_LONG",
+        "equity": 0.999
+      }
+    ],
+    "roundTripLog": [
+      {
+        "entry": 585,
+        "exit": 660,
+        "pnlPct": 12.82051282051282,
+        "bars": 18,
+        "open": true
+      }
+    ],
+    "finalEquity": 1.12595,
+    "bars": 20
+  },
+  "generatedAt": "2026-06-16T20:45:47.705Z"
+}
