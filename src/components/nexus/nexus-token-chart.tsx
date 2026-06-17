@@ -220,10 +220,10 @@ export function NexusTokenChart({
             <iframe
               title={`${symbol ?? "Token"} chart`}
               src={dexChartEmbedUrl(chainId, resolvedPair)}
-              className="nexus-chart-iframe h-full w-full border-0"
+              className="nexus-chart-iframe h-[calc(100%+2.5rem)] w-full border-0"
               allow="clipboard-write"
             />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-8 items-center justify-center border-t border-white/10 bg-[#050508]/95 text-[10px] font-medium uppercase tracking-[0.2em] text-white/35 backdrop-blur">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-12 items-center justify-center border-t border-white/10 bg-[#050508] text-[10px] font-medium uppercase tracking-[0.2em] text-white/35">
               Market chart
             </div>
           </div>

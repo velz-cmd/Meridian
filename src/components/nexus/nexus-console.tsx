@@ -22,7 +22,6 @@ import { symbolChainKey, tokenKey } from "@/lib/feed-curation";
 import { NexusQuickSwap } from "@/components/nexus/nexus-quick-swap";
 import { filterTradableTokens, isStablecoin } from "@/lib/token-filters";
 import { NexusTokenChart } from "@/components/nexus/nexus-token-chart";
-import { NexusBnbHackBanner } from "@/components/nexus/nexus-bnb-hack-banner";
 import { NexusTrendingFeed, type TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 import { NexusAgentWalletProvider } from "@/components/nexus/nexus-agent-wallet-provider";
 import { NexusTradeHub } from "@/components/nexus/nexus-demo-trade-panel";
@@ -703,7 +702,6 @@ export function NexusConsole() {
       <ArcBackground theme="nexus" />
 
       <div className="relative mx-auto w-full max-w-[1920px] px-3 py-2 pb-[calc(5.75rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-6 lg:px-4 lg:py-8 lg:pb-8 xl:px-6">
-        <NexusBnbHackBanner />
         <NexusAlphaHero
           onAlphaScan={() => void runAlphaScan()}
           alphaScanning={alphaScanning}

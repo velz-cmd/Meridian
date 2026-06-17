@@ -85,10 +85,10 @@ export function NexusChartFullscreen({
               <iframe
                 title={`${symbol ?? "Token"} chart fullscreen`}
                 src={dexChartEmbedUrl(chainId, pairAddress)}
-                className="h-full min-h-[50dvh] w-full border-0 sm:min-h-0"
+                className="h-[calc(100%+2.5rem)] min-h-[50dvh] w-full border-0 sm:min-h-0"
                 allow="clipboard-write"
               />
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-9 items-center justify-center border-t border-white/10 bg-[#050508]/95 text-[10px] font-medium uppercase tracking-[0.2em] text-white/35 backdrop-blur">
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-12 items-center justify-center border-t border-white/10 bg-[#050508] text-[10px] font-medium uppercase tracking-[0.2em] text-white/35">
                 Market chart
               </div>
             </div>

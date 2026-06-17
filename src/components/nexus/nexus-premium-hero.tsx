@@ -25,14 +25,14 @@ export function NexusPremiumHero({ stableCount }: { stableCount: number }) {
               Financial <span className="arc-gradient-text">command terminal</span>
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--arc-text-muted)]">
-              Live feed ({stableCount} movers) · Constitution permits · Agent reasoning before every trade.
+              Live feed ({stableCount} movers) · permit-gated trades · agent reasoning before every action.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2 sm:justify-end">
           {[
-            { icon: Radio, label: "Live feed", sub: "Dex-verified" },
+            { icon: Radio, label: "Live feed", sub: "Market scan" },
             { icon: Sparkles, label: "Alpha", sub: "Deep scan" },
             { icon: LineChart, label: "Intel", sub: "Chart + TA" },
           ].map((m, i) => (
