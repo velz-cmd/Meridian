@@ -6,14 +6,14 @@ import { useEffect } from "react";
 export type ArcTheme = "home" | "nexus" | "prism";
 
 export function arcThemeFromPath(pathname: string): ArcTheme {
-  if (pathname.startsWith("/nexus")) return "nexus";
+  if (pathname.startsWith("/nexus") || pathname.startsWith("/gate")) return "nexus";
   if (pathname.startsWith("/prism")) return "prism";
   return "home";
 }
 
 /** Route href → 3D icon accent (shared by top + mobile nav) */
 export function arcNavIconTheme(href: string): ArcTheme | "neutral" {
-  if (href === "/nexus") return "nexus";
+  if (href === "/nexus" || href === "/gate") return "nexus";
   if (href === "/prism") return "prism";
   if (href === "/") return "home";
   return "neutral";

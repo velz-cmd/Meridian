@@ -35,7 +35,7 @@ export type ConstitutionPermitPayload = {
       agentDirective: string;
     };
   };
-  counterfactual: {
+  counterfactual?: {
     constitution: { totalReturnPct: number; maxDrawdownPct: number; winRatePct: number };
     naiveAgent: { totalReturnPct: number; maxDrawdownPct: number; winRatePct: number };
     edge: { returnDeltaPct: number; drawdownSavedPct: number; winRateDeltaPct: number };
@@ -43,11 +43,11 @@ export type ConstitutionPermitPayload = {
   counterfactualMeta?: {
     mode: string;
     bars: number;
-    anchorSymbol?: string;
-    anchorPrice?: number | null;
-    regime?: string | null;
-    fearGreed?: number;
     note?: string;
+  };
+  backtest?: {
+    endpoint: string;
+    note: string;
   };
   cmcLive: boolean;
   dataSource: string;

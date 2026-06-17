@@ -1,4 +1,4 @@
-/** Synthetic daily series for offline backtest demo (no API key). */
+/** Offline fixture series — CLI smoke ONLY. Never used in /api/gate or judge UI. */
 
 export const fixtureSeries = [
   { symbol: "BNB", price: 580, marketCap: 88e9, volume24h: 1.2e9, change1h: 0.5, change24h: 2.1, change7d: 5, rsi: 52, macdSignal: "neutral", fearGreed: 55 },

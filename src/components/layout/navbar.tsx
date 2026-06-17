@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Radar, Zap } from "lucide-react";
+import { Home, Radar, Scale, Zap } from "lucide-react";
 import { ArcLogoMark } from "@/components/layout/arc-logo-mark";
 import { arcNavIconTheme } from "@/components/layout/arc-theme-sync";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
@@ -13,6 +13,7 @@ import { MERIDIAN_BUILT_FOR, MERIDIAN_MODULES, MERIDIAN_NAME, MERIDIAN_TAGLINE }
 
 const links = [
   { href: "/", label: "Home", icon: Home },
+  { href: "/gate", label: "Gate", icon: Scale },
   { href: "/nexus", label: "NEXUS", icon: Zap },
   { href: "/prism", label: "PRISM", icon: Radar },
 ] as const;

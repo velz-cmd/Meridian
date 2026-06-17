@@ -1,4 +1,4 @@
-# BNB Hack Track 2 — MERIDIAN Constitution Permit
+# BNB Hack Track 2 — MERIDIAN Gate
 
 **Deadline:** June 21, 2026, 20:00 UTC  
 **Track:** Strategy Skills (CoinMarketCap)  
@@ -6,37 +6,34 @@
 
 ---
 
-## One sentence (what wins among 1000)
+## One sentence
 
-**Trading agents don't need another coin screener — they need a constitution that GRANTs or DENYs execution, with CMC-backed rules, counterfactual proof, and a live runtime on NEXUS.**
-
----
-
-## Why we're not another checklist app
-
-| Typical submission | MERIDIAN |
-|--------------------|----------|
-| Static CMC screener | **Runtime permit API** agents call before sizing |
-| Research-only skill | **GRANT/DENY enforcement** — buy button blocked on DENY |
-| Backtest in a README | **Counterfactual panel** on live desk (naive agent vs constitution) |
-| Demo on a `/bnb` side page | **Flagship on `/nexus`** — judges land on production product |
-| Skill without version proof | **Verifiable skill metadata** (id, version, spec hash) in every permit |
-
-**Two-layer safety story:** Constitution gate (CMC Strategy Skill) + optional MetaMask Agent Wallet execution guard.
+**MERIDIAN Gate is a CoinMarketCap Strategy Skill that evaluates BNB/CAKE with live CMC data and proves edge via real historical backtest — no synthetic counterfactual in the API.**
 
 ---
 
-## Product (not a checklist page)
+## Demo (judges start here)
 
-| Layer | What it is |
-|-------|------------|
-| **Live product** | https://trader-arc.vercel.app/nexus → Constitution desk on every token |
-| **Real loop** | Pick BNB/CAKE (live prices) → agent BUY → CMC permit → buy blocked if DENY |
-| **Runtime API** | `POST /api/constitution/permit` → GRANT/DENY receipt (agents call this) |
-| **Health API** | `GET /api/constitution/status` → CMC live + skill metadata |
-| **CMC Skill** | `bnb-hack/skills/nexus-momentum-gate/SKILL.md` — installable Agent Hub skill |
-| **Backtest proof** | Naive agent vs constitution side-by-side (drawdown saved, return delta) |
-| **Execution hook** | Buy button **blocked** when constitution DENYs — daily use |
+| What | URL |
+|------|-----|
+| **Product** | https://trader-arc.vercel.app/gate |
+| **Live evaluate** | `GET /api/gate/evaluate?symbol=BNB` |
+| **Historical backtest** | `GET /api/gate/backtest?symbol=BNB&days=90` |
+| **Health** | `GET /api/gate/status` |
+| **CMC Skill** | `bnb-hack/skills/nexus-momentum-gate/SKILL.md` |
+| **GitHub** | https://github.com/ibrahim0-cursor/cursor-arc-circle |
+
+---
+
+## Data integrity policy
+
+| Rule | Implementation |
+|------|----------------|
+| Live fields from CMC only on `/gate` | `fetchGateSnapshot()` — quotes + fear/greed |
+| RSI on gate path | 14-period from CMC historical daily when available; proxy labeled in `fieldSources` |
+| Backtest | `runHistoricalBacktest()` — CMC historical daily only |
+| No fixture in public API | `/api/gate/backtest` returns 503 + honest error if plan/key missing |
+| Fixtures | CLI offline only (`npm run bnb:smoke` without key) — not used in judge UI |
 
 ---
 
@@ -44,12 +41,34 @@
 
 | Requirement | Deliverable |
 |-------------|-------------|
-| CMC Skill → trading strategy | `SKILL.md` + `STRATEGY_SPEC.md` |
-| Backtestable | `engine/nexus-gate.mjs` + `backtestCompare()` |
-| GitHub | `bnb-hack/` in repo |
-| Reproducible | `npm run bnb:smoke` · curl permit API |
-| Agent Hub depth | CMC quotes + TA + Fear/Greed + permit JSON schema |
-| Live demo | `/nexus` — live CMC + regime gate + enforcement (no scripted slideshow) |
+| CMC Skill → strategy | `SKILL.md` + `STRATEGY_SPEC.md` |
+| Backtestable | `engine/nexus-gate.mjs` + `live/run-backtest.mjs` |
+| GitHub | `bnb-hack/` |
+| Reproducible | `npm run bnb:backtest -- --symbol BNB --days 90` |
+| Live demo | `/gate` — BNB/CAKE only |
+
+---
+
+## 2-minute video script
+
+1. Open **https://trader-arc.vercel.app/gate** (0:00)
+2. Select **BNB** — live CMC price + gate checks (0:20)
+3. Show **GRANT/DENY** + failed checks (0:40)
+4. Scroll **90-day backtest** — constitution vs naive agent (0:55)
+5. If backtest unavailable: show honest error + CLI reproduce (1:10)
+6. Open **SKILL.md** on GitHub (1:25)
+7. Terminal: `curl .../api/gate/evaluate?symbol=BNB` (1:45)
+
+---
+
+## Judge commands
+
+```powershell
+curl https://trader-arc.vercel.app/api/gate/status
+curl "https://trader-arc.vercel.app/api/gate/evaluate?symbol=BNB&agentAction=BUY&confidence=92"
+curl "https://trader-arc.vercel.app/api/gate/backtest?symbol=BNB&days=90"
+npm run bnb:backtest -- --symbol BNB --days 90
+```
 
 ---
 
@@ -57,58 +76,16 @@
 
 | Field | Value |
 |-------|--------|
-| **Title** | MERIDIAN Constitution Permit — CMC Strategy Runtime for Trading Agents |
-| **Tagline** | Agents request trades; constitution issues GRANT or DENY with backtest proof |
-| **Demo** | https://trader-arc.vercel.app/nexus |
-| **GitHub** | https://github.com/ibrahim0-cursor/cursor-arc-circle |
+| **Title** | MERIDIAN Gate — CMC Strategy Skill for Agent Pre-Trade Conviction |
+| **Tagline** | Live CoinMarketCap gate + real historical backtest for BNB Smart Chain agents |
+| **Demo** | https://trader-arc.vercel.app/gate |
 | **Track** | Strategy Skills |
 
 ---
 
-## 2-minute video script (judge demo)
+## Do NOT pitch on demo day
 
-1. **Open** https://trader-arc.vercel.app/nexus (0:00)
-2. **Pick BNB** from constitution start cards — live price loads (0:15)
-3. **Show** agent BUY → constitution evaluates with CMC live strip (0:30)
-4. **Show** DENY/GRANT + regime badge + failed gate checks (0:45)
-5. **Click Buy** — blocked when constitution DENYs (1:00)
-6. **Scroll** counterfactual — live-calibrated backtest from CMC anchor (1:15)
-7. **Click** Compare BNB vs CAKE — two real permit API calls (1:30)
-8. **Copy** full receipt + terminal curl (1:45)
-
----
-
-## Judge commands
-
-```powershell
-# Constitution health (CMC + skill)
-curl https://trader-arc.vercel.app/api/constitution/status
-
-# Permit API (Track 2 runtime)
-curl -X POST https://trader-arc.vercel.app/api/constitution/permit ^
-  -H "Content-Type: application/json" ^
-  -d "{\"symbol\":\"BNB\",\"agent\":{\"action\":\"BUY\",\"confidence\":92}}"
-
-# Engine + backtest
-npm run bnb:smoke
-npm run bnb:backtest
-```
-
----
-
-## Judge walkthrough (live UI)
-
-1. Land on `/nexus` — amber **BNB Hack** banner visible
-2. No token? Pick **BNB** or **CAKE** from hackathon demo cards
-3. Or click **Run Hackathon Demo** — auto-selects BNB and scrolls to the constitution desk
-4. Constitution desk shows: CMC live · skill id · permit id · dataSource strip
-5. Trade panel → Buy → **Constitution DENY — buy blocked** when vetoed
-6. Copy **Full receipt** (permit + counterfactual + skill meta) for inspection
-
----
-
-## Do NOT pitch
-
-- Arc / Agora payment flows  
-- Generic “research this coin”  
-- Separate `/bnb` demo page (redirects to NEXUS)
+- NEXUS terminal as the product (supporting app only)
+- Meme coins / dex overlay tokens
+- Synthetic backtest or counterfactual in permit JSON
+- Arc / PRISM (different hackathons)

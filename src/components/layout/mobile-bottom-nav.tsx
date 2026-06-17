@@ -16,7 +16,7 @@ const tabs = [
 export function MobileBottomNav() {
   const pathname = usePathname();
 
-  if (pathname === "/nexus") return null;
+  if (pathname === "/nexus" || pathname === "/gate") return null;
 
   const activeStyles = {
     home: "bg-violet-500/20 text-violet-100",

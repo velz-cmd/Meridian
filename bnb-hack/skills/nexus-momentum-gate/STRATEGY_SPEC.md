@@ -183,6 +183,6 @@ npm run bnb:backtest
 ## 11. References
 
 - MERIDIAN NEXUS live desk: https://trader-arc.vercel.app/nexus  
-- Judge demo: https://trader-arc.vercel.app/bnb  
+- Judge demo: https://trader-arc.vercel.app/gate  
 - Engine: `bnb-hack/engine/nexus-gate.mjs`  
 - CMC Skills template: https://github.com/coinmarketcap-official/skills-for-ai-agents-by-CoinMarketCap  

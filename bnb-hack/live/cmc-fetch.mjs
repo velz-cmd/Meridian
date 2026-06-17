@@ -76,7 +76,7 @@ export async function resolveSymbolId(symbol) {
   return row.id;
 }
 
-/** RSI proxy when historical bars unavailable (Basic plan). */
+/** RSI proxy when historical bars unavailable — labeled honestly in gate API. */
 export function rsiProxy(change24h, change7d) {
   const momentum = change24h * 0.6 + (change7d ?? 0) * 0.4;
   return Math.round(Math.min(78, Math.max(22, 50 + momentum * 0.85)) * 10) / 10;
@@ -86,6 +86,76 @@ export function macdProxy(change1h, change24h) {
   if (change1h > 1.5 && change24h > 0) return "bullish";
   if (change1h < -1.5 && change24h < 0) return "bearish";
   return "neutral";
+}
+
+/** Standard 14-period RSI from daily close prices (CMC historical). */
+export function computeRsi14(closes) {
+  if (closes.length < 15) return null;
+  let gains = 0;
+  let losses = 0;
+  for (let j = closes.length - 14; j < closes.length; j++) {
+    const d = closes[j] - closes[j - 1];
+    if (d >= 0) gains += d;
+    else losses -= d;
+  }
+  const rs = losses === 0 ? 100 : gains / losses;
+  return Math.round((100 - 100 / (1 + rs)) * 10) / 10;
+}
+
+/**
+ * Gate-grade snapshot — CoinMarketCap only, with honest field provenance.
+ * @param {string} symbol
+ */
+export async function fetchGateSnapshot(symbol) {
+  const sym = symbol.toUpperCase();
+  const quotes = await fetchLiveSnapshot(sym);
+  /** @type {Record<string, string | number | null>} */
+  const sources = {
+    price: "coinmarketcap/quotes/latest",
+    marketCap: "coinmarketcap/quotes/latest",
+    volume24h: "coinmarketcap/quotes/latest",
+    change1h: "coinmarketcap/quotes/latest",
+    change24h: "coinmarketcap/quotes/latest",
+    change7d: "coinmarketcap/quotes/latest",
+    fearGreed: "coinmarketcap/fear-and-greed/latest",
+    rsi: "coinmarketcap/quotes-momentum-proxy",
+    macd: "coinmarketcap/quotes-momentum-proxy",
+    historicalBars: null,
+  };
+
+  try {
+    const id = await resolveSymbolId(sym);
+    const data = await fetchHistoricalDaily(id, 30);
+    const bars = data.data?.quotes ?? [];
+    if (bars.length >= 15) {
+      const closes = bars.map((q) => q.quote?.USD?.price ?? 0);
+      const rsi = computeRsi14(closes);
+      const last = bars[bars.length - 1];
+      const prev = bars[bars.length - 2];
+      const ch1 =
+        prev?.quote?.USD?.price && last?.quote?.USD?.price
+          ? ((last.quote.USD.price - prev.quote.USD.price) / prev.quote.USD.price) * 100
+          : quotes.change1h;
+
+      sources.rsi = "computed-14d-from-cmc-historical-daily";
+      sources.macd = "derived-from-cmc-historical-daily";
+      sources.historicalBars = bars.length;
+
+      return {
+        snapshot: {
+          ...quotes,
+          rsi: rsi ?? quotes.rsi,
+          macdSignal: macdProxy(ch1, quotes.change24h),
+        },
+        sources,
+        cmcLive: true,
+      };
+    }
+  } catch {
+    /* fall through to quotes-only */
+  }
+
+  return { snapshot: quotes, sources, cmcLive: true };
 }
 
 /**

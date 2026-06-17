@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LineChart, Menu, Sparkles, X, Zap } from "lucide-react";
+import { Home, LineChart, Menu, Scale, Sparkles, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { MERIDIAN_BUILT_FOR } from "@/lib/meridian-brand";
 
 const links = [
   { href: "/", label: "Home", icon: Home, desc: "Overview" },
-  { href: "/prism", label: "PRISM", icon: LineChart, desc: "Macro forecasts" },
+  { href: "/gate", label: "Gate", icon: Scale, desc: "CMC strategy skill" },
   { href: "/nexus", label: "NEXUS", icon: Zap, desc: "AI trading agent" },
+  { href: "/prism", label: "PRISM", icon: LineChart, desc: "Macro forecasts" },
 ] as const;
 
 export function MobileNav() {

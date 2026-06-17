@@ -1,13 +1,12 @@
 /**
  * Constitution Permit — shared handler for Track 2 runtime API + NEXUS desk.
+ * Synthetic counterfactual removed — use /api/gate/backtest for real historical proof.
  */
-import {
-  issueConstitutionPermit,
-  backtestCompare,
-} from "../../bnb-hack/engine/nexus-gate.mjs";
+import { issueConstitutionPermit } from "../../bnb-hack/engine/nexus-gate.mjs";
 import { fetchLiveSnapshot, cmcCacheStats } from "../../bnb-hack/live/cmc-fetch.mjs";
-import { fixtureSeries, seriesForBacktest } from "../../bnb-hack/backtest/fixture-series.mjs";
+import { fetchGateSnapshot } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
+import { isGateSymbol } from "@/lib/gate-constants";
 
 export type AgentInput = { action: "BUY" | "SELL" | "HOLD"; confidence?: number; reasoning?: string };
 
@@ -54,7 +53,7 @@ export function mergeSnapshot(
   const deskPrice = overlay.priceUsd ?? 0;
   const deskLiq = overlay.liquidityUsd ?? 0;
   const cmcPrice = cmc?.price ?? 0;
-  /** Dex microcaps: CMC symbol collision (e.g. meme SPACEX vs real asset) — desk wins */
+  /** Dex microcaps: CMC symbol collision — desk wins only outside /gate benchmark path */
   const dexFirst =
     deskLiq > 0 &&
     deskLiq < 2_000_000 &&
@@ -101,10 +100,46 @@ export async function buildConstitutionResponse(input: {
   symbol: string;
   agent?: AgentInput | null;
   overlay?: DeskOverlay;
+  cmcOnly?: boolean;
 }) {
   const symbol = input.symbol.toUpperCase();
   const overlay = input.overlay ?? {};
   const hasCmc = Boolean(process.env.CMC_API_KEY || process.env.CMC_PRO_API_KEY);
+  const gateBenchmark = input.cmcOnly || (isGateSymbol(symbol) && !overlay.liquidityUsd);
+
+  if (gateBenchmark && hasCmc) {
+    const { snapshot, sources, cmcLive } = await fetchGateSnapshot(symbol);
+    const permitCore = issueConstitutionPermit(snapshot, input.agent ?? null);
+    const permit = { ...permitCore, skill: CONSTITUTION_SKILL };
+
+    return {
+      product: "MERIDIAN Gate",
+      track: "BNB Hack · Strategy Skills (CoinMarketCap)",
+      skill: CONSTITUTION_SKILL.id,
+      skillMeta: CONSTITUTION_SKILL,
+      dataSource: "cmc-only",
+      dataIntegrity: "cmc-only-no-synthetic",
+      fieldSources: sources,
+      cmcLive,
+      bnb: {
+        chainId: 56,
+        chain: "BNB Smart Chain",
+        defaultSymbols: ["BNB", "CAKE"],
+      },
+      permit,
+      backtest: {
+        endpoint: `/api/gate/backtest?symbol=${symbol}&days=90`,
+        note: "Real CMC historical backtest — no synthetic counterfactual in permit response",
+      },
+      api: {
+        curl: `curl -X POST https://trader-arc.vercel.app/api/constitution/permit -H "Content-Type: application/json" -d '{"symbol":"${symbol}","agent":{"action":"BUY","confidence":85}}'`,
+        gate: `https://trader-arc.vercel.app/api/gate/evaluate?symbol=${symbol}`,
+        backtest: `https://trader-arc.vercel.app/api/gate/backtest?symbol=${symbol}&days=90`,
+        status: "https://trader-arc.vercel.app/api/gate/status",
+      },
+      generatedAt: new Date().toISOString(),
+    };
+  }
 
   let cmcSnap: Awaited<ReturnType<typeof fetchLiveSnapshot>> | null = null;
   if (hasCmc) {
@@ -123,49 +158,31 @@ export async function buildConstitutionResponse(input: {
     cmcSnap?.price &&
     Math.abs(cmcSnap.price - overlay.priceUsd!) / overlay.priceUsd! > 0.35;
   const permitCore = issueConstitutionPermit(snap, input.agent ?? null);
-  const permit = {
-    ...permitCore,
-    skill: CONSTITUTION_SKILL,
-  };
-  const backtestInput = seriesForBacktest(snap, Boolean(cmcSnap) && !deskDex);
-  const counterfactual = backtestCompare(backtestInput.bars);
+  const permit = { ...permitCore, skill: CONSTITUTION_SKILL };
 
   return {
     product: "MERIDIAN Constitution Permit",
     track: "BNB Hack · Strategy Skills (CoinMarketCap)",
     skill: CONSTITUTION_SKILL.id,
     skillMeta: CONSTITUTION_SKILL,
-    dataSource: deskDex
-      ? "desk-dex+cmc-macro"
-      : cmcSnap
-        ? "cmc-live+desk"
-        : "desk+cmc-fallback",
+    dataSource: deskDex ? "desk-dex+cmc-macro" : cmcSnap ? "cmc-live+desk" : "desk+cmc-fallback",
     cmcLive: Boolean(cmcSnap) && !deskDex,
     bnb: {
       chainId: 56,
       chain: "BNB Smart Chain",
       wallet: "Trust Wallet / injected (MetaMask)",
-      sdk: "BNB AI Agent SDK compatible permit schema",
       defaultSymbols: ["BNB", "CAKE"],
     },
     permit,
-    counterfactual,
-    counterfactualMeta: {
-      mode: backtestInput.mode,
-      bars: backtestInput.bars.length,
-      anchorSymbol: backtestInput.anchorSymbol,
-      anchorPrice: backtestInput.anchorPrice,
-      regime: permit.gate?.regime ?? null,
-      fearGreed: snap.fearGreed,
-      note:
-        backtestInput.mode === "live-calibrated"
-          ? "Synthetic bars anchored to live CMC snapshot — not exchange history."
-          : "Offline fixture series — run npm run bnb:backtest for full historical report.",
+    backtest: {
+      endpoint: `/api/gate/backtest?symbol=${isGateSymbol(symbol) ? symbol : "BNB"}&days=90`,
+      note: "Use /gate for benchmark tokens — real historical backtest only",
     },
     api: {
       curl: `curl -X POST https://trader-arc.vercel.app/api/constitution/permit -H "Content-Type: application/json" -d '{"symbol":"${symbol}","agent":{"action":"BUY","confidence":85}}'`,
-      status: "https://trader-arc.vercel.app/api/constitution/status",
-      permit: "https://trader-arc.vercel.app/api/constitution/permit",
+      gate: "https://trader-arc.vercel.app/gate",
+      backtest: `https://trader-arc.vercel.app/api/gate/backtest?symbol=BNB&days=90`,
+      status: "https://trader-arc.vercel.app/api/gate/status",
     },
     generatedAt: new Date().toISOString(),
   };
@@ -188,7 +205,7 @@ export async function probeConstitutionStatus() {
   }
 
   return {
-    product: "MERIDIAN Constitution Permit",
+    product: "MERIDIAN Gate",
     track: CONSTITUTION_SKILL.hubTrack,
     skill: CONSTITUTION_SKILL,
     cmc: {
@@ -200,12 +217,14 @@ export async function probeConstitutionStatus() {
     },
     bnb: { chainId: 56, defaultSymbols: ["BNB", "CAKE"] },
     endpoints: {
+      gate: "/gate",
+      evaluate: "/api/gate/evaluate",
+      backtest: "/api/gate/backtest",
+      status: "/api/gate/status",
       permit: "/api/constitution/permit",
-      status: "/api/constitution/status",
     },
     demo: {
-      url: "https://trader-arc.vercel.app/nexus",
-      hash: "#nexus-constitution-desk",
+      url: "https://trader-arc.vercel.app/gate",
       symbols: ["BNB", "CAKE"],
     },
     generatedAt: new Date().toISOString(),

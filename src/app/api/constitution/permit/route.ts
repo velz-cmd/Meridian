@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 /**
  * MERIDIAN Constitution Permit — Track 2 runtime API.
- * Agents request a trade permit; constitution GRANTs or DENYs with receipt + counterfactual backtest.
+ * Synthetic counterfactual removed; use /api/gate/backtest for historical proof.
  */
 export async function GET(req: NextRequest) {
   const symbol = (req.nextUrl.searchParams.get("symbol") ?? "BNB").toUpperCase();

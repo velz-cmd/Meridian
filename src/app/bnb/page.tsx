@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+/** BNB Hack demo — standalone gate product */
 export default function BnbRedirectPage() {
-  redirect("/nexus#nexus-constitution-desk");
+  redirect("/gate");
 }

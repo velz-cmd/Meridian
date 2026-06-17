@@ -22,16 +22,17 @@ Two production-grade AI agents for the **Agora Agents Hackathon** (Circle × Arc
 
 ## BNB Hack — Strategy Skills (Track 2)
 
-**MERIDIAN Constitution Permit** — agents request trades; constitution issues **GRANT** or **DENY** with CMC-backed rules, counterfactual backtest, and live enforcement on NEXUS.
+**MERIDIAN Gate** — CoinMarketCap Strategy Skill with live evaluation and real historical backtest.
 
 | Layer | Location |
 |-------|----------|
-| **Live product** | [/nexus](https://trader-arc.vercel.app/nexus) — Constitution Permit desk + **Run Hackathon Demo** |
-| **Runtime API** | `POST /api/constitution/permit` · `GET /api/constitution/status` |
+| **Product** | [/gate](https://trader-arc.vercel.app/gate) |
+| **Live API** | `GET /api/gate/evaluate?symbol=BNB` |
+| **Backtest API** | `GET /api/gate/backtest?symbol=BNB&days=90` |
 | **CMC Skill** | [`bnb-hack/skills/nexus-momentum-gate/SKILL.md`](bnb-hack/skills/nexus-momentum-gate/SKILL.md) |
 | **Submission** | [`bnb-hack/SUBMIT.md`](bnb-hack/SUBMIT.md) |
 
-**Judge demo:** Open `/nexus` → click **Run Hackathon Demo** → watch BNB permit flow → buy blocked on DENY → copy full receipt.
+**Judge demo:** Open `/gate` → BNB live gate → 90-day backtest → reproduce via curl.
 
 ## Quick start
 
