@@ -27,7 +27,7 @@ function DataTable({
   if (rows.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-white/12 px-3 py-4 text-center text-xs text-white/55">
-        No wallet rows yet — trying GMGN, Blockscout, Moralis, DexPaprika, and Dex pool trades…
+        No wallet rows yet — scanning on-chain holder graph and pool trades…
       </p>
     );
   }
@@ -81,7 +81,7 @@ export function NexusHolderTables({
     ? "Loading traders…"
     : topTraders.length === 0
       ? "No live trader rows yet"
-      : `${topTraders.length} active wallets · volume / GMGN tags`;
+      : `${topTraders.length} active wallets · volume / smart tags`;
 
   return (
     <div className="space-y-3">

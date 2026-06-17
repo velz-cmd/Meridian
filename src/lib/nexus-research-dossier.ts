@@ -237,7 +237,7 @@ export function technicalSnapshotFromBlocks(
     macd: h1.macd,
     macdSignal: h1.macdSignal,
     trend,
-    trendLine: `${h1.timeframe} · ${h1.source === "birdeye_ohlcv" ? "Birdeye OHLCV" : "Dex est."}: RSI ${h1.rsi14} · MACD ${h1.macdSignal}`,
+    trendLine: `${h1.timeframe} · ${h1.source === "birdeye_ohlcv" ? "Live OHLCV" : "Market est."}: RSI ${h1.rsi14} · MACD ${h1.macdSignal}`,
     score,
     taSource: h1.source,
   };
@@ -511,16 +511,13 @@ export function buildLiveReasoning(
     pattern.label,
     m15 ? `15m RSI ${m15.rsi14} (${m15.rsiSignal})` : null,
     h1 ? `1h MACD ${h1.macdSignal}` : null,
-    h1?.source === "birdeye_ohlcv" || m15?.source === "birdeye_ohlcv" ? "Birdeye OHLCV" : "Dex momentum est.",
+    h1?.source === "birdeye_ohlcv" || m15?.source === "birdeye_ohlcv" ? "Live OHLCV" : "Market momentum est.",
   ]
     .filter(Boolean)
     .join(" · ");
 
-  const sources: string[] = [];
-  if (hasBirdeyeKey()) sources.push("Birdeye");
-  if (hasGmgnApiKey()) sources.push("GMGN");
-  sources.push("DexScreener", "GoPlus", "Blockscout/Moralis", "Agent stack");
-  if (dossier?.dataNotes?.some((n) => n.includes("6551") || n.includes("OpenNews"))) sources.push("6551 news");
+  const sources: string[] = ["Market data", "On-chain intel", "Agent stack"];
+  if (dossier?.dataNotes?.some((n) => /social|news|headline/i.test(n))) sources.push("Social feed");
 
   const custom = buildTokenAgentNarrative(
     token,
@@ -663,13 +660,11 @@ export async function buildTokenDossierPayload(
     dataNotes.push(...holderCascade.notes);
   }
   if (topHolders.length === 0) {
-    dataNotes.push(
-      "Top holders: no live rows returned (Birdeye/GMGN/Blockscout/Moralis/DexPaprika) — tap Retry",
-    );
+    dataNotes.push("Top holders: no live rows yet — tap Retry");
   } else if (gmgnHolders.length > 0) {
-    dataNotes.push("Top holders: GMGN OpenAPI");
+    dataNotes.push("Top holders: on-chain holder graph");
   } else {
-    dataNotes.push(`Top holders: ${detection?.summary.dataSource ?? "on-chain"}`);
+    dataNotes.push("Top holders: on-chain");
   }
 
   const holderSource =
@@ -696,10 +691,10 @@ export async function buildTokenDossierPayload(
       [],
       holderCascade.source === "gmgn" ? "gmgn" : "birdeye",
     );
-    dataNotes.push("Top traders: DexPaprika pool flow / GMGN");
+    dataNotes.push("Top traders: pool flow / smart tags");
   } else if (topTraders.length < 2) {
     topTraders = [];
-    dataNotes.push("Top traders: no live rows returned for this pair");
+    dataNotes.push("Top traders: no live rows for this pair");
   }
 
   const scam = assessTokenScam(token, intel);
@@ -729,7 +724,7 @@ export async function buildTokenDossierPayload(
   let copyTradeStatus = "Not loaded";
   if (light) {
     copyTradeStatus = "Skipped on fast feed dossier";
-    dataNotes.push("Copy-trade: skipped on fast feed dossier (open Alpha for full GMGN desk)");
+    dataNotes.push("Copy-trade: skipped on fast feed (open Alpha for full desk)");
   } else {
     const copyTradeResult = await buildProfitableCopyTradeWallets(
       token.chainId,
@@ -747,25 +742,29 @@ export async function buildTokenDossierPayload(
     if (hasOpenNewsToken()) {
       dataNotes.push(
         openNewsCount > 0
-          ? `6551 OpenNews: ${openNewsCount} headline${openNewsCount > 1 ? "s" : ""} for ${token.symbol}`
-          : "6551: configured — run Alpha Scan for full news pass",
+          ? `Social feed: ${openNewsCount} headline${openNewsCount > 1 ? "s" : ""} for ${token.symbol}`
+          : "Social feed: configured — run Alpha Scan for full news pass",
       );
     }
   } else if (hasOpenNewsToken()) {
     const probe = await probeOpenNews();
     if (!probe.ok && is6551TokenRotated(probe.error)) {
-      dataNotes.push(`6551: ${probe.error ?? "token rotated — update API_KEY_6551 on Vercel and redeploy"}`);
+      dataNotes.push("Social feed: token rotated — update server config and redeploy");
     } else if (!probe.ok) {
-      dataNotes.push(`6551: ${probe.error ?? "OpenNews unavailable"}`);
+      dataNotes.push(
+        /quota|rate.?limit|insufficient/i.test(probe.error ?? "")
+          ? "Social feed unavailable — quota limited, retry later"
+          : "Social feed unavailable — retry later",
+      );
     } else {
       dataNotes.push(
         openNewsCount > 0
-          ? `6551 OpenNews: ${openNewsCount} headline${openNewsCount > 1 ? "s" : ""} for ${token.symbol}`
-          : `6551: connected but no headlines matched ${token.symbol} yet`,
+          ? `Social feed: ${openNewsCount} headline${openNewsCount > 1 ? "s" : ""} for ${token.symbol}`
+          : `Social feed: connected — no headlines matched ${token.symbol} yet`,
       );
     }
   } else {
-    dataNotes.push("6551: API_KEY_6551 / OPENNEWS_TOKEN not on server — redeploy Production env");
+    dataNotes.push("Social feed: not configured on server");
   }
 
   const ta1h = technicalBlocks.find((t) => t.timeframe === "1h");

@@ -74,8 +74,8 @@ export function NexusTAContent({
         <p className="nexus-muted flex items-center gap-1.5">
           <Activity className="h-3.5 w-3.5 shrink-0 text-violet-300/80" />
           {"taSource" in technical && technical.taSource === "birdeye_ohlcv"
-            ? "Birdeye OHLCV candles (15m / 1h when available)"
-            : "Derived from live DexScreener price changes (m5 / h1 / h6 / h24)"}
+            ? "Live OHLCV candles (15m / 1h when available)"
+            : "Derived from live market price changes (m5 / h1 / h6 / h24)"}
         </p>
       </div>
   );
@@ -100,8 +100,8 @@ export function NexusTAPanel({
   const src =
     "taSource" in technical && technical.taSource
       ? technical.taSource === "birdeye_ohlcv"
-        ? "Birdeye OHLCV"
-        : "DexScreener"
+        ? "Live OHLCV"
+        : "Market data"
       : null;
   const hint = `RSI ${technical.rsi.toFixed(0)} · MACD ${technical.macdSignal} · ${technical.trend.replace("_", " ")} · ${technical.score}/100${src ? ` · ${src}` : ""}`;
 

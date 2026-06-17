@@ -207,6 +207,7 @@ export function evaluateNexusGate(t) {
   const edge = estimateEdge(checks, fg);
 
   let tier = /** @type {SetupTier} */ ("watch");
+  const criticalFail = checks.some((c) => !c.pass && ["rsi", "structure", "momentum_band"].includes(c.id));
   const needAPlus = established ? (regime === "risk-off" ? 8 : 7) : regime === "risk-off" ? 9 : 8;
   const edgeAPlus = established
     ? regime === "risk-off"
@@ -226,6 +227,11 @@ export function evaluateNexusGate(t) {
   } else {
     if (agreement >= 0.78 && edge >= edgeAPlus + 4 && passed >= needAPlus) tier = "a-plus";
     else if (agreement >= 0.62 && edge >= edgeA + 2 && passed >= needA) tier = "a";
+  }
+
+  if (criticalFail) {
+    if (tier === "a-plus") tier = "a";
+    else if (tier === "a") tier = "watch";
   }
 
   let signal = /** @type {Signal} */ ("HOLD");
@@ -294,6 +300,11 @@ export function enforceAgentGate(t, agentSignal) {
   let overridden = false;
 
   if (rawAction === "ENTER_LONG" && gate.signal !== "ENTER_LONG") {
+    action = "HOLD";
+    confidence = Math.min(confidence, gate.confidence);
+    risk = Math.max(risk, gate.risk);
+    overridden = true;
+  } else if (agentSignal.action === "SELL" && gate.signal === "ENTER_LONG") {
     action = "HOLD";
     confidence = Math.min(confidence, gate.confidence);
     risk = Math.max(risk, gate.risk);
@@ -576,17 +587,52 @@ export function issueConstitutionPermit(t, agentSignal = null) {
     overridden = veto.overridden;
   }
 
-  const grant =
-    finalAction === "ENTER_LONG" ||
-    (agentSignal?.action === "SELL" && (gate.signal === "EXIT" || gate.signal === "AVOID"));
+  const req = agentSignal?.action;
+  let status = /** @type {"GRANT" | "DENY"} */ ("GRANT");
+  let execute = "FLAT";
+  let blockReason = null;
+
+  if (req === "BUY") {
+    const ok = gate.signal === "ENTER_LONG" && finalAction === "ENTER_LONG";
+    status = ok ? "GRANT" : "DENY";
+    execute = ok ? "LONG" : "FLAT";
+    if (!ok) {
+      blockReason =
+        finalAction === "HOLD" || finalAction === "AVOID"
+          ? "Agent BUY blocked — constitution has not cleared ENTER_LONG"
+          : "Gate signal is not ENTER_LONG";
+    }
+  } else if (req === "SELL") {
+    if (gate.signal === "ENTER_LONG") {
+      status = "DENY";
+      execute = "FLAT";
+      blockReason = "Agent SELL blocked — constitution still ENTER_LONG (hold position)";
+    } else {
+      const ok = gate.signal === "EXIT" || gate.signal === "AVOID";
+      status = ok ? "GRANT" : "DENY";
+      execute = "FLAT";
+      if (!ok) {
+        blockReason =
+          gate.signal === "HOLD"
+            ? "Agent SELL blocked — gate has not confirmed EXIT"
+            : "SELL not cleared by constitution";
+      }
+    }
+  } else {
+    status = "GRANT";
+    execute = gate.signal === "ENTER_LONG" ? "LONG" : "FLAT";
+  }
+
+  const grant = status === "GRANT";
 
   return {
     schema: "meridian-constitution-permit/v1",
     permitId,
     timestamp: ts,
     symbol: sym,
-    status: grant ? "GRANT" : "DENY",
-    execute: grant ? (finalAction === "ENTER_LONG" ? "LONG" : "FLAT") : "FLAT",
+    status,
+    execute: grant ? execute : "FLAT",
+    blockReason,
     agentRequested: agentSignal?.action ?? null,
     constitutionSignal: gate.signal,
     finalAction,

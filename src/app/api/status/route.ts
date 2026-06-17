@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isOpsAuthorized } from "@/lib/ops-auth";
 import { getArcStatus, arcTestnet, ARC_TESTNET_ID } from "@/lib/arc";
 import { getCircleStatus } from "@/lib/circle";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -66,6 +67,18 @@ type OptionalStatusProbes = {
 };
 
 export async function GET(request: Request) {
+  if (!isOpsAuthorized(request)) {
+    return NextResponse.json(
+      {
+        product: "MERIDIAN",
+        public: true,
+        nexus: "/nexus",
+        constitution: "/api/constitution/status",
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const quick =
     new URL(request.url).searchParams.get("quick") === "1" ||
     process.env.STATUS_QUICK_DEFAULT?.trim() === "true";

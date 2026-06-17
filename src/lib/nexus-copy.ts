@@ -16,17 +16,17 @@ export const NEXUS_ALPHA_HERO_SUB =
 
 /** Shown above optional intel panels (under chart) */
 export const NEXUS_INTEL_BRIEF =
-  "NEXUS is built for pro meme-coin hunters: the agent fuses on-chain flow, holder concentration, multi-timeframe TA (Birdeye when available), GMGN smart money, OpenNews/Twitter sweeps, and rug heuristics — then outputs BUY · SELL · HOLD with a written thesis. Expand sections below when you want the full reasoning; the feed and Alpha Scan already run a lighter pass on every token.";
+  "NEXUS is built for pro meme-coin hunters: the agent fuses on-chain flow, holder concentration, multi-timeframe TA, social sweeps, and rug heuristics — then outputs BUY · SELL · HOLD with a written thesis. Expand sections below when you want the full reasoning; the feed and Alpha Scan already run a lighter pass on every token.";
 
 export const NEXUS_AGENT_LAYERS = [
-  "Dex liquidity & 24h buy/sell flow",
-  "Birdeye OHLCV · RSI · MACD · MAs",
-  "GMGN holders & smart-money tags",
-  "6551 news / Twitter buzz",
-  "Bubblemaps-style concentration & scam checks",
+  "On-chain liquidity & 24h buy/sell flow",
+  "Multi-timeframe OHLCV · RSI · MACD · MAs",
+  "Holder graph & smart-money tags",
+  "Social feed & narrative buzz",
+  "Concentration & scam checks",
 ] as const;
 
-/** GMGN-style skills surfaced on Alpha deep intel (not generic chat copy). */
+/** Pro intel skills surfaced on Alpha deep scan (not generic chat copy). */
 export const NEXUS_GMGN_PRO_SKILLS = [
   "Top holders & wallet % supply",
   "Smart-money / KOL tagged wallets",
@@ -50,7 +50,7 @@ export const NEXUS_VALUE_STEPS = [
   },
 ] as const;
 
-/** What GMGN-style terminals show manually vs what NEXUS automates */
+/** What dense terminals show manually vs what NEXUS automates */
 export const NEXUS_AUTOMATES = [
   "Top traders & holder tables",
   "Snipers, insiders, honeypot checks",
@@ -60,7 +60,7 @@ export const NEXUS_AUTOMATES = [
 ] as const;
 
 export const ALPHA_SCAN_LOADING =
-  "Pro desk pass — DexScreener structure, Birdeye TA/flow, GMGN signals & security. Ranking by liquidity, momentum, holder risk, and entry gate (not AI hype).";
+  "Pro desk pass — market structure, TA, signals & security. Ranking by liquidity, momentum, holder risk, and entry gate (not AI hype).";
 
 export const ALPHA_SCAN_EMPTY =
   "Run a scan from the hero above — the agent will research dozens of tokens and return a short ranked list.";
@@ -77,9 +77,58 @@ export const SAVED_SCANS_LABEL = (n: number, max: number) =>
 export function publicSourceLabel(tag: string): string {
   if (/signal/i.test(tag)) return "Live signal";
   if (/trending/i.test(tag)) return "Trending";
-  if (/dex/i.test(tag)) return "Market data";
-  if (/gecko/i.test(tag)) return "Trending pool";
+  if (/dex|market|screener|paprika|gecko/i.test(tag)) return "Market data";
+  if (/birdeye|ohlcv|ta/i.test(tag)) return "Chart data";
+  if (/gmgn|holder|wallet|smart/i.test(tag)) return "On-chain";
+  if (/6551|news|twitter|social|opennews/i.test(tag)) return "Social feed";
+  if (/blockscout|moralis|goplus|bubble/i.test(tag)) return "Holder graph";
   return "Intel";
+}
+
+/** Strip vendor names from intel notes shown in dossier UI. */
+export function sanitizeIntelNote(note: string): string {
+  let s = note
+    .replace(/\b(Birdeye|GMGN|6551|DexPaprika|Bubblemaps|Blockscout|Moralis|DexScreener|GoPlus|OpenNews|OpenTwitter|ApeWisdom)\b/gi, "")
+    .replace(/API_KEY_6551|OPENNEWS_TOKEN|GMGN_API_KEY|BIRDEYE_API_KEY/gi, "server config")
+    .replace(/on Vercel and redeploy/gi, "on server and redeploy")
+    .replace(/\(\s*\)/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  if (/quota|rate.?limit|insufficient/i.test(s)) {
+    return "Data feed unavailable — quota limited, retry later";
+  }
+  if (/no live rows|empty|unavailable|not set|not on server/i.test(s)) {
+    return s.replace(/:\s*$/, "") || "Data feed unavailable — retry later";
+  }
+  if (/Top holders:/i.test(s)) return s.replace(/Top holders:.*/, "Top holders: on-chain graph");
+  if (/Top traders:/i.test(s)) return s.replace(/Top traders:.*/, "Top traders: pool flow / smart tags");
+  if (/Copy-trade:/i.test(s)) return s.replace(/full GMGN desk/i, "full Alpha desk");
+  if (/6551|OpenNews|social/i.test(note)) {
+    return openNewsCountFromNote(note);
+  }
+  return s || "Intel note";
+}
+
+function openNewsCountFromNote(note: string): string {
+  const m = note.match(/(\d+)\s+headline/);
+  if (m) return `Social feed: ${m[1]} headline${Number(m[1]) > 1 ? "s" : ""} matched`;
+  if (/configured|connected/i.test(note)) return "Social feed: connected — run Alpha Scan for full pass";
+  return "Social feed unavailable — retry later";
+}
+
+/** Sanitize source tags for agent reasoning strip. */
+export function sanitizeIntelSources(sources: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const src of sources) {
+    const label = publicSourceLabel(src);
+    if (!seen.has(label)) {
+      seen.add(label);
+      out.push(label);
+    }
+  }
+  return out;
 }
 
 export function publicSentimentSummary(label: string, score: number): string {
@@ -98,7 +147,7 @@ export const FEED_INTEL_LABEL = "Desk scout pass";
 export const ALPHA_INTEL_LABEL = "Alpha deep intel";
 
 export const REASONING_HEADLINE =
-  "Expand for thesis and signals — stats above are Dex-verified; agent only cites actionable edges.";
+  "Expand for thesis and signals — stats above are market-verified; agent only cites actionable edges.";
 
 export const LIVE_FEED_INTRO =
   "Discovery hunter — fresh launches & 2x–100x bands. Scout pass: BUY only when liquidity, flow, TA & intraday structure align (most rows WATCH). Alpha Scan = pro desk.";
@@ -110,7 +159,7 @@ export const ALPHA_TAB_SUBTITLE =
   "Paid pro desk — unique ranked picks (not your Live Feed list)";
 
 export const ALPHA_LIST_INTRO =
-  "Pro meme-coin desk — Dex + GMGN + Birdeye quantitative pass (flow, TA, security, entry gate). BUY only when checks align; most setups stay WATCH. Not your Live Feed list.";
+  "Pro meme-coin desk — quantitative pass (flow, TA, security, entry gate). BUY only when checks align; most setups stay WATCH. Not your Live Feed list.";
 
 /** One-line agent verdict for list rows */
 export function agentVerdictLine(whyAction?: string, thesis?: string, reasoning?: string): string {

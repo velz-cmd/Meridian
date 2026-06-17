@@ -72,7 +72,7 @@ function MultiTimeframeTa({
             className="rounded-xl border border-white/10 bg-black/25 px-3 py-2.5"
           >
             <p className="mb-1.5 text-[10px] font-bold uppercase text-white/45">
-              {tf.timeframe} · {tf.source === "birdeye_ohlcv" ? "Birdeye" : "Dex est."}
+              {tf.timeframe} · {tf.source === "birdeye_ohlcv" ? "Live OHLCV" : "Dex est."}
             </p>
             <p className="text-xs text-white/80">
               RSI {tf.rsi14} <TaBadge signal={tf.rsiSignal} /> · MACD <TaBadge signal={tf.macdSignal} />
@@ -173,7 +173,7 @@ export function NexusIntelCollapsibles({
             {loading && !narrative && (
               <p className="flex items-center gap-2 text-xs text-white/55">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Pro trader dossier (Dex · Birdeye · GMGN · 6551 news)…
+                Pro trader dossier loading…
               </p>
             )}
             <p className="nexus-lead rounded-xl border border-cyan-400/20 bg-cyan-400/[0.06] px-3 py-2.5 text-sm leading-relaxed text-white/90">
@@ -190,7 +190,7 @@ export function NexusIntelCollapsibles({
               <p className="text-xs text-white/50">No factor breakdown yet — run Alpha Scan or wait for dossier.</p>
             )}
             {live?.sources?.length ? (
-              <p className="text-[10px] text-white/40">Sources: {live.sources.join(" · ")}</p>
+              <p className="text-[10px] text-white/40">{live.sources.length} intel sources fused</p>
             ) : null}
           </div>
         </NexusCollapsible>

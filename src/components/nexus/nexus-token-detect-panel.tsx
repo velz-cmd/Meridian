@@ -165,13 +165,13 @@ export function NexusTokenDetectPanel({
     s?.dataSource === "dex";
   const sourceLabel =
     s?.dataSource === "dexpaprika"
-      ? "DexPaprika on-chain"
+      ? "On-chain pool"
       : s?.dataSource === "birdeye"
         ? s?.holderSource === "top_traders"
-          ? "Birdeye · top traders"
-          : "Birdeye live"
+          ? "Top traders · live"
+          : "On-chain · live"
         : s?.dataSource === "dex"
-          ? "DexScreener flow"
+          ? "Market flow"
           : loading
             ? "Scanning…"
             : "Awaiting data";
@@ -236,7 +236,7 @@ export function NexusTokenDetectPanel({
           </div>
 
           <p className="text-xs leading-relaxed text-white/75">
-            You do not need DexScreener tabs — the agent reads liquidity, flow, whales, and news, then signals{" "}
+            You do not need extra tabs — the agent reads liquidity, flow, whales, and news, then signals{" "}
             <strong className="text-cyan-100">{agentAction ?? "HOLD"}</strong> for you.
           </p>
 
@@ -337,7 +337,7 @@ export function NexusTokenDetectPanel({
                       />
                     ))
                   ) : (
-                    <Empty text="No swaps yet — refreshes every 45s with DexPaprika + Birdeye." />
+                    <Empty text="No swaps yet — refreshes every 45s from on-chain feeds." />
                   ))}
 
                 {tab === "whales" &&
@@ -401,7 +401,7 @@ export function NexusTokenDetectPanel({
                       text={
                         isLive
                           ? "No insider/deployer cluster flagged — still check Creator & rug check."
-                          : "Insider rows load when Birdeye / DexPaprika connects."
+                          : "Insider rows load when on-chain scan connects."
                       }
                     />
                   ))}

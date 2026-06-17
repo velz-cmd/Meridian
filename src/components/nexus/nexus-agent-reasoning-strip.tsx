@@ -12,6 +12,7 @@ import {
   REASONING_HEADLINE,
   NEXUS_GMGN_PRO_SKILLS,
   agentVerdictLine,
+  sanitizeIntelSources,
 } from "@/lib/nexus-copy";
 import { filterReasoningFactorsForDisplay } from "@/lib/reasoning-factors";
 
@@ -128,7 +129,7 @@ export function NexusAgentReasoningStrip({
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             {isAlpha
               ? "Deep scan: holders · flow · TA · contract risk…"
-              : "Desk scout: Dex flow · Birdeye TA · entry gate — not AI signal spam…"}
+              : "Desk scout: market flow · TA · entry gate — not AI signal spam…"}
           </p>
         ) : (
           <p className="text-sm leading-relaxed text-white/90">{narrative}</p>
@@ -168,7 +169,7 @@ export function NexusAgentReasoningStrip({
         {gmgnNotes.length > 0 && (
           <ul className="space-y-1 text-[10px] text-cyan-200/75">
             {gmgnNotes.map((n) => (
-              <li key={n}>GMGN · {n}</li>
+              <li key={n}>On-chain · {n}</li>
             ))}
           </ul>
         )}
@@ -192,7 +193,7 @@ export function NexusAgentReasoningStrip({
 
         {live?.sources?.length ? (
           <p className="text-[10px] text-white/40">
-            Sources: {live.sources.join(" · ")}
+            Sources: {sanitizeIntelSources(live.sources).join(" · ")}
             {payload?.fetchedAt ? ` · ${new Date(payload.fetchedAt).toLocaleTimeString()}` : ""}
           </p>
         ) : null}

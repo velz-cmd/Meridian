@@ -51,6 +51,35 @@ export function mergeSnapshot(
   symbol: string,
   overlay: DeskOverlay,
 ) {
+  const deskPrice = overlay.priceUsd ?? 0;
+  const deskLiq = overlay.liquidityUsd ?? 0;
+  const cmcPrice = cmc?.price ?? 0;
+  /** Dex microcaps: CMC symbol collision (e.g. meme SPACEX vs real asset) — desk wins */
+  const dexFirst =
+    deskLiq > 0 &&
+    deskLiq < 2_000_000 &&
+    deskPrice > 0 &&
+    cmcPrice > 0 &&
+    Math.abs(cmcPrice - deskPrice) / deskPrice > 0.35;
+
+  if (dexFirst || (!cmc && deskPrice > 0)) {
+    return {
+      symbol,
+      price: deskPrice,
+      marketCap: overlay.marketCap ?? 0,
+      volume24h: overlay.volume24h ?? 0,
+      change1h: overlay.change1h ?? 0,
+      change24h: overlay.change24h ?? 0,
+      change7d: overlay.change7d ?? 0,
+      rsi: overlay.rsi ?? 50,
+      macdSignal: overlay.macdSignal ?? "neutral",
+      fearGreed: cmc?.fearGreed ?? 50,
+      liquidityUsd: overlay.liquidityUsd,
+      buyFlowRatio: overlay.buyFlowRatio,
+      top10HolderPct: overlay.top10HolderPct,
+    };
+  }
+
   return {
     symbol,
     price: cmc?.price ?? overlay.priceUsd ?? 0,
@@ -87,12 +116,18 @@ export async function buildConstitutionResponse(input: {
   }
 
   const snap = mergeSnapshot(cmcSnap, symbol, overlay);
+  const deskDex =
+    (overlay.liquidityUsd ?? 0) > 0 &&
+    (overlay.liquidityUsd ?? 0) < 2_000_000 &&
+    (overlay.priceUsd ?? 0) > 0 &&
+    cmcSnap?.price &&
+    Math.abs(cmcSnap.price - overlay.priceUsd!) / overlay.priceUsd! > 0.35;
   const permitCore = issueConstitutionPermit(snap, input.agent ?? null);
   const permit = {
     ...permitCore,
     skill: CONSTITUTION_SKILL,
   };
-  const backtestInput = seriesForBacktest(snap, Boolean(cmcSnap));
+  const backtestInput = seriesForBacktest(snap, Boolean(cmcSnap) && !deskDex);
   const counterfactual = backtestCompare(backtestInput.bars);
 
   return {
@@ -100,8 +135,12 @@ export async function buildConstitutionResponse(input: {
     track: "BNB Hack · Strategy Skills (CoinMarketCap)",
     skill: CONSTITUTION_SKILL.id,
     skillMeta: CONSTITUTION_SKILL,
-    dataSource: cmcSnap ? "cmc-live+desk" : "desk+cmc-fallback",
-    cmcLive: Boolean(cmcSnap),
+    dataSource: deskDex
+      ? "desk-dex+cmc-macro"
+      : cmcSnap
+        ? "cmc-live+desk"
+        : "desk+cmc-fallback",
+    cmcLive: Boolean(cmcSnap) && !deskDex,
     bnb: {
       chainId: 56,
       chain: "BNB Smart Chain",

@@ -40,7 +40,6 @@ import { NexusConstitutionStartPicks } from "@/components/nexus/nexus-constituti
 import { ConstitutionProvider } from "@/contexts/nexus-constitution-context";
 import { useTokenDossier } from "@/hooks/use-token-dossier";
 import { useLiveTokenQuote, type LiveTokenQuote } from "@/hooks/use-live-token-quote";
-import { NexusIntegrationsBanner } from "@/components/nexus/nexus-integrations-banner";
 import { NexusFeedTabs, type NexusFeedTab } from "@/components/nexus/nexus-feed-tabs";
 import { NexusMobileDock, type NexusMobilePanel } from "@/components/nexus/nexus-mobile-dock";
 import { NexusMobileContextBar } from "@/components/nexus/nexus-mobile-context-bar";
@@ -736,9 +735,6 @@ export function NexusConsole() {
             </button>
           </div>
         )}
-        <div className="mb-3">
-          <NexusIntegrationsBanner />
-        </div>
 
         <div
           id="nexus-mobile-content"

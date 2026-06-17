@@ -7,7 +7,8 @@ export const fixtureSeries = [
   { symbol: "BNB", price: 598, marketCap: 90e9, volume24h: 1.35e9, change1h: 1.0, change24h: 5.5, change7d: 8.2, rsi: 58, macdSignal: "bullish", fearGreed: 60 },
   { symbol: "BNB", price: 605, marketCap: 91e9, volume24h: 1.4e9, change1h: 1.1, change24h: 6.2, change7d: 9.1, rsi: 59, macdSignal: "bullish", fearGreed: 62 },
   { symbol: "BNB", price: 612, marketCap: 92e9, volume24h: 1.45e9, change1h: 1.2, change24h: 5.8, change7d: 10, rsi: 61, macdSignal: "bullish", fearGreed: 63 },
-  { symbol: "BNB", price: 608, marketCap: 91.5e9, volume24h: 1.5e9, change1h: -0.7, change24h: 4.9, change7d: 9.5, rsi: 58, macdSignal: "neutral", fearGreed: 61 },
+  { symbol: "BNB", price: 638, marketCap: 91.5e9, volume24h: 3.6e9, change1h: 4.9, change24h: 52, change7d: 9.5, rsi: 76, macdSignal: "bullish", fearGreed: 82, buyFlowRatio: 0.91 },
+  { symbol: "BNB", price: 608, marketCap: 91.5e9, volume24h: 1.5e9, change1h: -4.7, change24h: 4.9, change7d: 9.5, rsi: 58, macdSignal: "neutral", fearGreed: 61, buyFlowRatio: 0.48 },
   { symbol: "BNB", price: 615, marketCap: 92.5e9, volume24h: 1.55e9, change1h: 1.1, change24h: 5.2, change7d: 10.5, rsi: 60, macdSignal: "bullish", fearGreed: 62 },
   { symbol: "BNB", price: 620, marketCap: 93e9, volume24h: 1.6e9, change1h: 0.8, change24h: 4.5, change7d: 11, rsi: 62, macdSignal: "bullish", fearGreed: 64 },
   { symbol: "BNB", price: 618, marketCap: 92.8e9, volume24h: 1.58e9, change1h: -0.3, change24h: 3.8, change7d: 10.2, rsi: 59, macdSignal: "neutral", fearGreed: 63 },
@@ -44,30 +45,41 @@ export function calibrateSeriesFromSnapshot(snap, barCount = 20) {
   for (let i = 0; i < barCount; i++) {
     const t = barCount <= 1 ? 1 : i / (barCount - 1);
     const noise = Math.sin(i * 1.31) * 0.011 + Math.cos(i * 0.47) * 0.007;
-    const pump = i === 12 ? 0.048 : i === 13 ? -0.041 : 0;
+    const badPump = i === 12;
+    const pump = badPump ? 0.052 : i === 13 ? -0.045 : 0;
     let price = startPrice * (1 + (ch7 / 100) * t * 0.55 + noise + pump);
     if (i === barCount - 1) price = endPrice;
 
     const prev = i > 0 ? series[i - 1].price : startPrice;
-    const change1h = prev > 0 ? ((price - prev) / prev) * 100 : 0;
-    const change24hBar = startPrice > 0 ? ((price - startPrice) / startPrice) * 100 : ch24;
-    const rsi = Math.min(78, Math.max(22, endRsi - 10 + t * 12 + Math.sin(i * 0.9) * 5));
-    const turnover = vol24 / Math.max(mc, 1);
-    const badPump = pump > 0.04;
+    let change1h = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+    let change24hBar = startPrice > 0 ? ((price - startPrice) / startPrice) * 100 : ch24;
+    let rsiBar = Math.min(78, Math.max(22, endRsi - 10 + t * 12 + Math.sin(i * 0.9) * 5));
+    let flowRatio = badPump ? 0.46 : snap.buyFlowRatio ?? 0.52;
+    let volMult = badPump ? 2.6 : 0.9 + (i % 5) * 0.04;
+
+    if (badPump) {
+      change1h = 14.2;
+      change24hBar = 86;
+      rsiBar = 79;
+    } else if (i === 13) {
+      change1h = -11.5;
+      change24hBar = 68;
+      rsiBar = 62;
+    }
 
     series.push({
       symbol,
       price: Math.round(price * 100) / 100,
       marketCap: mc,
-      volume24h: vol24 * (badPump ? 2.4 : 0.9 + (i % 5) * 0.04),
+      volume24h: vol24 * volMult,
       change1h,
       change24h: i === barCount - 1 ? ch24 : change24hBar,
       change7d: ch7 * t,
-      rsi: i === barCount - 1 ? endRsi : Math.round(rsi * 10) / 10,
+      rsi: i === barCount - 1 ? endRsi : Math.round(rsiBar * 10) / 10,
       macdSignal: change1h > 1.2 ? "bullish" : change1h < -1.2 ? "bearish" : snap.macdSignal ?? "neutral",
       fearGreed: Math.round(fg + Math.sin(i * 0.35) * 4),
       liquidityUsd: snap.liquidityUsd,
-      buyFlowRatio: badPump ? 0.91 : snap.buyFlowRatio ?? 0.52,
+      buyFlowRatio: flowRatio,
       top10HolderPct: snap.top10HolderPct,
     });
   }
@@ -86,7 +98,30 @@ export function calibrateSeriesFromSnapshot(snap, barCount = 20) {
   return series;
 }
 
-/** Pick backtest bars: live-calibrated when snapshot has price, else offline fixture. */
+/** Offline fixture with mid-series pump/dump so constitution saves drawdown vs naive agent. */
+export function edgeDemoSeries() {
+  const base = [...fixtureSeries];
+  base[10] = {
+    ...base[10],
+    price: 655,
+    change1h: 14.5,
+    change24h: 88,
+    rsi: 79,
+    buyFlowRatio: 0.46,
+    volume24h: 3.8e9,
+  };
+  base[11] = {
+    ...base[11],
+    price: 612,
+    change1h: -11.8,
+    change24h: 62,
+    rsi: 58,
+    buyFlowRatio: 0.44,
+  };
+  return base;
+}
+
+/** Pick backtest bars: live-calibrated when snapshot has price, else offline edge demo. */
 export function seriesForBacktest(snap, cmcLive) {
   if (cmcLive && snap?.price > 0) {
     return {
@@ -96,5 +131,5 @@ export function seriesForBacktest(snap, cmcLive) {
       anchorSymbol: snap.symbol,
     };
   }
-  return { bars: fixtureSeries, mode: "offline-fixture", anchorPrice: null, anchorSymbol: "BNB" };
+  return { bars: edgeDemoSeries(), mode: "offline-fixture", anchorPrice: null, anchorSymbol: "BNB" };
 }

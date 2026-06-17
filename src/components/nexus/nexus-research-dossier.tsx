@@ -14,6 +14,7 @@ import { NexusCollapsible } from "@/components/nexus/nexus-collapsible";
 import { NexusHolderTables } from "@/components/nexus/nexus-holder-table";
 import { truncateHash } from "@/lib/utils";
 import type { TokenDossierPayload, TokenResearchDossier } from "@/lib/nexus-research-dossier";
+import { sanitizeIntelNote } from "@/lib/nexus-copy";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 
 function RiskVerdict({ verdict }: { verdict: "low" | "medium" | "high" | "critical" }) {
@@ -77,7 +78,9 @@ export function NexusResearchDossierLive({
         </div>
       )}
       {payload?.dossier?.dataNotes?.length ? (
-        <p className="text-[10px] text-white/40">{payload.dossier.dataNotes.join(" · ")}</p>
+        <p className="text-[10px] text-white/40">
+          {payload.dossier.dataNotes.map(sanitizeIntelNote).join(" · ")}
+        </p>
       ) : null}
     </div>
   );
@@ -110,7 +113,7 @@ export function NexusResearchDossierDeep({
 
       <NexusCollapsible
         label="Creator & rug check"
-        hint={dossier.creatorRisk.scamLabel ?? `${dossier.creatorRisk.verdict} · Bubblemaps`}
+        hint={dossier.creatorRisk.scamLabel ?? `${dossier.creatorRisk.verdict} · holder graph`}
         variant="intel"
         icon={Shield}
         defaultOpen={false}
@@ -137,7 +140,7 @@ export function NexusResearchDossierDeep({
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-200 hover:text-violet-100"
           >
-            Open Bubblemaps holder graph
+            Open holder graph
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
           {dossier.creatorRisk.rugFlags.length > 0 ? (
@@ -160,8 +163,8 @@ export function NexusResearchDossierDeep({
         hint={
           dossier.copyTradeStatus ??
           (dossier.copyTradeWallets.length > 0
-            ? `${dossier.copyTradeWallets.length} GMGN smart-money / KOL`
-            : "GMGN · smart-degen / KOL")
+            ? `${dossier.copyTradeWallets.length} smart-money / KOL wallets`
+            : "Smart-money / KOL scan")
         }
         variant="intel"
         icon={Wallet}
@@ -183,7 +186,7 @@ export function NexusResearchDossierDeep({
         ) : (
           <p className="text-xs leading-relaxed text-white/60">
             {dossier.copyTradeStatus ??
-              "No GMGN smart-money / KOL wallets for this pair. Keys must be on Vercel Production + redeploy after saving."}
+              "No smart-money wallets surfaced for this pair on supported chains."}
           </p>
         )}
       </NexusCollapsible>
@@ -192,8 +195,8 @@ export function NexusResearchDossierDeep({
         label="Token news & social"
         hint={
           dossier.socialNews[0]?.startsWith("No verified")
-            ? "6551 / X — symbol match"
-            : `${dossier.socialNews.length} symbol-matched · 6551 OpenNews`
+            ? "Social · symbol match"
+            : `${dossier.socialNews.length} symbol-matched headlines`
         }
         variant="default"
         icon={Newspaper}

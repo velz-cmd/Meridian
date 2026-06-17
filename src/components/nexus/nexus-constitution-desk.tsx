@@ -206,9 +206,22 @@ export function NexusConstitutionDesk({
 
               {vetoed && (
                 <div className="rounded-xl border border-amber-400/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                  <strong className="font-semibold">Veto active.</strong> Agent requested{" "}
-                  {permit.agentRequested} — constitution blocked entry. This is the daily-use loop: AI suggests,
-                  rules decide.
+                  <strong className="font-semibold">Veto active.</strong>{" "}
+                  {(permit as { blockReason?: string }).blockReason ??
+                    `Agent requested ${permit.agentRequested} — constitution blocked.`}
+                </div>
+              )}
+
+              {!granted && (permit as { blockReason?: string }).blockReason && !vetoed && (
+                <div className="rounded-xl border border-rose-400/35 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+                  <strong className="font-semibold">Permit denied.</strong>{" "}
+                  {(permit as { blockReason?: string }).blockReason}
+                </div>
+              )}
+
+              {!granted && !(permit as { blockReason?: string }).blockReason && !vetoed && (
+                <div className="rounded-xl border border-rose-400/35 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+                  <strong className="font-semibold">Permit denied.</strong> Constitution has not cleared this action.
                 </div>
               )}
 
