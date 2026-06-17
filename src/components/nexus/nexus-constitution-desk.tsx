@@ -231,16 +231,23 @@ export function NexusConstitutionDesk({
                 <div className="rounded-xl border border-white/10 bg-black/35 p-4">
                   <p className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
                     <Shield className="h-3.5 w-3.5" />
-                    Counterfactual backtest
+                    Illustrative simulation
                     {cfMeta?.mode && (
-                      <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-0.5 font-mono normal-case tracking-normal text-cyan-100">
-                        {cfMeta.mode}
+                      <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 font-mono normal-case tracking-normal text-amber-100">
+                        synthetic · {cfMeta.mode}
                         {cfMeta.anchorPrice ? ` · anchor $${cfMeta.anchorPrice.toFixed(2)}` : ""}
                       </span>
                     )}
                   </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-white/50">
+                    Not historical CMC bars — shows how the gate would behave vs a naive momentum agent on
+                    calibrated synthetic price paths. Reproducible 90-day backtest:{" "}
+                    <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-[10px] text-cyan-200/90">
+                      npm run bnb:backtest
+                    </code>
+                  </p>
                   {cfMeta?.note && (
-                    <p className="mt-2 text-[11px] leading-relaxed text-white/45">{cfMeta.note}</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-white/40">{cfMeta.note}</p>
                   )}
 
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">

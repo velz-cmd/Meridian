@@ -159,8 +159,8 @@ export async function buildConstitutionResponse(input: {
       fearGreed: snap.fearGreed,
       note:
         backtestInput.mode === "live-calibrated"
-          ? "Backtest bars calibrated from live CMC snapshot (Basic plan has no historical API)."
-          : "Offline fixture series — set CMC_API_KEY for live-calibrated proof.",
+          ? "Synthetic bars anchored to live CMC snapshot — not exchange history."
+          : "Offline fixture series — run npm run bnb:backtest for full historical report.",
     },
     api: {
       curl: `curl -X POST https://trader-arc.vercel.app/api/constitution/permit -H "Content-Type: application/json" -d '{"symbol":"${symbol}","agent":{"action":"BUY","confidence":85}}'`,

@@ -100,7 +100,7 @@ npm run bnb:backtest
 
 1. Land on `/nexus` — amber **BNB Hack** banner visible
 2. No token? Pick **BNB** or **CAKE** from hackathon demo cards
-3. Or click **Run Hackathon Demo** for full auto-walk
+3. Or click **Run Hackathon Demo** — auto-selects BNB and scrolls to the constitution desk
 4. Constitution desk shows: CMC live · skill id · permit id · dataSource strip
 5. Trade panel → Buy → **Constitution DENY — buy blocked** when vetoed
 6. Copy **Full receipt** (permit + counterfactual + skill meta) for inspection

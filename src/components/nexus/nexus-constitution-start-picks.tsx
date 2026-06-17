@@ -10,9 +10,11 @@ import { formatUsd } from "@/lib/utils";
 export function NexusConstitutionStartPicks({
   feedTokens,
   onSelect,
+  onRunDemo,
 }: {
   feedTokens: TrendingMarketToken[];
   onSelect: (token: TrendingMarketToken) => void;
+  onRunDemo?: () => void;
 }) {
   const [hydrated, setHydrated] = useState<TrendingMarketToken[]>(HACKATHON_DEMO_TOKENS);
   const [loading, setLoading] = useState(true);
@@ -81,6 +83,21 @@ export function NexusConstitutionStartPicks({
           ))}
         </div>
       )}
+      <div className="flex flex-col items-center gap-2">
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => {
+            const bnb = hydrated.find((t) => t.symbol === "BNB");
+            if (bnb) onSelect(bnb);
+            onRunDemo?.();
+          }}
+          className="rounded-xl border border-amber-400/40 bg-amber-500/15 px-5 py-2.5 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/25 disabled:opacity-50"
+        >
+          Run Hackathon Demo
+        </button>
+        <p className="text-[10px] text-white/40">Auto-selects BNB · scrolls to constitution desk</p>
+      </div>
       <p className="text-[10px] text-white/40">Or select any token from the live feed →</p>
     </div>
   );

@@ -482,6 +482,9 @@ export function NexusConsole() {
     <NexusConstitutionStartPicks
       feedTokens={feedTokens}
       onSelect={(t) => handleTokenSelect(t, true)}
+      onRunDemo={() => {
+        window.setTimeout(() => scrollToConstitutionDesk(), 600);
+      }}
     />
   ) : (
     <div className="nexus-center-layout flex min-h-0 flex-1 flex-col overflow-hidden max-lg:overflow-visible max-lg:pb-4">
