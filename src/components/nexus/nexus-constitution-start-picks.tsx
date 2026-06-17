@@ -1,23 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Shield, Sparkles, Loader2 } from "lucide-react";
+import { Shield, Sparkles, Loader2, ArrowRight } from "lucide-react";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 import { HACKATHON_DEMO_TOKENS, hydrateTokenFromMarket } from "@/lib/hackathon-demo";
+import { useConstitutionCompare } from "@/hooks/use-constitution-compare";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { formatUsd } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export function NexusConstitutionStartPicks({
   feedTokens,
   onSelect,
-  onRunDemo,
 }: {
   feedTokens: TrendingMarketToken[];
   onSelect: (token: TrendingMarketToken) => void;
-  onRunDemo?: () => void;
 }) {
   const [hydrated, setHydrated] = useState<TrendingMarketToken[]>(HACKATHON_DEMO_TOKENS);
   const [loading, setLoading] = useState(true);
+  const compare = useConstitutionCompare();
 
   useEffect(() => {
     let cancelled = false;
@@ -48,17 +49,17 @@ export function NexusConstitutionStartPicks({
       <ArcIcon3d icon={Shield} theme="nexus" size="lg" />
       <div className="max-w-md space-y-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-200/80">
-          Constitution Permit · live market gate
+          Risk gate
         </p>
-        <h3 className="text-lg font-semibold text-white">Pick a token — agent proposes, constitution decides</h3>
+        <h3 className="text-lg font-semibold text-white">Agents propose — the gate decides GO or STOP</h3>
         <p className="text-sm leading-relaxed text-white/55">
-          Live market data feeds the gate. GRANT or DENY is enforced on the trade panel — not a slideshow.
+          Start with BNB or CAKE for a clean demo. Feed tokens work too, but meme tickers can mis-map market data.
         </p>
       </div>
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-white/50">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading live BSC prices…
+          Loading live prices…
         </div>
       ) : (
         <div className="flex w-full max-w-sm flex-col gap-2 sm:max-w-lg sm:flex-row sm:justify-center">
@@ -83,22 +84,50 @@ export function NexusConstitutionStartPicks({
           ))}
         </div>
       )}
-      <div className="flex flex-col items-center gap-2">
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => {
-            const bnb = hydrated.find((t) => t.symbol === "BNB");
-            if (bnb) onSelect(bnb);
-            onRunDemo?.();
-          }}
-          className="rounded-xl border border-amber-400/40 bg-amber-500/15 px-5 py-2.5 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/25 disabled:opacity-50"
-        >
-          Run Hackathon Demo
-        </button>
-        <p className="text-[10px] text-white/40">Auto-selects BNB · scrolls to constitution desk</p>
+
+      <div className="w-full max-w-md rounded-xl border border-white/10 bg-black/25 p-4 text-left">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-white/70">Benchmark pair · BNB vs CAKE</p>
+          <button
+            type="button"
+            disabled={compare.loading}
+            onClick={() => void compare.compare(["BNB", "CAKE"])}
+            className="inline-flex items-center gap-1 rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-500/20 disabled:opacity-50"
+          >
+            {compare.loading ? "Running…" : "Run compare"}
+            <ArrowRight className="h-3 w-3" />
+          </button>
+        </div>
+        {compare.error && <p className="mt-2 text-xs text-rose-200">{compare.error}</p>}
+        {Object.keys(compare.results).length > 0 && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {(["BNB", "CAKE"] as const).map((sym) => {
+              const row = compare.results[sym];
+              if (!row?.permit) return null;
+              return (
+                <div
+                  key={sym}
+                  className={cn(
+                    "rounded-lg border px-3 py-2",
+                    row.permit.status === "GRANT"
+                      ? "border-emerald-400/30 bg-emerald-500/10"
+                      : "border-rose-400/30 bg-rose-500/10",
+                  )}
+                >
+                  <p className="text-sm font-bold text-white">{sym}</p>
+                  <p className="text-xs text-white/60">
+                    {row.permit.status} · {row.permit.gate?.regime ?? "—"} · {row.permit.gate.checksPassed}/
+                    {row.permit.gate.checksTotal}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p className="mt-2 text-[10px] text-white/40">Only shown here — not on every token you open.</p>
       </div>
-      <p className="text-[10px] text-white/40">Or select any token from the live feed →</p>
+
+      <p className="text-[10px] text-white/40">Or pick any token from the live feed →</p>
     </div>
   );
 }

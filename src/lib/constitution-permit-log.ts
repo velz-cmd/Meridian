@@ -15,6 +15,15 @@ export function appendPermitLog(entry: PermitLogEntry) {
   if (typeof window === "undefined") return;
   try {
     const prev = readPermitLog();
+    const last = prev.find((e) => e.symbol === entry.symbol);
+    if (
+      last &&
+      last.status === entry.status &&
+      last.agentAction === entry.agentAction &&
+      Date.now() - new Date(last.at).getTime() < 120_000
+    ) {
+      return;
+    }
     const next = [entry, ...prev.filter((e) => e.permitId !== entry.permitId)].slice(0, MAX);
     localStorage.setItem(LOG_KEY, JSON.stringify(next));
   } catch {
