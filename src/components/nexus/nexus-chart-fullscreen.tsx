@@ -59,7 +59,7 @@ export function NexusChartFullscreen({
               <h2 className="truncate text-lg font-semibold text-white">{symbol ?? "Live chart"}</h2>
             </div>
             <span className="hidden rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300 sm:inline">
-              DexScreener · Live
+              Live market
             </span>
             {dexUrl && (
               <a
@@ -81,13 +81,16 @@ export function NexusChartFullscreen({
             </button>
           </header>
           <div className="min-h-0 flex-1 p-3 sm:p-4">
-            <div className="arc-glass-card arc-glass-card-nexus arc-border-trace nexus-chart-fullscreen-frame h-full overflow-hidden rounded-2xl">
+            <div className="arc-glass-card arc-glass-card-nexus arc-border-trace nexus-chart-fullscreen-frame relative h-full overflow-hidden rounded-2xl">
               <iframe
                 title={`${symbol ?? "Token"} chart fullscreen`}
                 src={dexChartEmbedUrl(chainId, pairAddress)}
                 className="h-full min-h-[50dvh] w-full border-0 sm:min-h-0"
                 allow="clipboard-write"
               />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-9 items-center justify-center border-t border-white/10 bg-[#050508]/95 text-[10px] font-medium uppercase tracking-[0.2em] text-white/35 backdrop-blur">
+                Market chart
+              </div>
             </div>
           </div>
         </motion.div>

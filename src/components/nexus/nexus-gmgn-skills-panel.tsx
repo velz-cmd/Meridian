@@ -84,8 +84,8 @@ export function NexusGmgnSkillsPanel({ defaultQuery = "" }: { defaultQuery?: str
         (scope !== "analytics" && data.monitorProbe?.ok);
       setMessage(
         probesOk
-          ? data.message ?? `GMGN ${scope} skills active on ARC.`
-          : "Skills registered; some GMGN probes failed — check GMGN_API_KEY / rate limits.",
+          ? data.message ?? `${scope} intelligence skills active.`
+          : "Skills registered; some data probes are rate limited.",
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Bootstrap failed");
@@ -120,7 +120,7 @@ export function NexusGmgnSkillsPanel({ defaultQuery = "" }: { defaultQuery?: str
 
   return (
     <NexusCollapsible
-      label="GMGN AI skills"
+      label="On-chain intelligence skills"
       hint="Search 40+ on-chain skills · install on demand"
       icon={Sparkles}
       variant="intel"
@@ -131,9 +131,8 @@ export function NexusGmgnSkillsPanel({ defaultQuery = "" }: { defaultQuery?: str
         <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-xs text-emerald-100/90">
           <p className="font-semibold text-emerald-200">Autonomous agent — install in this order</p>
           <p className="mt-1 text-white/70">
-            1) <strong>Brain</strong> (gmgn-market, gmgn-token, gmgn-track) — already powers Alpha Scan.{" "}
-            2) <strong>Signals</strong> for autopilot triggers. 3) <strong>Execution</strong> only with{" "}
-            GMGN_PRIVATE_KEY + manual checks. Do not install all 40+ at once.
+            1) <strong>Brain</strong> powers Alpha Scan. 2) <strong>Signals</strong> feed autopilot triggers.{" "}
+            3) <strong>Execution</strong> stays behind manual checks. Do not enable every skill at once.
           </p>
         </div>
 
@@ -189,16 +188,8 @@ export function NexusGmgnSkillsPanel({ defaultQuery = "" }: { defaultQuery?: str
         </div>
 
         <p className="text-xs leading-relaxed text-white/55">
-          Curated directory from{" "}
-          <a
-            href="https://gmgn.ai/ai"
-            target="_blank"
-            rel="noreferrer"
-            className="text-violet-300 underline"
-          >
-            gmgn.ai/ai
-          </a>
-          . Search when you need a capability — confirm before enabling a skill (never installs all at once).
+          Curated capability directory. Search when you need a capability — confirm before enabling a skill
+          (never installs all at once).
         </p>
 
         <div className="relative">

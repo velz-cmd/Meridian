@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield,
@@ -8,21 +8,16 @@ import {
   ShieldCheck,
   Loader2,
   ArrowRight,
-  Copy,
-  Check,
   Scale,
   TrendingDown,
   TrendingUp,
   Wifi,
   WifiOff,
-  FileJson,
-  Terminal,
 } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { cn } from "@/lib/utils";
 import type { ConstitutionPermitPayload } from "@/hooks/use-constitution-permit";
 import type { AgentSignal } from "@/lib/storage";
-import { buildPermitCurl, buildPermitReceipt } from "@/lib/hackathon-demo";
 import { readPermitLog, type PermitLogEntry } from "@/lib/constitution-permit-log";
 import { useConstitutionCompare } from "@/hooks/use-constitution-compare";
 
@@ -42,8 +37,6 @@ export function NexusConstitutionDesk({
   const permit = payload?.permit;
   const cf = payload?.counterfactual;
   const cfMeta = payload?.counterfactualMeta;
-  const skill = payload?.skillMeta ?? permit?.skill;
-  const [copied, setCopied] = useState<"permit" | "receipt" | "curl" | null>(null);
   const [statusProbe, setStatusProbe] = useState<{ live?: boolean } | null>(null);
   const [log, setLog] = useState<PermitLogEntry[]>([]);
   const compare = useConstitutionCompare();
@@ -58,27 +51,6 @@ export function NexusConstitutionDesk({
       .then((j) => setStatusProbe({ live: j.cmc?.live }))
       .catch(() => setStatusProbe(null));
   }, []);
-
-  const copyText = useCallback(async (text: string, kind: typeof copied) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(kind);
-    setTimeout(() => setCopied(null), 2000);
-  }, []);
-
-  const copyPermit = useCallback(async () => {
-    if (!payload) return;
-    await copyText(JSON.stringify(payload.permit, null, 2), "permit");
-  }, [copyText, payload]);
-
-  const copyReceipt = useCallback(async () => {
-    if (!payload) return;
-    await copyText(buildPermitReceipt(payload), "receipt");
-  }, [copyText, payload]);
-
-  const copyCurl = useCallback(async () => {
-    const curl = payload?.api?.curl ?? buildPermitCurl(symbol);
-    await copyText(curl, "curl");
-  }, [copyText, payload, symbol]);
 
   const granted = permit?.status === "GRANT";
   const vetoed = permit?.overridden ?? false;
@@ -101,28 +73,18 @@ export function NexusConstitutionDesk({
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2">
           <StatusPill
             icon={cmcConnected ? Wifi : WifiOff}
-            label={cmcConnected ? "CMC live" : "Desk fusion"}
+            label={cmcConnected ? "Live market gate" : "Market gate"}
             tone={cmcConnected ? "emerald" : "amber"}
           />
-          {skill && (
+          {permit?.gate?.regime && (
+            <StatusPill icon={Scale} label={`${permit.gate.regime} regime`} tone="amber" />
+          )}
+          {permit?.gate && (
             <StatusPill
               icon={Shield}
-              label={`${skill.id} v${skill.version}`}
+              label={`${permit.gate.checksPassed}/${permit.gate.checksTotal} checks`}
               tone="cyan"
             />
-          )}
-          {permit && (
-            <StatusPill
-              icon={FileJson}
-              label={`${permit.permitId.slice(0, 18)}…`}
-              tone="violet"
-            />
-          )}
-          {permit?.gate?.regime && (
-            <StatusPill icon={Scale} label={`Regime: ${permit.gate.regime}`} tone="amber" />
-          )}
-          {payload?.dataSource && (
-            <StatusPill icon={Scale} label={payload.dataSource} tone="neutral" />
           )}
         </div>
 
@@ -130,14 +92,14 @@ export function NexusConstitutionDesk({
           <div className="flex min-w-0 items-start gap-3">
             <ArcIcon3d icon={Scale} theme="nexus" size="md" />
             <div>
-              <p className="arc-caption text-emerald-300/90">BNB Hack · CMC Skill · BSC chain 56</p>
+              <p className="arc-caption text-emerald-300/90">Pre-trade risk permit</p>
               <h2 className="text-lg font-semibold tracking-tight text-white sm:text-xl">
-                Agent trade permit · {symbol}
+                Trade permit · {symbol}
               </h2>
               <p className="mt-1 max-w-xl text-xs leading-relaxed text-white/55 sm:text-sm">
-                CMC Strategy Skill runtime — agents must earn a permit before sizing. Not research:{" "}
+                Agents must earn a permit before sizing. Not research:{" "}
                 <strong className="font-medium text-white/80">GRANT</strong> or{" "}
-                <strong className="font-medium text-white/80">DENY</strong> with receipt.
+                <strong className="font-medium text-white/80">DENY</strong> before execution.
               </p>
             </div>
           </div>
@@ -161,7 +123,7 @@ export function NexusConstitutionDesk({
         {loading && (
           <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/60">
             <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
-            Issuing permit via CoinMarketCap + desk fusion…
+            Issuing trade permit…
           </div>
         )}
 
@@ -299,7 +261,7 @@ export function NexusConstitutionDesk({
 
               <div className="rounded-xl border border-white/10 bg-black/25 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-white/70">Cross-token constitution (live API)</p>
+                  <p className="text-xs font-semibold text-white/70">Compare core markets</p>
                   <button
                     type="button"
                     disabled={compare.loading}
@@ -354,36 +316,9 @@ export function NexusConstitutionDesk({
                 </div>
               )}
 
-              {skill && (
-                <p className="text-[10px] text-white/40">
-                  Skill spec {skill.specHash} ·{" "}
-                  <a
-                    href={skill.specUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-cyan-300/80 underline underline-offset-2 hover:text-cyan-200"
-                  >
-                    STRATEGY_SPEC.md
-                  </a>
-                </p>
-              )}
-
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
-                <p className="font-mono text-[10px] text-white/40">
-                  {payload?.api?.curl?.slice(0, 72) ?? buildPermitCurl(symbol).slice(0, 72)}…
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  <CopyBtn copied={copied === "curl"} onClick={() => void copyCurl()} icon={Terminal} label="Copy curl" />
-                  <CopyBtn copied={copied === "permit"} onClick={() => void copyPermit()} icon={Copy} label="Permit JSON" />
-                  <CopyBtn
-                    copied={copied === "receipt"}
-                    onClick={() => void copyReceipt()}
-                    icon={FileJson}
-                    label="Full receipt"
-                    accent
-                  />
-                </div>
-              </div>
+              <p className="border-t border-white/[0.06] pt-3 text-[10px] text-white/40">
+                Public view hides infrastructure details. Private ops keeps full API health and receipts.
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -414,36 +349,6 @@ function StatusPill({
       <Icon className="h-3 w-3 shrink-0" />
       {label}
     </span>
-  );
-}
-
-function CopyBtn({
-  copied,
-  onClick,
-  icon: Icon,
-  label,
-  accent,
-}: {
-  copied: boolean;
-  onClick: () => void;
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  accent?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:bg-white/10",
-        accent
-          ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-100"
-          : "border-white/15 bg-white/5 text-white/80",
-      )}
-    >
-      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Icon className="h-3.5 w-3.5" />}
-      {copied ? "Copied" : label}
-    </button>
   );
 }
 

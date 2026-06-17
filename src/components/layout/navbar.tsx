@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Radar, Shield, Zap } from "lucide-react";
+import { Home, Radar, Zap } from "lucide-react";
 import { ArcLogoMark } from "@/components/layout/arc-logo-mark";
 import { arcNavIconTheme } from "@/components/layout/arc-theme-sync";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
@@ -15,7 +15,6 @@ const links = [
   { href: "/", label: "Home", icon: Home },
   { href: "/nexus", label: "NEXUS", icon: Zap },
   { href: "/prism", label: "PRISM", icon: Radar },
-  { href: "/nexus#nexus-constitution-desk", label: "Constitution", icon: Shield },
 ] as const;
 
 export function Navbar() {

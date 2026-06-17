@@ -48,11 +48,11 @@ export function NexusConstitutionStartPicks({
       <ArcIcon3d icon={Shield} theme="nexus" size="lg" />
       <div className="max-w-md space-y-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-200/80">
-          Constitution Permit · live CMC gate
+          Constitution Permit · live market gate
         </p>
         <h3 className="text-lg font-semibold text-white">Pick a token — agent proposes, constitution decides</h3>
         <p className="text-sm leading-relaxed text-white/55">
-          Live CoinMarketCap data feeds the gate. GRANT or DENY is enforced on the trade panel — not a slideshow.
+          Live market data feeds the gate. GRANT or DENY is enforced on the trade panel — not a slideshow.
         </p>
       </div>
       {loading ? (

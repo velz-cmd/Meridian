@@ -45,7 +45,7 @@ export function ArcGlassPreview() {
             </span>
           </div>
           <p className="font-mono text-3xl font-semibold tracking-tight text-white">$24,891</p>
-          <p className="mt-1.5 text-xs text-white/45">Demo portfolio · Arc testnet</p>
+          <p className="mt-1.5 text-xs text-white/45">Demo portfolio · live risk gate</p>
           <div className="mt-5 h-16 w-full max-w-[260px] overflow-hidden rounded-xl bg-gradient-to-t from-violet-500/20 to-transparent">
             <svg viewBox="0 0 200 48" className="h-full w-full" preserveAspectRatio="none">
               <motion.path

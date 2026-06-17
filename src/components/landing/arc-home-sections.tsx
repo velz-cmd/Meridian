@@ -124,8 +124,8 @@ export function ArcEcosystemHero() {
 export function ArcIntelligenceGrid() {
   const cells = [
     { icon: Radio, title: "Narrative velocity", copy: "Social Data X, Telegram, Discord, news acceleration." },
-    { icon: LineChart, title: "Market pulse", copy: "DexScreener, Birdeye whales, GeckoTerminal flow." },
-    { icon: Globe2, title: "Geopolitical pulse", copy: "GDELT, macro feeds, PRISM probability engine." },
+    { icon: LineChart, title: "Market pulse", copy: "Live pricing, wallet pressure, and liquidity flow." },
+    { icon: Globe2, title: "Geopolitical pulse", copy: "Macro feeds and PRISM probability engine." },
     { icon: Brain, title: "AI reasoning", copy: "Explainable thesis — why the opportunity matters." },
     { icon: Wallet, title: "Smart money", copy: "Whale tracking, holder concentration, buy pressure." },
     { icon: Shield, title: "Risk matrix", copy: "Rug, liquidity, hype exhaustion — scored live." },

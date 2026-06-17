@@ -109,7 +109,7 @@ export function NexusDecisionCard({
             onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-cyan-200/80 hover:bg-white/5"
           >
-            DexScreener <ExternalLink className="h-3 w-3" />
+            Market chart <ExternalLink className="h-3 w-3" />
           </a>
         )}
       </div>

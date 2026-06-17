@@ -157,7 +157,7 @@ export function NexusTokenChart({
         {resolving ? (
           <>
             <Loader2 className="h-8 w-8 animate-spin text-cyan-300" />
-            <p className="text-sm text-white/60">Resolving DexScreener pair for {symbol ?? "token"}…</p>
+            <p className="text-sm text-white/60">Resolving market pair for {symbol ?? "token"}…</p>
           </>
         ) : (
           <>
@@ -170,7 +170,7 @@ export function NexusTokenChart({
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 text-sm text-cyan-200 underline"
               >
-                Open on DexScreener <ExternalLink className="h-4 w-4" />
+                Open market chart <ExternalLink className="h-4 w-4" />
               </a>
             )}
           </>
@@ -209,17 +209,24 @@ export function NexusTokenChart({
           action={headerAction}
           className="nexus-chart-panel arc-border-trace overflow-hidden [&_.arc-panel-body]:!p-0"
         >
-          <iframe
-            title={`${symbol ?? "Token"} chart`}
-            src={dexChartEmbedUrl(chainId, resolvedPair)}
+          <div
             className={cn(
-              "nexus-chart-iframe w-full border-0",
+              "nexus-chart-embed-frame relative overflow-hidden",
               compact
-                ? "nexus-chart-iframe-compact h-[180px] sm:h-[200px] lg:h-[210px] lg:max-h-[220px]"
+                ? "h-[180px] sm:h-[200px] lg:h-[210px] lg:max-h-[220px]"
                 : "h-[min(42dvh,320px)] sm:h-[280px] lg:h-[min(32vh,300px)] lg:max-h-[300px]",
             )}
-            allow="clipboard-write"
-          />
+          >
+            <iframe
+              title={`${symbol ?? "Token"} chart`}
+              src={dexChartEmbedUrl(chainId, resolvedPair)}
+              className="nexus-chart-iframe h-full w-full border-0"
+              allow="clipboard-write"
+            />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-8 items-center justify-center border-t border-white/10 bg-[#050508]/95 text-[10px] font-medium uppercase tracking-[0.2em] text-white/35 backdrop-blur">
+              Market chart
+            </div>
+          </div>
         </ArcPanel>
       </motion.div>
       <NexusChartFullscreen

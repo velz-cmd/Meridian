@@ -38,7 +38,7 @@ export function NexusMemoryList({
         <h3 className="text-base font-semibold text-white">Agent Memory — your scan archive</h3>
         <p className="mx-auto max-w-sm text-sm leading-relaxed text-white/60">
           <strong className="text-white/80">Memory Scan</strong> archives up to 15 tokens with scam/risk
-          flags, GMGN + Dex intel, and BUY/SELL/HOLD reasoning at that moment — a local journal, not a
+          flags, market intelligence, and BUY/SELL/HOLD reasoning at that moment — a local journal, not a
           guaranteed safe list.
         </p>
         <p className="text-xs text-white/45">
@@ -58,7 +58,7 @@ export function NexusMemoryList({
           {visible.length} archived snapshots
         </p>
         <p className="mt-1 text-white/55">
-          DexScreener + Birdeye + scam check per token. Rugs show SELL / scam badge — not blind HOLD.
+          Market data, wallet signals, and scam checks per token. Rugs show SELL / scam badge — not blind HOLD.
         </p>
       </div>
 

@@ -15,18 +15,18 @@ export function NexusBnbHackBanner() {
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-200/80">
-              BNB Hack · Strategy Skills · CoinMarketCap
+              Live agent risk gate
             </p>
             <p className="text-sm font-semibold text-white">Constitution Permit — agents ask, rules decide, trades obey</p>
             <p className="mt-0.5 text-xs leading-relaxed text-white/60">
-              Live CMC data → weighted gate checks → GRANT/DENY receipt → buy blocked in NEXUS when vetoed.
+              Market data → weighted gate checks → GRANT/DENY → buy blocked in NEXUS when vetoed.
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-100">
             <Sparkles className="h-3 w-3" />
-            CMC Pro live
+            Live data
           </span>
           <span className="rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/70">
             Regime-aware gate
@@ -35,7 +35,7 @@ export function NexusBnbHackBanner() {
             href="#nexus-constitution-desk"
             className="inline-flex items-center gap-1 rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-500/20"
           >
-            Constitution desk
+            Permit desk
             <ExternalLink className="h-3 w-3" />
           </Link>
         </div>

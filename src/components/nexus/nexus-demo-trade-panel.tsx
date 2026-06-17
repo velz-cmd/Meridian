@@ -270,8 +270,8 @@ export function NexusTradeHub({
     tradeTab !== "agent" && trade ? (
       <div className="space-y-2">
         <div className="flex justify-between text-xs text-cyan-100/80">
-          <span>Constitution gate · BSC wallet</span>
-          <span className="font-semibold">Constitution gated</span>
+          <span>Permit gate · wallet ready</span>
+          <span className="font-semibold">Risk gated</span>
         </div>
         {isConnected ? (
           <button
@@ -287,7 +287,7 @@ export function NexusTradeHub({
             {loading || bnbPending ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : null}
-            {constitutionBlocked ? "Constitution DENY — buy blocked" : `Confirm ${side === "buy" ? "Buy" : "Sell"}`}
+            {constitutionBlocked ? "Permit DENY — buy blocked" : `Confirm ${side === "buy" ? "Buy" : "Sell"}`}
           </button>
         ) : (
           <p className="text-center text-sm text-white/60">Connect wallet on BNB Smart Chain to trade</p>
@@ -310,7 +310,7 @@ export function NexusTradeHub({
           </a>
         )}
         <p className="text-center text-[11px] text-white/45">
-          Demo fills · Constitution Permit gate · prices from DexScreener
+          Demo fills · permit gate · live market pricing
         </p>
       </div>
     ) : null;

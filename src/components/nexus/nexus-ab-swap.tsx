@@ -366,7 +366,7 @@ export function NexusAbSwap({
             rel="noreferrer"
             className="flex items-center justify-center gap-1 text-[11px] text-white/45 hover:text-cyan-200"
           >
-            DexScreener <ExternalLink className="h-3 w-3" />
+            Market chart <ExternalLink className="h-3 w-3" />
           </a>
         )}
       </div>

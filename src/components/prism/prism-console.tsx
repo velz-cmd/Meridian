@@ -155,7 +155,7 @@ export function PrismConsole() {
       toast({
         type: "error",
         title: "Connect wallet",
-        message: `Connect on Arc testnet to pay the $${PRISM_FORECAST_FEE_USD.toFixed(2)} forecast fee.`,
+        message: `Connect wallet to pay the $${PRISM_FORECAST_FEE_USD.toFixed(2)} forecast fee.`,
       });
       return;
     }

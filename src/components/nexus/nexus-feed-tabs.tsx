@@ -62,7 +62,7 @@ export function NexusFeedTabs({
           ? LIVE_FEED_INTRO
           : active === "alpha"
             ? ALPHA_TAB_SUBTITLE
-            : "Quick swap on Arc testnet"}
+            : "Quick swap from the trading desk"}
       </p>
     </div>
   );

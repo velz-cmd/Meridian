@@ -17,7 +17,7 @@ export function LandingHero() {
         className="max-w-4xl"
       >
         <Badge variant="prism" className="mb-4">
-          BNB Hack · Strategy Skills · CoinMarketCap
+          Autonomous Market Intelligence
         </Badge>
         <h1 className="text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
           MERIDIAN
@@ -25,10 +25,10 @@ export function LandingHero() {
             Constitution Permit · NEXUS trades.
           </span>
         </h1>
-        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/45">BNB Smart Chain · Trust Wallet · CMC Skill</p>
+        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/45">Live markets · agent risk gate · mobile trading desk</p>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/80 sm:mt-5 sm:text-lg">
           Mobile-friendly agent suite: <strong className="text-white">NEXUS</strong> agents request BUY — the{" "}
-          <strong className="text-white">Constitution</strong> GRANTs or DENYs with CMC-backed rules and counterfactual
+          <strong className="text-white">Constitution</strong> GRANTs or DENYs with market-backed rules and counterfactual
           backtest proof. <strong className="text-white">PRISM</strong> turns live macro news into probabilities.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -55,12 +55,12 @@ export function LandingHero() {
           {
             icon: LineChart,
             title: "Real market data",
-            copy: "DexScreener prices, CoinGecko macro, Birdeye intel — labeled so nothing looks fake.",
+            copy: "Live prices, macro context, and wallet intelligence — presented as decisions, not plumbing.",
           },
           {
             icon: Shield,
-            title: "Arc USDC fees",
-            copy: "Connect wallet, trade with % buttons, settle fees on Arc testnet.",
+            title: "Permit-gated trades",
+            copy: "Connect wallet, trade with % buttons, and block entries when the risk gate DENYs.",
           },
         ].map((item, index) => (
           <motion.div
@@ -119,11 +119,11 @@ export function ProductShowcase() {
             <Badge variant="nexus">NEXUS</Badge>
             <h2 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">Trading Agent</h2>
             <p className="mt-3 text-sm leading-relaxed text-white/70 sm:text-base">
-              Live feed, agent verdict, Birdeye intel when connected, and demo buy/sell with 25/50/75/MAX sizing.
+              Live feed, agent verdict, risk intelligence, and demo buy/sell with 25/50/75/MAX sizing.
             </p>
             <ul className="mt-5 space-y-2.5 text-sm text-white/75">
               <li className="flex items-center gap-2">
-                <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> DexScreener live feed
+                <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> Live market feed
               </li>
               <li className="flex items-center gap-2">
                 <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> One-tap % trade sizing
