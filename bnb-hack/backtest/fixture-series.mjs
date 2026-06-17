@@ -22,3 +22,79 @@ export const fixtureSeries = [
   { symbol: "BNB", price: 655, marketCap: 97e9, volume24h: 1.95e9, change1h: 1.1, change24h: 4.2, change7d: 14.5, rsi: 65, macdSignal: "bullish", fearGreed: 69 },
   { symbol: "BNB", price: 660, marketCap: 97.5e9, volume24h: 2e9, change1h: 0.8, change24h: 4.0, change7d: 15, rsi: 66, macdSignal: "bullish", fearGreed: 70 },
 ];
+
+/**
+ * Build a reproducible bar series anchored to a live CMC snapshot.
+ * Includes a mid-series pump bar so naive momentum loses vs constitution gate.
+ * @param {import("../engine/nexus-gate.mjs").CmcTokenSnapshot} snap
+ * @param {number} [barCount]
+ */
+export function calibrateSeriesFromSnapshot(snap, barCount = 20) {
+  const symbol = (snap.symbol ?? "BNB").toUpperCase();
+  const endPrice = snap.price > 0 ? snap.price : 600;
+  const fg = snap.fearGreed ?? 50;
+  const endRsi = snap.rsi ?? 50;
+  const ch24 = snap.change24h ?? 0;
+  const ch7 = snap.change7d ?? 0;
+  const mc = snap.marketCap ?? 90e9;
+  const vol24 = snap.volume24h ?? 1e9;
+  const startPrice = endPrice / (1 + ch24 / 100);
+  const series = [];
+
+  for (let i = 0; i < barCount; i++) {
+    const t = barCount <= 1 ? 1 : i / (barCount - 1);
+    const noise = Math.sin(i * 1.31) * 0.011 + Math.cos(i * 0.47) * 0.007;
+    const pump = i === 12 ? 0.048 : i === 13 ? -0.041 : 0;
+    let price = startPrice * (1 + (ch7 / 100) * t * 0.55 + noise + pump);
+    if (i === barCount - 1) price = endPrice;
+
+    const prev = i > 0 ? series[i - 1].price : startPrice;
+    const change1h = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+    const change24hBar = startPrice > 0 ? ((price - startPrice) / startPrice) * 100 : ch24;
+    const rsi = Math.min(78, Math.max(22, endRsi - 10 + t * 12 + Math.sin(i * 0.9) * 5));
+    const turnover = vol24 / Math.max(mc, 1);
+    const badPump = pump > 0.04;
+
+    series.push({
+      symbol,
+      price: Math.round(price * 100) / 100,
+      marketCap: mc,
+      volume24h: vol24 * (badPump ? 2.4 : 0.9 + (i % 5) * 0.04),
+      change1h,
+      change24h: i === barCount - 1 ? ch24 : change24hBar,
+      change7d: ch7 * t,
+      rsi: i === barCount - 1 ? endRsi : Math.round(rsi * 10) / 10,
+      macdSignal: change1h > 1.2 ? "bullish" : change1h < -1.2 ? "bearish" : snap.macdSignal ?? "neutral",
+      fearGreed: Math.round(fg + Math.sin(i * 0.35) * 4),
+      liquidityUsd: snap.liquidityUsd,
+      buyFlowRatio: badPump ? 0.91 : snap.buyFlowRatio ?? 0.52,
+      top10HolderPct: snap.top10HolderPct,
+    });
+  }
+
+  series[barCount - 1] = {
+    ...series[barCount - 1],
+    ...snap,
+    symbol,
+    price: endPrice,
+    change24h: ch24,
+    change7d: ch7,
+    fearGreed: fg,
+    rsi: endRsi,
+  };
+
+  return series;
+}
+
+/** Pick backtest bars: live-calibrated when snapshot has price, else offline fixture. */
+export function seriesForBacktest(snap, cmcLive) {
+  if (cmcLive && snap?.price > 0) {
+    return {
+      bars: calibrateSeriesFromSnapshot(snap),
+      mode: "live-calibrated",
+      anchorPrice: snap.price,
+      anchorSymbol: snap.symbol,
+    };
+  }
+  return { bars: fixtureSeries, mode: "offline-fixture", anchorPrice: null, anchorSymbol: "BNB" };
+}

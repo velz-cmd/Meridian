@@ -5,8 +5,9 @@ import {
   issueConstitutionPermit,
   backtestCompare,
 } from "../../bnb-hack/engine/nexus-gate.mjs";
-import { fetchLiveSnapshot } from "../../bnb-hack/live/cmc-fetch.mjs";
-import { fixtureSeries } from "../../bnb-hack/backtest/fixture-series.mjs";
+import { fetchLiveSnapshot, cmcCacheStats } from "../../bnb-hack/live/cmc-fetch.mjs";
+import { fixtureSeries, seriesForBacktest } from "../../bnb-hack/backtest/fixture-series.mjs";
+import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
 
 export type AgentInput = { action: "BUY" | "SELL" | "HOLD"; confidence?: number; reasoning?: string };
 
@@ -86,19 +87,87 @@ export async function buildConstitutionResponse(input: {
   }
 
   const snap = mergeSnapshot(cmcSnap, symbol, overlay);
-  const permit = issueConstitutionPermit(snap, input.agent ?? null);
-  const counterfactual = backtestCompare(fixtureSeries);
+  const permitCore = issueConstitutionPermit(snap, input.agent ?? null);
+  const permit = {
+    ...permitCore,
+    skill: CONSTITUTION_SKILL,
+  };
+  const backtestInput = seriesForBacktest(snap, Boolean(cmcSnap));
+  const counterfactual = backtestCompare(backtestInput.bars);
 
   return {
     product: "MERIDIAN Constitution Permit",
     track: "BNB Hack · Strategy Skills (CoinMarketCap)",
-    skill: "nexus-momentum-gate",
+    skill: CONSTITUTION_SKILL.id,
+    skillMeta: CONSTITUTION_SKILL,
     dataSource: cmcSnap ? "cmc-live+desk" : "desk+cmc-fallback",
     cmcLive: Boolean(cmcSnap),
+    bnb: {
+      chainId: 56,
+      chain: "BNB Smart Chain",
+      wallet: "Trust Wallet / injected (MetaMask)",
+      sdk: "BNB AI Agent SDK compatible permit schema",
+      defaultSymbols: ["BNB", "CAKE"],
+    },
     permit,
     counterfactual,
+    counterfactualMeta: {
+      mode: backtestInput.mode,
+      bars: backtestInput.bars.length,
+      anchorSymbol: backtestInput.anchorSymbol,
+      anchorPrice: backtestInput.anchorPrice,
+      regime: permit.gate?.regime ?? null,
+      fearGreed: snap.fearGreed,
+      note:
+        backtestInput.mode === "live-calibrated"
+          ? "Backtest bars calibrated from live CMC snapshot (Basic plan has no historical API)."
+          : "Offline fixture series — set CMC_API_KEY for live-calibrated proof.",
+    },
     api: {
       curl: `curl -X POST https://trader-arc.vercel.app/api/constitution/permit -H "Content-Type: application/json" -d '{"symbol":"${symbol}","agent":{"action":"BUY","confidence":85}}'`,
+      status: "https://trader-arc.vercel.app/api/constitution/status",
+      permit: "https://trader-arc.vercel.app/api/constitution/permit",
+    },
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function probeConstitutionStatus() {
+  const hasCmc = Boolean(process.env.CMC_API_KEY || process.env.CMC_PRO_API_KEY);
+  let cmcLive = false;
+  let fearGreed: number | null = null;
+  let lastError: string | null = null;
+
+  if (hasCmc) {
+    try {
+      const snap = await fetchLiveSnapshot("BNB");
+      cmcLive = true;
+      fearGreed = snap.fearGreed ?? null;
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : "CMC probe failed";
+    }
+  }
+
+  return {
+    product: "MERIDIAN Constitution Permit",
+    track: CONSTITUTION_SKILL.hubTrack,
+    skill: CONSTITUTION_SKILL,
+    cmc: {
+      configured: hasCmc,
+      live: cmcLive,
+      fearGreed,
+      cache: cmcCacheStats(),
+      error: lastError,
+    },
+    bnb: { chainId: 56, defaultSymbols: ["BNB", "CAKE"] },
+    endpoints: {
+      permit: "/api/constitution/permit",
+      status: "/api/constitution/status",
+    },
+    demo: {
+      url: "https://trader-arc.vercel.app/nexus",
+      hash: "#nexus-constitution-desk",
+      symbols: ["BNB", "CAKE"],
     },
     generatedAt: new Date().toISOString(),
   };

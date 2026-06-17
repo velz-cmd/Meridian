@@ -8,7 +8,7 @@ import { nexusActionGlass, nexusGlassCta } from "@/lib/nexus-action-glass";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
-import { useArcSettlement } from "@/hooks/use-arc-settlement";
+import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { NexusTokenAvatar } from "@/components/nexus/nexus-token-avatar";
 import { ARC_TESTNET_ID } from "@/lib/arc-chain";
 import { arcExplorerTx } from "@/lib/arc";
@@ -130,7 +130,7 @@ export function NexusQuickSwap({
   const toast = useToast();
   const { address, isConnected } = useAccount();
   const { data: walletBalance } = useBalance({ address, chainId: ARC_TESTNET_ID });
-  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useArcSettlement();
+  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useBnbSettlement();
 
   const allTokens = useMemo(
     () => mergeSwapTokenList(tokens, alphaTokens),

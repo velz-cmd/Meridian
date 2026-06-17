@@ -3,9 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentSignal } from "@/lib/storage";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
+import type { ConstitutionSkillMeta } from "@/lib/constitution-skill-meta";
+import { appendPermitLog } from "@/lib/constitution-permit-log";
 
 export type ConstitutionPermitPayload = {
   product: string;
+  track?: string;
+  skill?: string;
+  skillMeta?: ConstitutionSkillMeta;
   permit: {
     schema: string;
     permitId: string;
@@ -19,8 +24,10 @@ export type ConstitutionPermitPayload = {
     confidence: number;
     risk: number;
     thesis: string;
+    skill?: ConstitutionSkillMeta;
     gate: {
       signal: string;
+      regime?: string;
       checks: { id: string; pass: boolean; weight: number; label: string }[];
       checksPassed: number;
       checksTotal: number;
@@ -33,8 +40,19 @@ export type ConstitutionPermitPayload = {
     naiveAgent: { totalReturnPct: number; maxDrawdownPct: number; winRatePct: number };
     edge: { returnDeltaPct: number; drawdownSavedPct: number; winRateDeltaPct: number };
   };
+  counterfactualMeta?: {
+    mode: string;
+    bars: number;
+    anchorSymbol?: string;
+    anchorPrice?: number | null;
+    regime?: string | null;
+    fearGreed?: number;
+    note?: string;
+  };
   cmcLive: boolean;
   dataSource: string;
+  generatedAt?: string;
+  api?: { curl?: string; status?: string; permit?: string };
 };
 
 function overlayFromToken(token: TrendingMarketToken) {
@@ -98,7 +116,20 @@ export function useConstitutionPermit(
           return res.json() as Promise<ConstitutionPermitPayload>;
         })
         .then((p) => {
-          if (reqRef.current === id) setPayload(p);
+          if (reqRef.current === id) {
+            setPayload(p);
+            if (p.permit) {
+              appendPermitLog({
+                permitId: p.permit.permitId,
+                symbol: token.symbol,
+                status: p.permit.status,
+                agentAction: p.permit.agentRequested,
+                regime: p.permit.gate?.regime,
+                cmcLive: p.cmcLive,
+                at: p.generatedAt ?? new Date().toISOString(),
+              });
+            }
+          }
         })
         .catch((e) => {
           if (reqRef.current === id) setError(e instanceof Error ? e.message : "Permit failed");

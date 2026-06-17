@@ -7,7 +7,7 @@ import { ArrowDownUp, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { useArcSettlement } from "@/hooks/use-arc-settlement";
+import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { jupiterSwapUrl, zeroXSwapUrl } from "@/lib/dexscreener";
 import { evmChainId, isEvmChain } from "@/lib/swap";
 import { chainIdFromWallet } from "@/lib/swappable";
@@ -17,7 +17,7 @@ export function NexusSwapPanel({ decision }: { decision: NexusDecision | null })
   const { address, isConnected } = useAccount();
   const walletChainId = useChainId();
   const walletChain = chainIdFromWallet(walletChainId);
-  const { payArcFee, ensureArcNetwork, isPending: arcFeePending, feeUsd } = useArcSettlement();
+  const { payArcFee, ensureArcNetwork, isPending: arcFeePending, feeUsd } = useBnbSettlement();
   const [amount, setAmount] = useState("25");
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [loading, setLoading] = useState(false);

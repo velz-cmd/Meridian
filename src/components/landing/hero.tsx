@@ -17,19 +17,19 @@ export function LandingHero() {
         className="max-w-4xl"
       >
         <Badge variant="prism" className="mb-4">
-          Agora Agents · Circle × Arc
+          BNB Hack · Strategy Skills · CoinMarketCap
         </Badge>
         <h1 className="text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
           MERIDIAN
-          <span className="mt-2 block bg-gradient-to-r from-violet-300 via-fuchsia-200 to-cyan-300 bg-clip-text text-2xl text-transparent sm:text-4xl md:text-5xl">
-            PRISM forecasts. NEXUS trades.
+          <span className="mt-2 block bg-gradient-to-r from-amber-300 via-yellow-200 to-emerald-300 bg-clip-text text-2xl text-transparent sm:text-4xl md:text-5xl">
+            Constitution Permit · NEXUS trades.
           </span>
         </h1>
-        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/45">Built for ARC Circle · Arc Testnet</p>
+        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/45">BNB Smart Chain · Trust Wallet · CMC Skill</p>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/80 sm:mt-5 sm:text-lg">
-          Mobile-friendly agent suite: <strong className="text-white">PRISM</strong> turns live macro news into
-          probabilities. <strong className="text-white">NEXUS</strong> gives clear BUY/SELL/HOLD with one-tap demo
-          trades on Arc (25% · 50% · 75% · MAX).
+          Mobile-friendly agent suite: <strong className="text-white">NEXUS</strong> agents request BUY — the{" "}
+          <strong className="text-white">Constitution</strong> GRANTs or DENYs with CMC-backed rules and counterfactual
+          backtest proof. <strong className="text-white">PRISM</strong> turns live macro news into probabilities.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Link href="/prism" className="w-full sm:w-auto">
@@ -129,7 +129,7 @@ export function ProductShowcase() {
                 <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> One-tap % trade sizing
               </li>
               <li className="flex items-center gap-2">
-                <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> Arc fee + demo portfolio P&L
+                <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> Constitution gate + demo portfolio P&L
               </li>
             </ul>
             <Link href="/nexus" className="mt-6 block sm:mt-8">

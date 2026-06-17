@@ -1,7 +1,6 @@
-import { ARC_RPC_URL_DEFAULT } from "@/lib/arc-chain";
+import { BSC_EXPLORER } from "@/lib/bsc-chain";
 import { MERIDIAN_FOOTER_LINE, MERIDIAN_NAME } from "@/lib/meridian-brand";
 
-/** Subtitle / legal attribution — ARC Circle stays client-only. */
 export function MeridianFooter({ className = "" }: { className?: string }) {
   const build = process.env.NEXT_PUBLIC_MERIDIAN_BUILD;
   return (
@@ -9,12 +8,12 @@ export function MeridianFooter({ className = "" }: { className?: string }) {
       {MERIDIAN_NAME} · {MERIDIAN_FOOTER_LINE}
       <span className="mx-1 text-white/25">·</span>
       <a
-        href={ARC_RPC_URL_DEFAULT}
+        href={BSC_EXPLORER}
         target="_blank"
         rel="noopener noreferrer"
-        className="font-mono normal-case text-white/30 underline-offset-2 hover:text-emerald-200/70 hover:underline"
+        className="font-mono normal-case text-white/30 underline-offset-2 hover:text-amber-200/70 hover:underline"
       >
-        Circle RPC
+        BscScan
       </a>
       {build && build !== "dev" ? (
         <span className="ml-2 font-mono text-white/25">· build {build}</span>

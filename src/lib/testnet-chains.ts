@@ -1,24 +1,23 @@
-import { arcTestnet, ARC_TESTNET_ID } from "./arc-chain";
+import { bsc, BSC_CHAIN_ID } from "./bsc-chain";
 
-/** Arc Testnet only — all demo trades and fees settle in USDC on Arc */
+/** BNB Smart Chain — demo portfolio + Trust Wallet alignment for BNB Hack */
 export const DEMO_TRADE_NETWORKS = [
-  { id: "arc", chainId: ARC_TESTNET_ID, label: "Arc Testnet", short: "Arc", chain: arcTestnet },
+  { id: "bsc", chainId: BSC_CHAIN_ID, label: "BNB Smart Chain", short: "BSC", chain: bsc },
 ] as const;
 
 export type DemoTradeNetworkId = (typeof DEMO_TRADE_NETWORKS)[number]["id"];
 
-export function demoNetworkById(id: DemoTradeNetworkId = "arc") {
+export function demoNetworkById(id: DemoTradeNetworkId = "bsc") {
   return DEMO_TRADE_NETWORKS[0];
 }
 
 export function demoNetworkFromChainId(chainId?: number) {
-  return chainId === ARC_TESTNET_ID ? DEMO_TRADE_NETWORKS[0] : undefined;
+  return chainId === BSC_CHAIN_ID ? DEMO_TRADE_NETWORKS[0] : undefined;
 }
 
-/** All demo trades execute on Arc regardless of price feed source chain */
+/** Demo trades settle on BSC; price feeds may come from any DexScreener chain */
 export function mirrorTestnetForSource(_sourceChain: string): DemoTradeNetworkId {
-  return "arc";
+  return "bsc";
 }
 
-/** @deprecated use birdeyeChainFor from @/lib/birdeye-client */
 export { birdeyeChainFor } from "./birdeye-client";

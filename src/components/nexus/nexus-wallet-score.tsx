@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { Loader2, Shield, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ARC_TESTNET_ID } from "@/lib/arc-chain";
+import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
 import type { WalletScore } from "@/lib/wallet-score";
 
 export function NexusWalletScoreButton() {
@@ -25,7 +25,7 @@ export function NexusWalletScoreButton() {
     try {
       const params = new URLSearchParams({
         address,
-        onArc: String(chainId === ARC_TESTNET_ID),
+        onBsc: String(chainId === BSC_CHAIN_ID),
       });
       const res = await fetch(`/api/nexus/wallet/score?${params}`);
       const data = await res.json();

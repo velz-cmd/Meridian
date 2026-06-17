@@ -50,7 +50,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast-provider";
-import { useArcSettlement } from "@/hooks/use-arc-settlement";
+import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { NexusAgentProvider, type NexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
 import { NexusCircleAgentCard } from "@/components/nexus/nexus-circle-agent-card";
 import { NexusExecutionPanel } from "@/components/nexus/nexus-execution-panel";
@@ -100,7 +100,7 @@ export function NexusAutopilotPanel({
   const toast = useToast();
   const { address, isConnected } = useAccount();
   const { usdcBalance: agentUsdc, refreshBalance, syncDeposits } = useAgentWallet();
-  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useArcSettlement();
+  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useBnbSettlement();
   const [config, setConfig] = useState<AutopilotConfig>(() => loadAutopilot());
   const [logs, setLogs] = useState<AutopilotLog[]>([]);
   const [lastReasoning, setLastReasoning] = useState<string | null>(null);

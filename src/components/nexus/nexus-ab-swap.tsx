@@ -5,7 +5,7 @@ import { useAccount } from "wagmi";
 import { ArrowDownUp, ChevronDown, ExternalLink, Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
-import { useArcSettlement } from "@/hooks/use-arc-settlement";
+import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { NexusCollapsible } from "@/components/nexus/nexus-collapsible";
 import { filterTradableTokens } from "@/lib/token-filters";
 import { formatUsd } from "@/lib/utils";
@@ -96,7 +96,7 @@ export function NexusAbSwap({
 }) {
   const toast = useToast();
   const { address, isConnected } = useAccount();
-  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useArcSettlement();
+  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useBnbSettlement();
   const tradable = useMemo(() => filterTradableTokens(tokens), [tokens]);
 
   const [tokenA, setTokenA] = useState("");

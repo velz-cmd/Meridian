@@ -22,7 +22,7 @@ import { symbolChainKey, tokenKey } from "@/lib/feed-curation";
 import { NexusQuickSwap } from "@/components/nexus/nexus-quick-swap";
 import { filterTradableTokens, isStablecoin } from "@/lib/token-filters";
 import { NexusTokenChart } from "@/components/nexus/nexus-token-chart";
-import { ArcSettlementBanner } from "@/components/nexus/arc-settlement-banner";
+import { NexusBnbHackBanner } from "@/components/nexus/nexus-bnb-hack-banner";
 import { NexusTrendingFeed, type TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 import { NexusAgentWalletProvider } from "@/components/nexus/nexus-agent-wallet-provider";
 import { NexusTradeHub } from "@/components/nexus/nexus-demo-trade-panel";
@@ -36,6 +36,7 @@ import { NexusIntelCollapsibles } from "@/components/nexus/nexus-intel-collapsib
 import { NexusAgentReasoningStrip } from "@/components/nexus/nexus-agent-reasoning-strip";
 import { NexusConstitutionDesk } from "@/components/nexus/nexus-constitution-desk";
 import { useConstitutionPermit } from "@/hooks/use-constitution-permit";
+import { NexusConstitutionStartPicks } from "@/components/nexus/nexus-constitution-start-picks";
 import { ConstitutionProvider } from "@/contexts/nexus-constitution-context";
 import { useTokenDossier } from "@/hooks/use-token-dossier";
 import { useLiveTokenQuote, type LiveTokenQuote } from "@/hooks/use-live-token-quote";
@@ -45,15 +46,13 @@ import { NexusMobileDock, type NexusMobilePanel } from "@/components/nexus/nexus
 import { NexusMobileContextBar } from "@/components/nexus/nexus-mobile-context-bar";
 import { NexusMobileTokenActions } from "@/components/nexus/nexus-mobile-token-actions";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import { CircleAgentsFooter } from "@/components/layout/circle-agents-footer";
-import { NexusCircleAgentsTopBanner } from "@/components/nexus/nexus-circle-agents-banner";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
 import { meridianClientHeaders } from "@/lib/circle-agents";
 import { NexusTokenStrip } from "@/components/nexus/nexus-token-strip";
 import { NexusCenterTokenHeader } from "@/components/nexus/nexus-center-token-header";
 import { NexusTokenChatButton } from "@/components/nexus/nexus-token-chat";
 import { useToast } from "@/components/ui/toast-provider";
-import { useArcSettlement } from "@/hooks/use-arc-settlement";
+import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { dedupeFeedTokens } from "@/lib/feed-curation";
 import { mergeFeedTokensStable } from "@/lib/token-security";
 import type { NexusDecision } from "@/lib/storage";
@@ -86,8 +85,7 @@ export function NexusConsole() {
   const toast = useToast();
   const { isConnected } = useAccount();
   const walletChainId = useChainId();
-  const { payArcFee, ensureArcNetwork, isPending: arcFeePending, feeUsd } = useArcSettlement();
-  const [lastArcFeeTx, setLastArcFeeTx] = useState<string | null>(null);
+  const { payBnbFee, ensureBscNetwork, isPending: bnbFeePending } = useBnbSettlement();
   const [portfolioKey, setPortfolioKey] = useState(0);
 
   const [selectedToken, setSelectedToken] = useState<TrendingMarketToken | null>(null);
@@ -130,6 +128,10 @@ export function NexusConsole() {
   const tokenDossier = useTokenDossier(selectedToken, intelTier);
   const deskAgent = tokenDossier.payload?.agent ?? selectedToken?.agent;
   const constitution = useConstitutionPermit(selectedToken, deskAgent);
+
+  const scrollToConstitutionDesk = useCallback(() => {
+    document.getElementById("nexus-constitution-desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   const applyLiveQuote = useCallback((quote: LiveTokenQuote) => {
     const addr = quote.tokenAddress.toLowerCase();
@@ -318,28 +320,13 @@ export function NexusConsole() {
     });
   }, []);
 
-  async function payOptionalArcFee(action: string, payload: string): Promise<string | undefined> {
+  async function ensureWalletOnBsc(): Promise<void> {
     try {
-      await ensureArcNetwork();
-      const fee = await payArcFee(action, payload);
-      setLastArcFeeTx(fee.txHash);
-      return fee.txHash;
+      await ensureBscNetwork();
     } catch (err) {
       const msg = (err instanceof Error ? err.message : "").toLowerCase();
-      if (
-        msg.includes("reject") ||
-        msg.includes("denied") ||
-        msg.includes("cancel") ||
-        msg.includes("insufficient") ||
-        msg.includes("failed on-chain")
-      ) {
-        toast({
-          type: "info",
-          title: "Arc fee skipped",
-          message: "Scan continues without on-chain fee — use Arc testnet for full settlement.",
-          durationMs: 10_000,
-        });
-        return undefined;
+      if (msg.includes("reject") || msg.includes("denied") || msg.includes("cancel")) {
+        throw new Error("Connect wallet on BNB Smart Chain to scan");
       }
       throw err;
     }
@@ -351,8 +338,9 @@ export function NexusConsole() {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 118_000);
     try {
-      if (!isConnected) throw new Error("Connect wallet on Arc Testnet to scan");
-      const arcFeeTxHash = await payOptionalArcFee("ALPHA", `alpha-${Date.now()}`);
+      if (!isConnected) throw new Error("Connect wallet on BNB Smart Chain to scan");
+      await ensureWalletOnBsc();
+      await payBnbFee("ALPHA", `alpha-${Date.now()}`);
 
       const res = await fetch("/api/nexus/scan", {
         method: "POST",
@@ -360,7 +348,6 @@ export function NexusConsole() {
         body: JSON.stringify({
           mode: "alpha",
           walletChainId,
-          arcFeeTxHash,
           chainId: selectedToken?.chainId,
           tokenAddress: selectedToken?.tokenAddress,
           liveFeedKeys: feedTokens.map((t) => tokenKey(t)),
@@ -493,10 +480,10 @@ export function NexusConsole() {
   );
 
   const chartPanel = !selectedToken ? (
-    <div className="arc-signal-panel arc-signal-panel-nexus flex flex-col items-center justify-center gap-3 px-4 py-12 text-center lg:py-16">
-      <ArcIcon3d icon={LineChart} theme="nexus" size="lg" />
-      <p className="text-sm text-[var(--arc-text-muted)]">Select a token from the feed to view chart &amp; analysis.</p>
-    </div>
+    <NexusConstitutionStartPicks
+      feedTokens={feedTokens}
+      onSelect={(t) => handleTokenSelect(t, true)}
+    />
   ) : (
     <div className="nexus-center-layout flex min-h-0 flex-1 flex-col overflow-hidden max-lg:overflow-visible max-lg:pb-4">
       <div className="nexus-center-toolbar shrink-0 space-y-2 lg:space-y-2.5 lg:border-b lg:border-white/[0.06] lg:pb-2">
@@ -714,12 +701,12 @@ export function NexusConsole() {
       <ArcBackground theme="nexus" />
 
       <div className="relative mx-auto w-full max-w-[1920px] px-3 py-2 pb-[calc(5.75rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-6 lg:px-4 lg:py-8 lg:pb-8 xl:px-6">
-        <NexusCircleAgentsTopBanner />
+        <NexusBnbHackBanner />
         <NexusAlphaHero
           onAlphaScan={() => void runAlphaScan()}
           alphaScanning={alphaScanning}
           alphaCount={alphaOpportunities.length}
-          disabled={arcFeePending}
+          disabled={bnbFeePending}
         />
         <div className="hidden lg:block">
           <NexusPremiumHero stableCount={STABLE_FEED_LIMIT} />
@@ -727,7 +714,6 @@ export function NexusConsole() {
 
         <NexusMobileContextBar selectedToken={selectedToken} />
 
-        <ArcSettlementBanner txHash={lastArcFeeTx ?? undefined} />
         {actionBanner && (
           <div
             className={cn(
@@ -822,8 +808,7 @@ export function NexusConsole() {
         </div>
 
         <NexusMobileDock active={mobilePanel} onChange={handleMobilePanel} />
-        <CircleAgentsFooter className="pb-1 pt-2" />
-        <MeridianFooter className="hidden pb-3 pt-1 lg:block" />
+        <MeridianFooter className="pb-3 pt-2" />
       </div>
     </div>
     </ConstitutionProvider>

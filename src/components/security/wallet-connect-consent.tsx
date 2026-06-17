@@ -67,7 +67,7 @@ export function WalletConnectConsent({
         <ul className="space-y-2 text-xs leading-relaxed text-white/75">
           <li>MERIDIAN never asks for your seed phrase or private key.</li>
           <li>You sign transactions only inside MetaMask / your wallet extension.</li>
-          <li>Arc Testnet only — use test USDC, not mainnet savings.</li>
+          <li>BNB Smart Chain — connect Trust Wallet or MetaMask; review each approval carefully.</li>
           <li>Review each approval: network, amount, and contract address.</li>
         </ul>
 

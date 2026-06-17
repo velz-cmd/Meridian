@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { X402_PRICES } from "@/lib/circle-agents";
 import { runAlphaScan } from "@/lib/nexus-agent";
-import { withX402Guard } from "@/lib/x402-seller";
 import { fetchTokenByAddress } from "@/lib/dexscreener";
 import { chainIdFromWallet } from "@/lib/swappable";
 import { ALPHA_SCAN_LIMIT } from "@/lib/feed-config";
@@ -15,15 +13,7 @@ export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  return withX402Guard(
-    request,
-    {
-      price: X402_PRICES.scan,
-      resourcePath: "/api/nexus/scan",
-      description: "NEXUS Alpha desk scan — ranked opportunities + agent verdicts",
-    },
-    () => handleAlphaScan(request),
-  );
+  return handleAlphaScan(request);
 }
 
 async function handleAlphaScan(request: Request) {

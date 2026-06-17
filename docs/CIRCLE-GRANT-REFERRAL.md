@@ -6,7 +6,35 @@ Post in **#circle-grant-referral-requests** (not DMs).
 
 ---
 
-## Discord paste — MESSAGE 1 of 2 (send first)
+## Discord paste — MESSAGE 1 of 2 (send first) — **use this new post**
+
+```
+https://trader-arc.vercel.app
+
+🟢 **MERIDIAN** — Live AI trading desk on **Arc Testnet** (chain **5042002** · Circle RPC **v0.7.1**)
+Open repo: https://github.com/ibrahim0-cursor/cursor-arc-circle · GitHub **ibrahim0-cursor**
+
+**What this is (shipping, not a mockup)**
+A real web app where **two autonomous agents** trade & analyze on **one Arc stack** — humans use the UI, other bots can pay APIs in **USDC on Arc**. Every paid action = wallet tx you can verify on **testnet.arcscan.app**.
+
+**NEXUS — AI meme desk + Autopilot agent**
+• Live trending feed (DexScreener / Gecko) · pick a token · desk says **BUY / SELL / HOLD**
+• **Wallet-first Edge Score** — holders, whale flow, GoPlus, honeypot.is (not chart-only TA)
+• **NEXUS Autopilot** — deposit USDC to agent vault → **one wallet signature** → agent runs **recurring or one-time** buys/sells from vault (no popup every minute)
+• Alpha scan · token dossier · rug/spam filters
+• Paid APIs for other agents: **x402** `/api/nexus/scan` + dossier on Arc
+
+**PRISM — macro oracle agent**
+• GDELT + news → probability forecasts for agents
+• **USDC fee per run** on Arc (wallet-signed)
+
+**Arc primitives in the repo**
+x402 sellers · Counter lab `/arc` · Circle App Kit · USDC gas
+```
+
+---
+
+## Discord paste — MESSAGE 1 of 2 (older short version)
 
 ```
 🟢 **MERIDIAN** — Fully autonomous desk · **Arc Testnet** · RPC v0.7.1
@@ -30,7 +58,31 @@ Post in **#circle-grant-referral-requests** (not DMs).
 
 ---
 
-## Discord paste — MESSAGE 2 of 2 (send right after)
+## Discord paste — MESSAGE 2 of 2 (send right after) — **use with new Msg 1**
+
+```
+**Try the AI agent (2 min)**
+1) https://trader-arc.vercel.app/nexus — connect wallet (Arc Testnet)
+2) Select a token from feed → **Autopilot** tab → deposit USDC to agent vault → Sync
+3) **Start recurring agent** or **Run one trade** → approve **one** Arc tx → agent trades from vault
+4) PRISM: https://trader-arc.vercel.app/prism → paid forecast → Arcscan
+5) Arc lab: https://trader-arc.vercel.app/arc → Counter
+
+**Why refer me**
+Building **autonomous agent commerce** on Arc — live UI, open code, on-chain USDC. Grant → audits, production x402, agent treasury hardening.
+
+**Stage:** MVP **live on testnet** · pre-audit · no mainnet funds
+
+**Circle stack:** 5042002 · USDC · RPC v0.7.1 · App Kit · x402 · Arcscan txs
+
+**Refer MERIDIAN** 🟢
+abdullahlp114@gmail.com
+@velz_noct · https://x.com/velz_noct
+```
+
+---
+
+## Discord paste — MESSAGE 2 of 2 (older)
 
 ```
 **Why refer**

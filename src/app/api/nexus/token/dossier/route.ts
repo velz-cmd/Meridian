@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { X402_PRICES } from "@/lib/circle-agents";
 import { fetchTokenByAddress } from "@/lib/dexscreener";
-import { withX402Guard } from "@/lib/x402-seller";
 import { buildResearchReport } from "@/lib/nexus-research";
 import { buildTokenDossierPayload, resolveMultiTimeframeTa } from "@/lib/nexus-research-dossier";
 import { buildDeskAgentSignal } from "@/lib/nexus-agent";
@@ -20,15 +18,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  return withX402Guard(
-    request,
-    {
-      price: X402_PRICES.dossier,
-      resourcePath: "/api/nexus/token/dossier",
-      description: "NEXUS token dossier — holders, traders, TA, agent reasoning",
-    },
-    () => handleTokenDossier(request),
-  );
+  return handleTokenDossier(request);
 }
 
 function mergeIntelFromDetection(

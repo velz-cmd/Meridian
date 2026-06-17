@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { Brain, History, Radar, Target, X } from "lucide-react";
-import { useArcSettlement } from "@/hooks/use-arc-settlement";
+import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { PRISM_FORECAST_FEE_USD } from "@/lib/arc-chain";
 import { arcExplorerTx } from "@/lib/arc";
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +51,7 @@ function eventScopeKey(eventId: string, customEvent: string) {
 export function PrismConsole() {
   const toast = useToast();
   const { isConnected } = useAccount();
-  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useArcSettlement();
+  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useBnbSettlement();
   const [lastArcFeeTx, setLastArcFeeTx] = useState<string | null>(null);
   const [feePaidDismissed, setFeePaidDismissed] = useState(false);
   const [events, setEvents] = useState<EventOption[]>([]);

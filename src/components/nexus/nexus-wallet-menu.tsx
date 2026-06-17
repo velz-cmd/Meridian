@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAccount, useBalance, useChainId, useDisconnect } from "wagmi";
 import { ChevronDown, LogOut, Wallet } from "lucide-react";
-import { ARC_TESTNET_ID } from "@/lib/arc-chain";
+import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
 import { truncateHash } from "@/lib/utils";
 import { WalletConnectButton } from "@/components/nexus/wallet-connect-button";
 import { NexusWalletScoreButton } from "@/components/nexus/nexus-wallet-score";
@@ -14,8 +14,8 @@ export function NexusWalletMenu() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { disconnect } = useDisconnect();
-  const { data: balance } = useBalance({ address, chainId: ARC_TESTNET_ID });
-  const onArc = chainId === ARC_TESTNET_ID;
+  const { data: balance } = useBalance({ address, chainId: BSC_CHAIN_ID });
+  const onBsc = chainId === BSC_CHAIN_ID;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -32,56 +32,41 @@ export function NexusWalletMenu() {
     return <WalletConnectButton compact />;
   }
 
-  const bal = balance ? `${Number(balance.formatted).toFixed(2)} USDC` : null;
+  const balanceLabel = balance ? `${Number(balance.formatted).toFixed(4)} BNB` : null;
 
   return (
-    <div className="relative" ref={ref}>
+    <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((v) => !v)}
         className={cn(
-          "arc-btn-pill flex min-h-[40px] items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition",
-          onArc
-            ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-50"
-            : "border-amber-400/35 bg-amber-500/10 text-amber-100",
+          "inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
+          onBsc
+            ? "border-amber-400/30 bg-amber-500/10 text-white"
+            : "border-amber-400/50 bg-amber-500/15 text-amber-100",
         )}
-        aria-expanded={open}
-        aria-haspopup="menu"
       >
         <Wallet className="h-4 w-4 shrink-0" />
-        <span className="hidden sm:inline">{truncateHash(address!, 4, 4)}</span>
-        {bal && <span className="rounded-md bg-black/35 px-2 py-0.5 text-xs font-bold">{bal}</span>}
-        <ChevronDown className={cn("h-4 w-4 opacity-60 transition", open && "rotate-180")} />
+        <span className="font-semibold">{truncateHash(address ?? "", 4, 3)}</span>
+        {balanceLabel && <span className="text-xs text-amber-100/90">{balanceLabel}</span>}
+        <ChevronDown className={cn("h-4 w-4 transition", open && "rotate-180")} />
       </button>
 
       {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-[calc(100%+8px)] z-[60] w-[min(280px,calc(100vw-2rem))] rounded-2xl border border-emerald-400/25 bg-[#080d14] p-3 shadow-2xl"
-        >
-          <p className="text-[10px] font-medium uppercase tracking-wider text-white/45">
-            {onArc ? "Arc Testnet" : "Switch to Arc Testnet"}
+        <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[220px] rounded-xl border border-white/10 bg-[#0a0f14]/95 p-2 shadow-xl backdrop-blur-xl">
+          <p className="px-2 py-1 text-[10px] uppercase tracking-wider text-white/45">
+            {onBsc ? "BNB Smart Chain" : "Switch to BSC"}
           </p>
-          <p className="mt-1 font-mono text-xs text-white/70">{truncateHash(address!, 8, 6)}</p>
-          {bal && <p className="mt-2 text-sm font-bold text-emerald-200">{bal}</p>}
-
-          <div className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-3">
-            <div className="flex flex-wrap gap-2">
-              <NexusWalletScoreButton />
-            </div>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                disconnect();
-                setOpen(false);
-              }}
-              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/20"
-            >
-              <LogOut className="h-4 w-4" />
-              Disconnect
-            </button>
-          </div>
+          <NexusWalletScoreButton />
+          <WalletConnectButton compact />
+          <button
+            type="button"
+            onClick={() => disconnect()}
+            className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-200 hover:bg-rose-500/10"
+          >
+            <LogOut className="h-4 w-4" />
+            Disconnect
+          </button>
         </div>
       )}
     </div>

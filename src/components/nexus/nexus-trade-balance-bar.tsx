@@ -4,7 +4,7 @@ import { Coins } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { useAccount, useBalance } from "wagmi";
-import { ARC_TESTNET_ID } from "@/lib/arc-chain";
+import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
 import { useAgentWallet } from "@/hooks/use-agent-wallet";
 import { formatUsd } from "@/lib/utils";
 import type { DemoPosition } from "@/lib/storage";
@@ -19,27 +19,27 @@ export function NexusTradeBalanceBar({
   showAgentVault?: boolean;
 }) {
   const { address, isConnected } = useAccount();
-  const { data: balance } = useBalance({ address, chainId: ARC_TESTNET_ID });
+  const { data: balance } = useBalance({ address, chainId: BSC_CHAIN_ID });
   const { wallet: agentWallet, usdcBalance: agentUsdc, loading: agentLoading } = useAgentWallet();
 
-  const walletUsdc = balance ? Number(balance.formatted) : 0;
+  const walletBnb = balance ? Number(balance.formatted) : 0;
 
   if (!isConnected) {
     return (
       <p className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">
-        Connect wallet on Arc Testnet to trade.
+        Connect wallet on BNB Smart Chain to trade.
       </p>
     );
   }
 
   return (
     <div className={`grid gap-2 ${showAgentVault ? "sm:grid-cols-2" : ""}`}>
-      <div className="arc-glass-card arc-glass-card-nexus rounded-xl border border-cyan-400/25 px-3 py-2.5">
-        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-cyan-200/80">
+      <div className="arc-glass-card arc-glass-card-nexus rounded-xl border border-amber-400/25 px-3 py-2.5">
+        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-amber-200/80">
           <ArcIcon3d icon={NEXUS_TRADE_ICONS.wallet} theme="nexus" size="sm" className="!h-8 !w-8" />
-          Your wallet (fees)
+          Your wallet
         </p>
-        <p className="mt-1 text-lg font-bold text-white">{walletUsdc.toFixed(2)} USDC</p>
+        <p className="mt-1 text-lg font-bold text-white">{walletBnb.toFixed(4)} BNB</p>
       </div>
       {showAgentVault && (
         <div className="rounded-xl border border-violet-400/25 bg-violet-500/10 px-3 py-2.5">

@@ -26,18 +26,12 @@ Two production-grade AI agents for the **Agora Agents Hackathon** (Circle × Arc
 
 | Layer | Location |
 |-------|----------|
-| **Live product** | [/nexus](https://trader-arc.vercel.app/nexus) — Constitution Permit desk + buy blocked on DENY |
-| **Runtime API** | `POST /api/constitution/permit` |
+| **Live product** | [/nexus](https://trader-arc.vercel.app/nexus) — Constitution Permit desk + **Run Hackathon Demo** |
+| **Runtime API** | `POST /api/constitution/permit` · `GET /api/constitution/status` |
 | **CMC Skill** | [`bnb-hack/skills/nexus-momentum-gate/SKILL.md`](bnb-hack/skills/nexus-momentum-gate/SKILL.md) |
 | **Submission** | [`bnb-hack/SUBMIT.md`](bnb-hack/SUBMIT.md) |
 
-```bash
-npm run bnb:smoke          # engine sanity check
-npm run bnb:backtest       # offline or live CMC (with CMC_API_KEY)
-npm run bnb:live           # live gate eval for BNB + CAKE
-```
-
-Set `CMC_API_KEY` and `CMC_MCP_API_KEY` in `.env.local` (see `.env.example`). **Conviction Constitution** panel on https://trader-arc.vercel.app/nexus (select any token).
+**Judge demo:** Open `/nexus` → click **Run Hackathon Demo** → watch BNB permit flow → buy blocked on DENY → copy full receipt.
 
 ## Quick start
 

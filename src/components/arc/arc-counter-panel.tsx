@@ -10,7 +10,7 @@ import {
 } from "wagmi";
 import { Box, Copy, ExternalLink, Loader2, Plus, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useArcSettlement } from "@/hooks/use-arc-settlement";
+import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import {
   ARC_COUNTER_ABI,
   ARC_COUNTER_BYTECODE,
@@ -42,7 +42,7 @@ function useResolvedCounterAddress() {
 export function ArcCounterPanel() {
   const address = useResolvedCounterAddress();
   const { address: wallet, isConnected } = useAccount();
-  const { ensureArcNetwork, onArc } = useArcSettlement();
+  const { ensureArcNetwork, onArc } = useBnbSettlement();
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 

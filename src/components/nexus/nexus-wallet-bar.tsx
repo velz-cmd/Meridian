@@ -5,27 +5,27 @@ import { ExternalLink, Wallet } from "lucide-react";
 import { ArcIconBadge } from "@/components/ui/arc-icon-badge";
 import { WalletConnectButton } from "@/components/nexus/wallet-connect-button";
 import { NexusWalletScoreButton } from "@/components/nexus/nexus-wallet-score";
-import { ARC_TESTNET_ID, arcExplorerAddress } from "@/lib/arc-chain";
+import { BSC_CHAIN_ID, bscExplorerAddress } from "@/lib/bsc-chain";
 import { truncateHash } from "@/lib/utils";
 
 export function NexusWalletBar({ compact = false }: { compact?: boolean }) {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { data: balance } = useBalance({ address, chainId: ARC_TESTNET_ID });
-  const onArc = chainId === ARC_TESTNET_ID;
+  const { data: balance } = useBalance({ address, chainId: BSC_CHAIN_ID });
+  const onBsc = chainId === BSC_CHAIN_ID;
 
   if (compact) {
     return (
       <div className="arc-glass-card arc-glass-card-nexus flex flex-wrap items-center gap-2 px-3 py-2.5">
         <WalletConnectButton compact />
         {isConnected && balance && (
-          <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 text-sm font-bold text-emerald-100">
-            {Number(balance.formatted).toFixed(2)} USDC
+          <span className="rounded-lg border border-amber-400/30 bg-amber-500/15 px-3 py-2 text-sm font-bold text-amber-100">
+            {Number(balance.formatted).toFixed(4)} BNB
           </span>
         )}
         <NexusWalletScoreButton />
-        {isConnected && !onArc && (
-          <span className="w-full text-center text-[11px] text-amber-200">Switch network to Arc Testnet</span>
+        {isConnected && !onBsc && (
+          <span className="w-full text-center text-[11px] text-amber-200">Switch network to BNB Smart Chain</span>
         )}
       </div>
     );
@@ -39,13 +39,13 @@ export function NexusWalletBar({ compact = false }: { compact?: boolean }) {
           <div className="flex items-center gap-2">
             <ArcIconBadge icon={Wallet} theme="nexus" size="sm" />
             <div>
-              <p className="text-sm font-semibold text-white">Arc Wallet</p>
+              <p className="text-sm font-semibold text-white">BSC Wallet</p>
               <p className="text-xs text-white/55">
                 {isConnected
-                  ? onArc
-                    ? "Connected · Arc Testnet"
-                    : "Connected · switch to Arc to trade"
-                  : "Connect to trade & run the agent"}
+                  ? onBsc
+                    ? "Connected · BNB Smart Chain"
+                    : "Connected · switch to BSC to trade"
+                  : "Connect Trust Wallet or MetaMask to trade"}
               </p>
             </div>
           </div>
@@ -59,17 +59,17 @@ export function NexusWalletBar({ compact = false }: { compact?: boolean }) {
         {isConnected && address && (
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <a
-              href={arcExplorerAddress(address)}
+              href={bscExplorerAddress(address)}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 bg-black/25 px-4 py-2.5 text-sm font-medium text-white/80 transition hover:border-cyan-400/30 hover:text-cyan-100 sm:flex-none"
+              className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 bg-black/25 px-4 py-2.5 text-sm font-medium text-white/80 transition hover:border-amber-400/30 hover:text-amber-100 sm:flex-none"
             >
-              <ExternalLink className="h-4 w-4 text-cyan-300" />
-              View on Arc Explorer · {truncateHash(address, 8, 6)}
+              <ExternalLink className="h-4 w-4 text-amber-300" />
+              View on BscScan · {truncateHash(address, 8, 6)}
             </a>
             {balance && (
-              <div className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-100">
-                Balance {Number(balance.formatted).toFixed(2)} {balance.symbol}
+              <div className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-2.5 text-sm font-bold text-amber-100">
+                Balance {Number(balance.formatted).toFixed(4)} {balance.symbol}
               </div>
             )}
           </div>

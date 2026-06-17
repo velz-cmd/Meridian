@@ -3,14 +3,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { arcTestnet } from "@/lib/arc-chain";
+import { bsc } from "@/lib/bsc-chain";
 
-/** Arc Testnet only — USDC-native fees and demo trading */
+/** BNB Smart Chain — Trust Wallet / MetaMask (BNB Hack) */
 const config = createConfig({
-  chains: [arcTestnet],
+  chains: [bsc],
   connectors: [injected({ shimDisconnect: true })],
   transports: {
-    [arcTestnet.id]: http(arcTestnet.rpcUrls.default.http[0]),
+    [bsc.id]: http(bsc.rpcUrls.default.http[0]),
   },
   ssr: false,
 });

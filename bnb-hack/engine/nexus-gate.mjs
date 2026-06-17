@@ -180,11 +180,13 @@ export function evaluateNexusGate(t) {
   const macd = (t.macdSignal ?? "neutral").toLowerCase();
   const established = isEstablished(t);
   const patterns = patternFlags(t);
+  const regime = fg < 30 ? "risk-off" : fg > 70 ? "risk-on" : "neutral";
 
   if (patterns.hardAvoid) {
     return {
       signal: "AVOID",
       tier: "avoid",
+      regime,
       confidence: 90,
       risk: 88,
       agreement: 0,
@@ -205,12 +207,25 @@ export function evaluateNexusGate(t) {
   const edge = estimateEdge(checks, fg);
 
   let tier = /** @type {SetupTier} */ ("watch");
+  const needAPlus = established ? (regime === "risk-off" ? 8 : 7) : regime === "risk-off" ? 9 : 8;
+  const edgeAPlus = established
+    ? regime === "risk-off"
+      ? 32
+      : regime === "risk-on"
+        ? 30
+        : 28
+    : regime === "risk-off"
+      ? 40
+      : 36;
+  const needA = established ? (regime === "risk-off" ? 6 : 5) : regime === "risk-off" ? 7 : 6;
+  const edgeA = established ? (regime === "risk-off" ? 26 : 22) : regime === "risk-off" ? 32 : 28;
+
   if (established) {
-    if (agreement >= 0.72 && edge >= 28 && passed >= 7) tier = "a-plus";
-    else if (agreement >= 0.52 && edge >= 22 && passed >= 5) tier = "a";
+    if (agreement >= 0.72 && edge >= edgeAPlus && passed >= needAPlus) tier = "a-plus";
+    else if (agreement >= 0.52 && edge >= edgeA && passed >= needA) tier = "a";
   } else {
-    if (agreement >= 0.78 && edge >= 36 && passed >= 8) tier = "a-plus";
-    else if (agreement >= 0.62 && edge >= 28 && passed >= 6) tier = "a";
+    if (agreement >= 0.78 && edge >= edgeAPlus + 4 && passed >= needAPlus) tier = "a-plus";
+    else if (agreement >= 0.62 && edge >= edgeA + 2 && passed >= needA) tier = "a";
   }
 
   let signal = /** @type {Signal} */ ("HOLD");
@@ -235,11 +250,11 @@ export function evaluateNexusGate(t) {
   const thesis =
     signal === "ENTER_LONG"
       ? tier === "a-plus"
-        ? `${symbol}: A+ setup — ${passed}/${checks.length} checks, edge +${edge}. Size small; invalidate on 1h roll-over.`
-        : `${symbol}: A setup — ${passed}/${checks.length} aligned; edge +${edge}. Tactical only if flow holds.`
+        ? `${symbol}: A+ setup (${regime}) — ${passed}/${checks.length} checks, edge +${edge}. Size small; invalidate on 1h roll-over.`
+        : `${symbol}: A setup (${regime}) — ${passed}/${checks.length} aligned; edge +${edge}. Tactical only if flow holds.`
       : signal === "EXIT" || signal === "AVOID"
-        ? `${symbol}: risk-off — ${gaps.slice(0, 2).join("; ") || "structure fails gate"}. Stay flat.`
-        : `${symbol}: WATCH — missing ${gaps.slice(0, 3).join("; ") || "alignment"}. No entry until gate clears.`;
+        ? `${symbol}: risk-off (${regime}) — ${gaps.slice(0, 2).join("; ") || "structure fails gate"}. Stay flat.`
+        : `${symbol}: WATCH (${regime}) — missing ${gaps.slice(0, 3).join("; ") || "alignment"}. No entry until gate clears.`;
 
   const agentDirective =
     signal === "ENTER_LONG"
@@ -251,6 +266,7 @@ export function evaluateNexusGate(t) {
   return {
     signal,
     tier,
+    regime,
     confidence,
     risk,
     agreement: Math.round(agreement * 1000) / 1000,
@@ -310,6 +326,7 @@ export function toStructuredOutput(t, result = evaluateNexusGate(t)) {
     timestamp: new Date().toISOString(),
     signal: result.signal,
     tier: result.tier,
+    regime: result.regime,
     confidence: result.confidence,
     risk: result.risk,
     agreement: result.agreement,

@@ -10,7 +10,7 @@ import {
   setWalletConnectConsent,
 } from "@/components/security/wallet-connect-consent";
 import { truncateHash } from "@/lib/utils";
-import { ARC_TESTNET_ID } from "@/lib/arc-chain";
+import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
 import { DEMO_TRADE_NETWORKS } from "@/lib/testnet-chains";
 
 export function WalletConnectButton({ compact = false }: { compact?: boolean }) {
@@ -19,14 +19,14 @@ export function WalletConnectButton({ compact = false }: { compact?: boolean }) 
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
-  const { data: balance } = useBalance({ address, chainId: ARC_TESTNET_ID });
+  const { data: balance } = useBalance({ address, chainId: BSC_CHAIN_ID });
   const [consentOpen, setConsentOpen] = useState(false);
 
-  const onArc = chainId === ARC_TESTNET_ID;
+  const onBsc = chainId === BSC_CHAIN_ID;
 
   function doConnect() {
     const connector = connectors[0];
-    if (connector) connect({ connector, chainId: ARC_TESTNET_ID });
+    if (connector) connect({ connector, chainId: BSC_CHAIN_ID });
   }
 
   async function connectWallet() {
@@ -37,7 +37,7 @@ export function WalletConnectButton({ compact = false }: { compact?: boolean }) 
     doConnect();
   }
 
-  async function switchToArc() {
+  async function switchToBsc() {
     const chain = DEMO_TRADE_NETWORKS[0];
     try {
       await switchChainAsync({ chainId: chain.chainId });
@@ -63,26 +63,26 @@ export function WalletConnectButton({ compact = false }: { compact?: boolean }) 
   }
 
   if (isConnected && address) {
-    const balanceLabel = balance ? `${Number(balance.formatted).toFixed(2)} USDC` : null;
+    const balanceLabel = balance ? `${Number(balance.formatted).toFixed(4)} BNB` : null;
 
     return (
       <div className="flex flex-wrap items-center gap-2">
-        {!onArc && (
+        {!onBsc && (
           <Button
             variant="outline"
             size="sm"
-            onClick={switchToArc}
+            onClick={switchToBsc}
             className="min-h-[44px] border-amber-400/40 text-amber-200"
           >
             <AlertTriangle className="h-4 w-4" />
-            Switch Arc
+            Switch BSC
           </Button>
         )}
-        <div className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2">
-          <Wallet className="h-4 w-4 shrink-0 text-cyan-200" />
+        <div className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2">
+          <Wallet className="h-4 w-4 shrink-0 text-amber-200" />
           <span className="text-sm font-semibold text-white">{truncateHash(address, 6, 4)}</span>
           {balanceLabel && (
-            <span className="rounded-md bg-black/30 px-2 py-0.5 text-xs font-bold text-cyan-100">
+            <span className="rounded-md bg-black/30 px-2 py-0.5 text-xs font-bold text-amber-100">
               {balanceLabel}
             </span>
           )}

@@ -15,10 +15,10 @@ import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
-import { useArcSettlement } from "@/hooks/use-arc-settlement";
+import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { buildDemoQuote } from "@/lib/demo-trading";
-import { arcExplorerAddress, arcExplorerTx } from "@/lib/arc";
-import { ARC_TESTNET_ID } from "@/lib/arc-chain";
+import { bscExplorerAddress, bscExplorerTx } from "@/lib/bsc-chain";
+import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
 import { formatPct, formatTokenPrice, formatUsd, truncateHash } from "@/lib/utils";
 import type { NexusDecision, DemoPosition } from "@/lib/storage";
 
@@ -38,7 +38,7 @@ function asTradeToken(token: TradeToken) {
 
 type AmountMode = "usdc" | "token";
 
-const TRADE_NETWORK = "arc" as const;
+const TRADE_NETWORK = "bsc" as const;
 const BUY_PRESETS = [10, 25, 50, 100] as const;
 const PCT_OPTIONS = [25, 50, 75] as const;
 
@@ -74,8 +74,8 @@ export function NexusTradeHub({
   const [agentLive, setAgentLive] = useState(false);
   const toast = useToast();
   const { address, isConnected } = useAccount();
-  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useArcSettlement();
-  const { data: balance } = useBalance({ address, chainId: ARC_TESTNET_ID });
+  const { payBnbFee, ensureBscNetwork, isPending: bnbPending, feeUsd } = useBnbSettlement();
+  const { data: balance } = useBalance({ address, chainId: BSC_CHAIN_ID });
 
   const setTab = (tab: TradeTab) => {
     if (activeTab === undefined) setInternalTab(tab);
@@ -189,7 +189,7 @@ export function NexusTradeHub({
       return;
     }
     if (side === "buy" && resolved.usdcAmount > usdcBalance) {
-      setError("Insufficient USDC balance on Arc");
+      setError("Insufficient BNB balance on BSC");
       return;
     }
     if (side === "sell" && resolved.tokenAmount > tokenBalance + 1e-9) {
@@ -200,8 +200,8 @@ export function NexusTradeHub({
     setLoading(true);
     setError(null);
     try {
-      await ensureArcNetwork();
-      const fee = await payArcFee(
+      await ensureBscNetwork();
+      const fee = await payBnbFee(
         side.toUpperCase(),
         `${trade.tokenAddress}-${TRADE_NETWORK}-${side}-${amountNum}-${Date.now()}`,
       );
@@ -236,7 +236,7 @@ export function NexusTradeHub({
       toast({
         type: "success",
         title: side === "buy" ? "Buy executed" : "Sell executed",
-        message: quote?.label ?? `Demo ${side} recorded on Arc`,
+        message: quote?.label ?? `Demo ${side} recorded on BSC`,
       });
       onTradeComplete?.();
     } catch (err) {
@@ -270,8 +270,8 @@ export function NexusTradeHub({
     tradeTab !== "agent" && trade ? (
       <div className="space-y-2">
         <div className="flex justify-between text-xs text-cyan-100/80">
-          <span>Arc network fee</span>
-          <span className="font-semibold">~${feeUsd} USDC</span>
+          <span>Constitution gate · BSC wallet</span>
+          <span className="font-semibold">Constitution gated</span>
         </div>
         {isConnected ? (
           <button
@@ -279,18 +279,18 @@ export function NexusTradeHub({
             className={nexusGlassCta(
               side === "sell" ? "sell" : "buy",
               "inline-flex min-h-[52px] w-full items-center justify-center gap-2 text-base",
-              amountNum > 0 && !loading && !arcPending,
+              amountNum > 0 && !loading && !bnbPending,
             )}
             onClick={executeDemoTrade}
-            disabled={loading || arcPending || amountNum <= 0 || constitutionBlocked}
+            disabled={loading || bnbPending || amountNum <= 0 || constitutionBlocked}
           >
-            {loading || arcPending ? (
+            {loading || bnbPending ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : null}
             {constitutionBlocked ? "Constitution DENY — buy blocked" : `Confirm ${side === "buy" ? "Buy" : "Sell"}`}
           </button>
         ) : (
-          <p className="text-center text-sm text-white/60">Connect wallet on Arc Testnet to trade</p>
+          <p className="text-center text-sm text-white/60">Connect wallet on BNB Smart Chain to trade</p>
         )}
         {constitutionBlocked && (
           <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-100">
@@ -298,19 +298,19 @@ export function NexusTradeHub({
           </p>
         )}
         {error && <p className="text-sm text-rose-300">{error}</p>}
-        {lastTx && (
+        {lastTx && lastTx.hash.startsWith("0x") && (
           <a
-            href={arcExplorerTx(lastTx.hash)}
+            href={bscExplorerTx(lastTx.hash)}
             target="_blank"
             rel="noreferrer"
             className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-500/15 text-sm font-medium text-emerald-100"
           >
             <ExternalLink className="h-4 w-4" />
-            View on Arc Scan
+            View on BscScan
           </a>
         )}
         <p className="text-center text-[11px] text-white/45">
-          Demo fills · real Arc USDC fee tx · prices from DexScreener
+          Demo fills · Constitution Permit gate · prices from DexScreener
         </p>
       </div>
     ) : null;
@@ -324,7 +324,7 @@ export function NexusTradeHub({
             <ArcIcon3d icon={NEXUS_TRADE_ICONS.trade} theme="nexus" size="md" />
             <div className="min-w-0 flex-1">
               <p className="arc-caption text-violet-300/85">Execution</p>
-              <span className="text-base font-semibold text-white">Arc Trade · Agent</span>
+              <span className="text-base font-semibold text-white">BSC Trade · Agent</span>
             </div>
             {agentLive && (
               <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-200">

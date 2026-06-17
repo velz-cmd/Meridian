@@ -1,19 +1,49 @@
 /**
  * CoinMarketCap Pro REST helpers (Basic plan: quotes + fear/greed).
+ * Server-side TTL cache saves credits and improves permit latency.
  */
 
 const API = "https://pro-api.coinmarketcap.com";
+
+const TTL_MS = { fearGreed: 60_000, quotes: 30_000, map: 300_000 };
+/** @type {Map<string, { at: number; data: unknown }>} */
+const cache = new Map();
+
+function cacheGet(key) {
+  const row = cache.get(key);
+  if (!row) return null;
+  const ttl = key.startsWith("fg:") ? TTL_MS.fearGreed : key.startsWith("map:") ? TTL_MS.map : TTL_MS.quotes;
+  if (Date.now() - row.at > ttl) {
+    cache.delete(key);
+    return null;
+  }
+  return row.data;
+}
+
+function cacheSet(key, data) {
+  cache.set(key, { at: Date.now(), data });
+}
+
+/** @returns {{ entries: number; keys: string[] }} */
+export function cmcCacheStats() {
+  return { entries: cache.size, keys: [...cache.keys()] };
+}
 
 export function cmcKey() {
   return process.env.CMC_API_KEY || process.env.CMC_PRO_API_KEY || "";
 }
 
-export async function cmcFetch(path, params = {}) {
+export async function cmcFetch(path, params = {}, opts = {}) {
   const key = cmcKey();
   if (!key) throw new Error("Set CMC_API_KEY or CMC_PRO_API_KEY");
   const qs = new URLSearchParams(
     Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
   ).toString();
+  const cacheKey = opts.cacheKey ?? null;
+  if (cacheKey) {
+    const hit = cacheGet(cacheKey);
+    if (hit) return hit;
+  }
   const res = await fetch(`${API}${path}?${qs}`, {
     headers: { "X-CMC_PRO_API_KEY": key, Accept: "application/json" },
   });
@@ -30,11 +60,17 @@ export async function cmcFetch(path, params = {}) {
     err.status = res.status;
     throw err;
   }
-  return JSON.parse(text);
+  const parsed = JSON.parse(text);
+  if (cacheKey) cacheSet(cacheKey, parsed);
+  return parsed;
 }
 
 export async function resolveSymbolId(symbol) {
-  const data = await cmcFetch("/v1/cryptocurrency/map", { symbol, limit: "10" });
+  const data = await cmcFetch(
+    "/v1/cryptocurrency/map",
+    { symbol, limit: "10" },
+    { cacheKey: `map:${symbol.toUpperCase()}` },
+  );
   const row = data.data?.find((r) => r.symbol === symbol && r.rank < 9000) ?? data.data?.[0];
   if (!row) throw new Error(`Symbol not found: ${symbol}`);
   return row.id;
@@ -59,8 +95,10 @@ export function macdProxy(change1h, change24h) {
 export async function fetchLiveSnapshot(symbol) {
   const sym = symbol.toUpperCase();
   const [quotes, fgRes] = await Promise.all([
-    cmcFetch("/v1/cryptocurrency/quotes/latest", { symbol: sym }),
-    cmcFetch("/v3/fear-and-greed/latest").catch(() => ({ data: { value: 50 } })),
+    cmcFetch("/v1/cryptocurrency/quotes/latest", { symbol: sym }, { cacheKey: `quotes:${sym}` }),
+    cmcFetch("/v3/fear-and-greed/latest", {}, { cacheKey: "fg:latest" }).catch(() => ({
+      data: { value: 50 },
+    })),
   ]);
 
   const row = quotes.data?.[sym];
