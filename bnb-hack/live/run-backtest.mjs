@@ -19,6 +19,7 @@ import {
   macdProxy,
   resolveSymbolId,
 } from "./cmc-fetch.mjs";
+import { fetchBinanceDailySeries } from "./binance-klines.mjs";
 
 async function fetchFearGreed() {
   try {
@@ -89,6 +90,43 @@ async function fetchHistorical(id, days) {
 }
 
 /**
+ * @param {ReturnType<typeof buildSeries>} series
+ * @param {object} meta
+ */
+function packBacktestResult(series, meta) {
+  const warmup = series.slice(14);
+  const feeBps = meta.feeBps ?? 10;
+  const slippageBps = meta.slippageBps ?? 0;
+  const includeCompare = meta.includeCompare !== false;
+  const evalNow = toStructuredOutput(
+    warmup[warmup.length - 1],
+    evaluateNexusGate(warmup[warmup.length - 1]),
+  );
+  const constitution = backtestSeries(warmup, { feeBps, slippageBps });
+  const compare = includeCompare ? backtestCompare(warmup, { feeBps, slippageBps }) : null;
+  const equityCurves = backtestEquityCurves(warmup, { feeBps, slippageBps });
+
+  return {
+    ok: true,
+    mode: meta.mode,
+    dataSource: meta.dataSource,
+    liveGateDataSource: "coinmarketcap/quotes/latest",
+    symbol: meta.symbol,
+    strategy: "nexus-momentum-gate/v1.1.0",
+    days: meta.days,
+    bars: series.length,
+    warmupBars: warmup.length,
+    evalNow,
+    backtest: constitution,
+    compare,
+    equityCurves,
+    methodology: meta.methodology,
+    note: meta.note,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+/**
  * @param {{ symbol?: string; days?: number; feeBps?: number; slippageBps?: number; includeCompare?: boolean }} opts
  */
 export async function runHistoricalBacktest(opts = {}) {
@@ -104,8 +142,15 @@ export async function runHistoricalBacktest(opts = {}) {
       ok: false,
       mode: "unavailable",
       error: "CMC_API_KEY not configured on server",
-      hint: "Set CMC_API_KEY — backtest requires CoinMarketCap Pro historical quotes",
+      hint: "Set CMC_API_KEY for live gate + fear/greed macro in backtest",
     };
+  }
+
+  let fg = 50;
+  try {
+    fg = await fetchFearGreed();
+  } catch {
+    /* macro fallback */
   }
 
   try {
@@ -120,58 +165,65 @@ export async function runHistoricalBacktest(opts = {}) {
       };
     }
 
-    const fg = await fetchFearGreed();
     const series = buildSeries(raw, symbol, fg);
-    const warmup = series.slice(14);
-    const evalNow = toStructuredOutput(
-      warmup[warmup.length - 1],
-      evaluateNexusGate(warmup[warmup.length - 1]),
-    );
-    const constitution = backtestSeries(warmup, { feeBps, slippageBps });
-    const compare = includeCompare ? backtestCompare(warmup, { feeBps, slippageBps }) : null;
-    const equityCurves = backtestEquityCurves(warmup, { feeBps, slippageBps });
-
-    return {
-      ok: true,
-      mode: "live-historical",
-      dataSource: "coinmarketcap/quotes/historical-daily",
+    return packBacktestResult(series, {
       symbol,
-      strategy: "nexus-momentum-gate/v1.1.0",
       days,
-      bars: series.length,
-      warmupBars: warmup.length,
-      evalNow,
-      backtest: constitution,
-      compare,
-      equityCurves,
+      feeBps,
+      slippageBps,
+      includeCompare,
+      mode: "cmc-historical",
+      dataSource: "coinmarketcap/quotes/historical-daily",
       methodology: {
         rsi: "14-period from CMC daily close prices",
-        macd: "derived from CMC daily 1h-equivalent and 24h change",
-        fearGreed: "latest CMC fear-and-greed index applied across series",
+        macd: "derived from CMC daily change",
+        fearGreed: "coinmarketcap/fear-and-greed/latest",
         feesBps: feeBps,
         slippageBps,
       },
-      generatedAt: new Date().toISOString(),
-    };
+    });
   } catch (e) {
     const msg = e.message || String(e);
-    const planLimited = msg.includes("1006") || msg.includes("subscription plan");
+    const planLimited =
+      msg.includes("1006") ||
+      msg.includes("subscription plan") ||
+      msg.includes("doesn't support this endpoint");
 
-    if (planLimited) {
+    if (!planLimited) {
+      return { ok: false, mode: "error", error: msg };
+    }
+
+    try {
+      const raw = await fetchBinanceDailySeries(symbol, days);
+      const tail = raw.slice(-days);
+      const series = buildSeries(tail, symbol, fg);
+      return packBacktestResult(series, {
+        symbol,
+        days,
+        feeBps,
+        slippageBps,
+        includeCompare,
+        mode: "binance-venue-replay",
+        dataSource: "binance-spot-daily-klines",
+        note:
+          "CMC Basic plan: live permits use CoinMarketCap. Backtest replays the same gate rules on Binance spot daily closes (BSC execution venue) — not synthetic.",
+        methodology: {
+          rsi: "14-period from Binance daily close",
+          macd: "derived from daily change",
+          fearGreed: "coinmarketcap/fear-and-greed/latest (macro overlay)",
+          feesBps: feeBps,
+          slippageBps,
+        },
+      });
+    } catch (binanceErr) {
       return {
         ok: false,
         mode: "plan-limited",
-        error: "CMC historical quotes require Standard plan or higher",
-        hint: "Apply for CMC Pro via BNB Hack partner benefits, or run npm run bnb:backtest locally with upgraded key",
-        detail: msg,
+        error: "CMC historical requires Standard plan; Binance venue replay also failed",
+        hint: "Upgrade CMC plan or check Binance API availability",
+        detail: binanceErr.message || String(binanceErr),
       };
     }
-
-    return {
-      ok: false,
-      mode: "error",
-      error: msg,
-    };
   }
 }
 

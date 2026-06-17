@@ -49,6 +49,7 @@ type BacktestPayload = {
     edge: { returnDeltaPct: number; drawdownSavedPct: number };
   };
   equityCurves?: { t: string | number; constitution: number; naive: number }[];
+  note?: string;
 };
 
 export function GateConsole() {
@@ -198,7 +199,10 @@ export function GateConsole() {
               <div>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300/85">Regime proof</p>
                 <h2 className="text-lg font-semibold">90-day constitution vs naive agent</h2>
-                <p className="text-sm text-white/55">Real CMC daily bars — equity indexed to 1.0 at series start.</p>
+                <p className="text-sm text-white/55">
+                  Real daily bars — CMC historical when available; otherwise Binance spot closes (BSC venue).
+                  Live router always uses CoinMarketCap.
+                </p>
               </div>
             </div>
 
@@ -210,6 +214,11 @@ export function GateConsole() {
 
             {!btLoading && backtest?.ok && backtest.equityCurves && backtest.compare && (
               <div className="space-y-4">
+                {backtest.note && (
+                  <p className="rounded-lg border border-cyan-400/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100/85">
+                    {backtest.note}
+                  </p>
+                )}
                 <GateEquityChart points={backtest.equityCurves} symbol={symbol} />
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Stat label="Gate return" value={`${backtest.backtest!.totalReturnPct >= 0 ? "+" : ""}${backtest.backtest!.totalReturnPct}%`} />

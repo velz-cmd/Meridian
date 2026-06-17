@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     if (hasCmc) {
       try {
         const bt = await runBnbDemo({ live: true, symbol, days: 90 });
-        backtest = bt.backtest;
+        if (bt.ok && "backtest" in bt) backtest = bt.backtest;
       } catch {
         /* optional */
       }
