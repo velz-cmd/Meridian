@@ -1,6 +1,5 @@
 /**
- * MERIDIAN Gate — CMC-only evaluation for BNB Hack Track 2.
- * No synthetic backtest, no dex overlay, no fixture data.
+ * MERIDIAN Gate — BSC Capital Router + permit APIs.
  */
 import {
   evaluateNexusGate,
@@ -9,33 +8,28 @@ import {
 } from "../../bnb-hack/engine/nexus-gate.mjs";
 import { fetchGateSnapshot } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { runHistoricalBacktest } from "../../bnb-hack/live/run-backtest.mjs";
+import { convictionScore, routeBscCapital } from "../../bnb-hack/live/gate-router.mjs";
 import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
-import { isGateSymbol } from "@/lib/gate-constants";
+import { GATE_SYMBOLS, isGateSymbol } from "@/lib/gate-constants";
 import type { AgentInput } from "@/lib/constitution-permit-handler";
 
 const PUBLIC_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "https://trader-arc.vercel.app";
 
-export async function buildGateEvaluateResponse(input: {
-  symbol: string;
-  agent?: AgentInput | null;
-}) {
-  const symbol = input.symbol.toUpperCase();
-  if (!isGateSymbol(symbol)) {
-    throw new Error(`Gate supports BNB and CAKE only — got ${symbol}`);
-  }
+const DEFAULT_AGENT: AgentInput = {
+  action: "BUY",
+  confidence: 92,
+  reasoning: "Upstream agent proposes tactical long on BSC benchmark.",
+};
 
+async function evaluateSymbol(symbol: string, agent: AgentInput) {
   const { snapshot, sources, cmcLive } = await fetchGateSnapshot(symbol);
-  const gate = evaluateNexusGate(snapshot);
-  const structured = toStructuredOutput(snapshot, gate);
-  const permit = issueConstitutionPermit(snapshot, input.agent ?? null);
+  const gateRaw = evaluateNexusGate(snapshot);
+  const gate = toStructuredOutput(snapshot, gateRaw);
+  const permit = issueConstitutionPermit(snapshot, agent);
 
   return {
-    product: "MERIDIAN Gate",
-    track: "BNB Hack · Strategy Skills (CoinMarketCap)",
-    skill: CONSTITUTION_SKILL,
     symbol,
     cmcLive,
-    dataIntegrity: "cmc-only-no-synthetic",
     fieldSources: sources,
     market: {
       price: snapshot.price,
@@ -48,16 +42,98 @@ export async function buildGateEvaluateResponse(input: {
       rsi: snapshot.rsi,
       macdSignal: snapshot.macdSignal,
     },
-    gate: structured,
+    gate,
     permit: { ...permit, skill: CONSTITUTION_SKILL },
-    backtest: {
-      endpoint: `${PUBLIC_ORIGIN}/api/gate/backtest?symbol=${symbol}&days=90`,
-      note: "Historical proof is served separately — never synthetic in this response",
-    },
+    conviction: convictionScore(gate, permit),
+  };
+}
+
+function buildArbitration(agent: AgentInput, gate: Awaited<ReturnType<typeof evaluateSymbol>>["gate"], permit: Awaited<ReturnType<typeof evaluateSymbol>>["permit"]) {
+  const agentConf = agent.confidence ?? 70;
+  const gateConf = gate.confidence ?? 50;
+  const gap = agentConf - gateConf;
+  const vetoed = permit.overridden ?? false;
+
+  let narrative: string;
+  if (permit.status === "DENY" && agent.action === "BUY") {
+    narrative = vetoed
+      ? `Agent confidence (${agentConf}%) exceeds gate calibration (${gateConf}%) — constitution vetoed the entry.`
+      : `Gate signal is ${gate.signal.replace("_", " ")} — agent BUY not cleared for sizing.`;
+  } else if (permit.status === "GRANT") {
+    narrative = `Agent BUY aligns with ${gate.tier.toUpperCase()} ${gate.signal.replace("_", " ")} under ${gate.regime ?? "neutral"} regime.`;
+  } else {
+    narrative = gate.thesis;
+  }
+
+  return {
+    agent: { action: agent.action, confidence: agentConf, reasoning: agent.reasoning },
+    gate: { confidence: gateConf, edge: gate.edge, signal: gate.signal, regime: gate.regime },
+    gap,
+    vetoed,
+    verdict: permit.status,
+    execute: permit.execute,
+    permitId: permit.permitId,
+    narrative,
+    nexusUrl: `${PUBLIC_ORIGIN}/nexus`,
+  };
+}
+
+export async function buildGateEvaluateResponse(input: {
+  symbol: string;
+  agent?: AgentInput | null;
+}) {
+  const symbol = input.symbol.toUpperCase();
+  if (!isGateSymbol(symbol)) {
+    throw new Error(`Gate supports BNB and CAKE only — got ${symbol}`);
+  }
+
+  const agent = input.agent ?? DEFAULT_AGENT;
+  const eval_ = await evaluateSymbol(symbol, agent);
+
+  return {
+    product: "MERIDIAN Gate · BSC Capital Router",
+    track: "BNB Hack · Strategy Skills (CoinMarketCap)",
+    skill: CONSTITUTION_SKILL,
+    dataIntegrity: "cmc-only-no-synthetic",
+    ...eval_,
+    arbitration: buildArbitration(agent, eval_.gate, eval_.permit),
     reproduce: {
       evaluate: `curl "${PUBLIC_ORIGIN}/api/gate/evaluate?symbol=${symbol}"`,
+      route: `curl "${PUBLIC_ORIGIN}/api/gate/route"`,
       backtest: `curl "${PUBLIC_ORIGIN}/api/gate/backtest?symbol=${symbol}&days=90"`,
       cli: `npm run bnb:backtest -- --symbol ${symbol} --days 90`,
+    },
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function buildGateRouteResponse(input: { agent?: AgentInput | null } = {}) {
+  const agent = input.agent ?? DEFAULT_AGENT;
+  const results = await Promise.all(GATE_SYMBOLS.map((sym) => evaluateSymbol(sym, agent)));
+  const regime = results[0]?.gate.regime ?? "neutral";
+  const fearGreed = results[0]?.market.fearGreed ?? 50;
+
+  const route = routeBscCapital(
+    results.map((r) => ({
+      symbol: r.symbol,
+      gate: r.gate,
+      permit: r.permit,
+      market: r.market,
+      conviction: r.conviction,
+    })),
+    { agentAction: agent.action, regime, fearGreed },
+  );
+
+  return {
+    product: "MERIDIAN Gate · BSC Capital Router",
+    track: "BNB Hack · Strategy Skills (CoinMarketCap)",
+    skill: CONSTITUTION_SKILL,
+    dataIntegrity: "cmc-only-no-synthetic",
+    benchmarks: results,
+    route,
+    reproduce: {
+      route: `curl "${PUBLIC_ORIGIN}/api/gate/route"`,
+      evaluate: `curl "${PUBLIC_ORIGIN}/api/gate/evaluate?symbol=BNB"`,
     },
     generatedAt: new Date().toISOString(),
   };
@@ -73,7 +149,7 @@ export async function buildGateBacktestResponse(input: { symbol: string; days?: 
   const result = await runHistoricalBacktest({ symbol, days, includeCompare: true });
 
   return {
-    product: "MERIDIAN Gate",
+    product: "MERIDIAN Gate · BSC Capital Router",
     track: "BNB Hack · Strategy Skills (CoinMarketCap)",
     skill: CONSTITUTION_SKILL,
     symbol,
@@ -104,12 +180,12 @@ export async function probeGateStatus() {
   }
 
   return {
-    product: "MERIDIAN Gate",
+    product: "MERIDIAN Gate · BSC Capital Router",
     track: CONSTITUTION_SKILL.hubTrack,
     skill: CONSTITUTION_SKILL,
     demo: `${PUBLIC_ORIGIN}/gate`,
-    symbols: ["BNB", "CAKE"],
-    dataPolicy: "All gate fields from CoinMarketCap — no synthetic backtest in live API",
+    symbols: [...GATE_SYMBOLS],
+    dataPolicy: "CMC-only live data · real historical backtest · BSC benchmark capital routing",
     cmc: {
       configured: hasCmc,
       live: cmcLive,
@@ -117,10 +193,10 @@ export async function probeGateStatus() {
       error: lastError,
     },
     endpoints: {
+      route: "/api/gate/route",
       evaluate: "/api/gate/evaluate",
       backtest: "/api/gate/backtest",
       status: "/api/gate/status",
-      permit: "/api/constitution/permit",
     },
     generatedAt: new Date().toISOString(),
   };

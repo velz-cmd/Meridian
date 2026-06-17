@@ -7,6 +7,7 @@ import {
   evaluateNexusGate,
   backtestSeries,
   backtestCompare,
+  backtestEquityCurves,
   toStructuredOutput,
 } from "../engine/nexus-gate.mjs";
 import {
@@ -66,6 +67,7 @@ function buildSeries(raw, symbol, fearGreed) {
       rsi,
       macdSignal: macdProxy(ch1, row.change24h),
       fearGreed,
+      time: row.time ?? i,
     };
   });
 }
@@ -127,6 +129,7 @@ export async function runHistoricalBacktest(opts = {}) {
     );
     const constitution = backtestSeries(warmup, { feeBps, slippageBps });
     const compare = includeCompare ? backtestCompare(warmup, { feeBps, slippageBps }) : null;
+    const equityCurves = backtestEquityCurves(warmup, { feeBps, slippageBps });
 
     return {
       ok: true,
@@ -140,6 +143,7 @@ export async function runHistoricalBacktest(opts = {}) {
       evalNow,
       backtest: constitution,
       compare,
+      equityCurves,
       methodology: {
         rsi: "14-period from CMC daily close prices",
         macd: "derived from CMC daily 1h-equivalent and 24h change",

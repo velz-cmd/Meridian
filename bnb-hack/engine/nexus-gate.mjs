@@ -562,6 +562,66 @@ export function backtestCompare(series, opts = {}) {
 }
 
 /**
+ * Daily equity curves for charting — constitution vs naive on identical CMC bars.
+ * @param {CmcTokenSnapshot[]} series
+ * @param {{ feeBps?: number; slippageBps?: number; maxPoints?: number }} opts
+ */
+export function backtestEquityCurves(series, opts = {}) {
+  const fee = (opts.feeBps ?? 10) / 10_000;
+  const slip = (opts.slippageBps ?? 0) / 10_000;
+  const maxPoints = opts.maxPoints ?? 120;
+
+  let cPos = /** @type {Position} */ ("FLAT");
+  let nPos = /** @type {Position} */ ("FLAT");
+  let cEq = 1;
+  let nEq = 1;
+  /** @type {{ t: string | number; constitution: number; naive: number; price: number }[]} */
+  const points = [];
+
+  for (let i = 1; i < series.length; i++) {
+    const snap = series[i];
+    const prev = series[i - 1];
+    const price = snap.price ?? prev.price ?? 1;
+    const prevPrice = prev.price ?? price;
+    const ch24 = snap.change24h ?? 0;
+    const ch1 = snap.change1h ?? 0;
+    const label = snap.time ?? i;
+
+    if (cPos === "LONG") cEq *= price / prevPrice;
+    if (nPos === "LONG") nEq *= price / prevPrice;
+
+    const { signal: cSig } = evaluateNexusGate(snap);
+    const cNext = nextPosition(cSig, cPos);
+    if (cNext !== cPos) {
+      if (cPos === "LONG") cEq *= 1 - fee - slip;
+      if (cNext === "LONG") cEq *= 1 - fee - slip;
+      cPos = cNext;
+    }
+
+    let nSig = /** @type {Signal} */ ("HOLD");
+    if (ch24 > 0 && ch1 > -12) nSig = "ENTER_LONG";
+    if (ch24 < -8 || ch1 < -18) nSig = "EXIT";
+    const nNext = nextPosition(nSig, nPos);
+    if (nNext !== nPos) {
+      if (nPos === "LONG") nEq *= 1 - fee - slip;
+      if (nNext === "LONG") nEq *= 1 - fee - slip;
+      nPos = nNext;
+    }
+
+    points.push({
+      t: label,
+      constitution: Math.round(cEq * 10000) / 10000,
+      naive: Math.round(nEq * 10000) / 10000,
+      price: Math.round(price * 100) / 100,
+    });
+  }
+
+  if (points.length <= maxPoints) return points;
+  const step = Math.ceil(points.length / maxPoints);
+  return points.filter((_, idx) => idx % step === 0 || idx === points.length - 1);
+}
+
+/**
  * Issue a trade permit — runtime product of the CMC Strategy Skill.
  * @param {CmcTokenSnapshot} t
  * @param {{ action?: string; confidence?: number; reasoning?: string } | null} agentSignal

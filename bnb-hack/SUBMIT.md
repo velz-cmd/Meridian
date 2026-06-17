@@ -8,7 +8,7 @@
 
 ## One sentence
 
-**MERIDIAN Gate is a CoinMarketCap Strategy Skill that evaluates BNB/CAKE with live CMC data and proves edge via real historical backtest — no synthetic counterfactual in the API.**
+**MERIDIAN BSC Capital Router — ranks BNB vs CAKE under a fixed constitution, issues auditable GRANT/DENY permits, and proves regime discipline on real CoinMarketCap history.**
 
 ---
 
@@ -17,8 +17,9 @@
 | What | URL |
 |------|-----|
 | **Product** | https://trader-arc.vercel.app/gate |
-| **Live evaluate** | `GET /api/gate/evaluate?symbol=BNB` |
-| **Historical backtest** | `GET /api/gate/backtest?symbol=BNB&days=90` |
+| **Capital route** | `GET /api/gate/route` |
+| **Permit evaluate** | `GET /api/gate/evaluate?symbol=BNB` |
+| **Historical proof** | `GET /api/gate/backtest?symbol=BNB&days=90` |
 | **Health** | `GET /api/gate/status` |
 | **CMC Skill** | `bnb-hack/skills/nexus-momentum-gate/SKILL.md` |
 | **GitHub** | https://github.com/ibrahim0-cursor/cursor-arc-circle |
@@ -65,6 +66,7 @@
 
 ```powershell
 curl https://trader-arc.vercel.app/api/gate/status
+curl https://trader-arc.vercel.app/api/gate/route
 curl "https://trader-arc.vercel.app/api/gate/evaluate?symbol=BNB&agentAction=BUY&confidence=92"
 curl "https://trader-arc.vercel.app/api/gate/backtest?symbol=BNB&days=90"
 npm run bnb:backtest -- --symbol BNB --days 90
