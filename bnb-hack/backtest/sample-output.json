@@ -5,9 +5,10 @@
   "evalNow": {
     "schema": "nexus-momentum-gate/v1",
     "symbol": "BNB",
-    "timestamp": "2026-06-16T20:45:47.704Z",
+    "timestamp": "2026-06-17T18:53:40.874Z",
     "signal": "ENTER_LONG",
     "tier": "a-plus",
+    "regime": "neutral",
     "confidence": 74,
     "risk": 33,
     "agreement": 1,
@@ -71,7 +72,7 @@
     "checksPassed": 9,
     "checksTotal": 9,
     "gaps": [],
-    "thesis": "BNB: A+ setup — 9/9 checks, edge +44. Size small; invalidate on 1h roll-over.",
+    "thesis": "BNB: A+ setup (neutral) — 9/9 checks, edge +44. Size small; invalidate on 1h roll-over.",
     "agentDirective": "Agent may propose tactical long; cap confidence at gate value.",
     "inputs": {
       "price": 660,
@@ -85,7 +86,7 @@
   },
   "backtest": {
     "totalReturnPct": 12.59,
-    "maxDrawdownPct": 0.65,
+    "maxDrawdownPct": 4.7,
     "winRatePct": 100,
     "roundTrips": 1,
     "trades": 1,
@@ -105,12 +106,12 @@
         "entry": 585,
         "exit": 660,
         "pnlPct": 12.82051282051282,
-        "bars": 18,
+        "bars": 19,
         "open": true
       }
     ],
     "finalEquity": 1.12595,
-    "bars": 20
+    "bars": 21
   },
-  "generatedAt": "2026-06-16T20:45:47.705Z"
+  "generatedAt": "2026-06-17T18:53:40.877Z"
 }
