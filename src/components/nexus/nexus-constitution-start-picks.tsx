@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Shield, Sparkles, Loader2, ArrowRight } from "lucide-react";
+import { Shield, Sparkles, Loader2, ArrowRight, ExternalLink } from "lucide-react";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 import { HACKATHON_DEMO_TOKENS, hydrateTokenFromMarket } from "@/lib/hackathon-demo";
 import { useConstitutionCompare } from "@/hooks/use-constitution-compare";
@@ -53,8 +54,16 @@ export function NexusConstitutionStartPicks({
         </p>
         <h3 className="text-lg font-semibold text-white">Agents propose — the gate decides GO or STOP</h3>
         <p className="text-sm leading-relaxed text-white/55">
-          Start with BNB or CAKE for a clean demo. Feed tokens work too, but meme tickers can mis-map market data.
+          Start with BNB or CAKE here for live trading + buy enforcement. For the BNB Hack submission (CMC-only,
+          real backtest), use the standalone Gate product.
         </p>
+        <Link
+          href="/gate"
+          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300/90 hover:text-emerald-200"
+        >
+          Open MERIDIAN Gate (Track 2 demo)
+          <ExternalLink className="h-3 w-3" />
+        </Link>
       </div>
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-white/50">
