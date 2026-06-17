@@ -8,6 +8,7 @@ import { arcNavIconTheme } from "@/components/layout/arc-theme-sync";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { cn } from "@/lib/utils";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { BscTestnetStrip } from "@/components/nexus/bsc-testnet-strip";
 import { NexusWalletMenu } from "@/components/nexus/nexus-wallet-menu";
 import { MERIDIAN_BUILT_FOR, MERIDIAN_MODULES, MERIDIAN_NAME, MERIDIAN_TAGLINE } from "@/lib/meridian-brand";
 
@@ -22,7 +23,8 @@ export function Navbar() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 px-4 pt-3 sm:px-6">
+    <>
+      <header className="sticky top-0 z-50 px-4 pt-3 sm:px-6">
       <div className="arc-nav-glass mx-auto flex h-[62px] max-w-5xl items-center justify-between rounded-2xl px-3 sm:px-5">
         <Link href="/" className="group flex items-center gap-2.5">
           <ArcLogoMark className="h-10 w-10" />
@@ -63,5 +65,7 @@ export function Navbar() {
         </div>
       </div>
     </header>
+    <BscTestnetStrip />
+    </>
   );
 }
