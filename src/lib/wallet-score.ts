@@ -21,13 +21,15 @@ export function scoreConnectedWallet(input: {
   address: string;
   positions?: DemoPosition[];
   onArc?: boolean;
+  onBsc?: boolean;
 }): WalletScore {
   const factors: WalletScore["factors"] = [];
   let score = 55;
 
-  if (input.onArc) {
+  const onTestnet = input.onBsc ?? input.onArc;
+  if (onTestnet) {
     score += 15;
-    factors.push({ label: "Arc Testnet", impact: 15, detail: "Connected on Arc — USDC-ready" });
+    factors.push({ label: "BSC Testnet", impact: 15, detail: "Connected on BSC Testnet — tBNB-ready" });
   }
 
   const positions = input.positions ?? [];

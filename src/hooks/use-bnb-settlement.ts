@@ -21,7 +21,7 @@ async function addBscToWallet() {
   });
 }
 
-/** BNB Chain wallet — no Circle/Arc fees; Constitution Permit gates trades instead. */
+/** BSC Testnet wallet — constitution permit gates trades; no on-chain fee tx required. */
 export function useBnbSettlement() {
   const { isConnected } = useAccount();
   const chainId = useChainId();

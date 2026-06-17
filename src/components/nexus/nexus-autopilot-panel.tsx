@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
+import { BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { NexusAgentProvider, type NexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
 import { NexusCircleAgentCard } from "@/components/nexus/nexus-circle-agent-card";
 import { NexusExecutionPanel } from "@/components/nexus/nexus-execution-panel";
@@ -404,7 +405,7 @@ export function NexusAutopilotPanel({
         toast({
           type: "error",
           title: "Authorization required",
-          message: "Tap Run Agent and sign once on Arc Testnet.",
+          message: "Tap Run Agent and connect on BSC Testnet.",
         });
         return;
       }
@@ -450,7 +451,7 @@ export function NexusAutopilotPanel({
           symbol: t.symbol,
           tokenAddress: t.tokenAddress,
           sourceChain: t.chainId,
-          tradeNetwork: "arc",
+          tradeNetwork: "bsc",
           usdcAmount,
           tokenAmount,
           priceUsd: t.priceUsd,
@@ -596,7 +597,7 @@ export function NexusAutopilotPanel({
         toast({
           type: "info",
           title: "Check your wallet",
-          message: `Approve the Arc Testnet transaction (~$${feeUsd}) to start the agent.`,
+          message: `Confirm on ${BSC_CHAIN_LABEL} to start the agent.`,
         });
         const fee = await payArcFee("AUTOPILOT_SESSION", buildSessionPayload(cfg, address), {
           waitReceipt: false,
@@ -776,13 +777,13 @@ export function NexusAutopilotPanel({
               {config.mode === "sell_only" ? (
                 <>
                   <strong className="text-amber-50">Sell mode.</strong> You need an open position in this
-                  token. Wallet will only sign once to authorize (~${feeUsd} on Arc).
+                  token. Wallet will only sign once to authorize on {BSC_CHAIN_LABEL}.
                 </>
               ) : (
                 <>
-                  <strong className="text-amber-50">Deposit to agent vault first.</strong> Send ~$
-                  {requiredUsdc.toFixed(2)} USDC on Arc Testnet to the vault below, then Sync. Balance: $
-                  {agentUsdc.toFixed(2)}. Then one wallet signature to start.
+                  <strong className="text-amber-50">Deposit to agent vault first.</strong> Send ~
+                  {requiredUsdc.toFixed(4)} tBNB on {BSC_CHAIN_LABEL} to the vault below, then Sync. Balance: $
+                  {agentUsdc.toFixed(2)} (USD notional). Then one wallet signature to start.
                 </>
               )}
             </div>
@@ -1113,7 +1114,7 @@ export function NexusAutopilotPanel({
                   Start NEXUS Autopilot?
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-white/70">
-                  You will <strong className="text-white">sign once</strong> on Arc Testnet (~${feeUsd}). After
+                  You will <strong className="text-white">sign once</strong> on {BSC_CHAIN_LABEL}. After
                   that, trades use your <strong className="text-cyan-200">agent vault</strong> automatically
                   {permissionIntent === "recurring"
                     ? ` every ${sessionIntervalLabel(config)} from your vault`
@@ -1123,8 +1124,8 @@ export function NexusAutopilotPanel({
                     : "Does not stop a recurring agent if one is already running."}
                 </p>
                 <ul className="mt-3 space-y-1 text-xs text-white/55">
-                  <li>· Deposit USDC to the vault above, then Sync</li>
-                  <li>· Buys debit vault balance (demo ledger on Arc)</li>
+                  <li>· Deposit tBNB to the vault above on BSC Testnet, then Sync</li>
+                  <li>· Buys debit vault balance (demo ledger on BSC Testnet)</li>
                   <li>· Recurring and one-time runs are independent</li>
                 </ul>
                 <div className="mt-4 flex gap-2">

@@ -132,8 +132,8 @@ export function GateConsole() {
             Where should your agent deploy on BSC?
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-white/60 sm:text-base">
-            Not another coin screener. A constitution-backed router: rank BNB vs CAKE, issue GRANT/DENY permits,
-            prove regime discipline on real CoinMarketCap history.
+            Not another coin screener. A constitution-backed router on <strong className="font-medium text-white/80">BSC Testnet</strong>:
+            rank BNB vs CAKE, issue GRANT/DENY permits, prove regime discipline on real CoinMarketCap history.
           </p>
         </header>
 

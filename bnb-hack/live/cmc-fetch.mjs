@@ -194,9 +194,32 @@ export async function fetchLiveSnapshot(symbol) {
 
 export async function fetchHistoricalDaily(id, days) {
   const count = Math.min(Math.max(days, 30), 365);
-  return cmcFetch("/v2/cryptocurrency/quotes/historical", {
-    id: String(id),
-    count: String(count),
-    interval: "daily",
-  });
+  const params = { id: String(id), count: String(count), interval: "daily" };
+  try {
+    return await cmcFetch("/v3/cryptocurrency/quotes/historical", params);
+  } catch (e) {
+    const msg = e.message || String(e);
+    if (!msg.includes("404") && !msg.includes("not found")) throw e;
+    return cmcFetch("/v2/cryptocurrency/quotes/historical", params);
+  }
+}
+
+/** Plan + usage from CMC — helps verify Pro/Standard activation on same key. */
+export async function fetchKeyInfo() {
+  if (!cmcKey()) return null;
+  try {
+    const data = await cmcFetch("/v1/key/info", {}, { cacheKey: "key:info" });
+    const plan = data.data?.plan ?? {};
+    const usage = data.data?.usage ?? {};
+    return {
+      creditLimitMonthly: plan.credit_limit_monthly ?? null,
+      rateLimitMinute: plan.rate_limit_minute ?? null,
+      creditsUsedMonth: usage.current_month?.credits_used ?? null,
+      creditsLeftMonth: usage.current_month?.credits_left ?? null,
+      resetAt: plan.credit_limit_monthly_reset_timestamp ?? null,
+      historicalRest: "unknown",
+    };
+  } catch {
+    return null;
+  }
 }

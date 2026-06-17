@@ -8,6 +8,7 @@ const CHAIN_IDS: Record<string, number> = {
   arbitrum: 42161,
   polygon: 137,
   bsc: 56,
+  "bsc-testnet": 97,
 };
 
 export function evmChainId(chainId: string) {

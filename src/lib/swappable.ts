@@ -1,9 +1,9 @@
 import { isAddress } from "viem";
-import { ARC_TESTNET_ID } from "./arc-chain";
+import { BSC_CHAIN_ID } from "./bsc-chain";
 import { evmChainId, isEvmChain } from "./swap";
 import type { TrendingToken } from "./dexscreener";
 
-/** Chains with live market data (DexScreener) — demo execution on testnets */
+/** Chains with live market data (DexScreener) — demo execution on BSC Testnet */
 export const WALLET_SWAP_CHAINS = ["base", "ethereum", "arbitrum"] as const;
 
 export type WalletSwapChain = (typeof WALLET_SWAP_CHAINS)[number];
@@ -21,8 +21,8 @@ export type SwappableCheck = {
   reasons: string[];
 };
 
-export function chainIdFromWallet(chainId?: number): WalletSwapChain | "arc" | undefined {
-  if (chainId === ARC_TESTNET_ID) return "arc";
+export function chainIdFromWallet(chainId?: number): WalletSwapChain | "bsc" | undefined {
+  if (chainId === BSC_CHAIN_ID) return "bsc";
   return undefined;
 }
 
@@ -44,8 +44,8 @@ export function checkSwappable(token: TrendingToken, preferredChain?: string): S
     return { ok: false, reasons };
   }
 
-  if (preferredChain === "arc") {
-    reasons.push("Demo trade on Arc Testnet · fees in USDC");
+  if (preferredChain === "bsc") {
+    reasons.push("Demo trade on BSC Testnet · settle in tBNB");
     return { ok: true, reasons };
   }
 

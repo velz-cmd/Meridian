@@ -5,7 +5,7 @@ import { ExternalLink, Wallet } from "lucide-react";
 import { ArcIconBadge } from "@/components/ui/arc-icon-badge";
 import { WalletConnectButton } from "@/components/nexus/wallet-connect-button";
 import { NexusWalletScoreButton } from "@/components/nexus/nexus-wallet-score";
-import { BSC_CHAIN_ID, bscExplorerAddress } from "@/lib/bsc-chain";
+import { BSC_CHAIN_ID, BSC_CHAIN_LABEL, bscExplorerAddress } from "@/lib/bsc-chain";
 import { truncateHash } from "@/lib/utils";
 
 export function NexusWalletBar({ compact = false }: { compact?: boolean }) {
@@ -20,12 +20,12 @@ export function NexusWalletBar({ compact = false }: { compact?: boolean }) {
         <WalletConnectButton compact />
         {isConnected && balance && (
           <span className="rounded-lg border border-amber-400/30 bg-amber-500/15 px-3 py-2 text-sm font-bold text-amber-100">
-            {Number(balance.formatted).toFixed(4)} BNB
+            {Number(balance.formatted).toFixed(4)} tBNB
           </span>
         )}
         <NexusWalletScoreButton />
         {isConnected && !onBsc && (
-          <span className="w-full text-center text-[11px] text-amber-200">Switch network to BNB Smart Chain</span>
+          <span className="w-full text-center text-[11px] text-amber-200">Switch network to {BSC_CHAIN_LABEL}</span>
         )}
       </div>
     );
@@ -43,7 +43,7 @@ export function NexusWalletBar({ compact = false }: { compact?: boolean }) {
               <p className="text-xs text-white/55">
                 {isConnected
                   ? onBsc
-                    ? "Connected · BNB Smart Chain"
+                    ? `Connected · ${BSC_CHAIN_LABEL}`
                     : "Connected · switch to BSC to trade"
                   : "Connect Trust Wallet or MetaMask to trade"}
               </p>

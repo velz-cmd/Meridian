@@ -6,6 +6,7 @@ import { ArrowDownUp, ChevronDown, ExternalLink, Loader2, Wallet } from "lucide-
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
+import { BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { NexusCollapsible } from "@/components/nexus/nexus-collapsible";
 import { filterTradableTokens } from "@/lib/token-filters";
 import { formatUsd } from "@/lib/utils";
@@ -96,7 +97,7 @@ export function NexusAbSwap({
 }) {
   const toast = useToast();
   const { address, isConnected } = useAccount();
-  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useBnbSettlement();
+  const { payBnbFee, ensureBscNetwork, isPending: bnbPending } = useBnbSettlement();
   const tradable = useMemo(() => filterTradableTokens(tokens), [tokens]);
 
   const [tokenA, setTokenA] = useState("");
@@ -179,8 +180,8 @@ export function NexusAbSwap({
 
     setLoading(true);
     try {
-      await ensureArcNetwork();
-      const fee = await payArcFee("SWAP_AB", `${a.tokenAddress}-${b.tokenAddress}-${Date.now()}`);
+      await ensureBscNetwork();
+      const fee = await payBnbFee("SWAP_AB", `${a.tokenAddress}-${b.tokenAddress}-${Date.now()}`);
 
       const sellRes = await fetch("/api/nexus/demo/trade", {
         method: "POST",
@@ -191,7 +192,7 @@ export function NexusAbSwap({
           symbol: a.symbol,
           tokenAddress: a.tokenAddress,
           sourceChain: a.chainId,
-          tradeNetwork: "arc",
+          tradeNetwork: "bsc",
           tokenAmount: tokenAmountSell,
           priceUsd: a.priceUsd,
           arcFeeTxHash: fee.txHash,
@@ -210,7 +211,7 @@ export function NexusAbSwap({
           symbol: b.symbol,
           tokenAddress: b.tokenAddress,
           sourceChain: b.chainId,
-          tradeNetwork: "arc",
+          tradeNetwork: "bsc",
           usdcAmount: usdcOut,
           priceUsd: b.priceUsd,
           arcFeeTxHash: fee.txHash,
@@ -247,14 +248,14 @@ export function NexusAbSwap({
   return (
     <NexusCollapsible
       label="Token swap (A → B)"
-      hint={a && b ? `${a.symbol} → ${b.symbol} · demo Arc portfolio` : "Sell A, buy B"}
+      hint={a && b ? `${a.symbol} → ${b.symbol} · demo ${BSC_CHAIN_LABEL} portfolio` : "Sell A, buy B"}
       variant="technical"
       icon={ArrowDownUp}
       defaultOpen={defaultOpen}
     >
       <div className="space-y-3">
         <p className="text-[11px] text-white/50">
-          Uses your demo portfolio holdings · Arc fee ~${feeUsd} USDC
+          Uses your demo portfolio holdings on {BSC_CHAIN_LABEL}
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -293,7 +294,7 @@ export function NexusAbSwap({
                   amountMode === "usdc" ? "bg-emerald-500/25 text-emerald-100" : "text-white/50"
                 }`}
               >
-                USDC
+                tBNB
               </button>
             </div>
           </div>
@@ -313,7 +314,7 @@ export function NexusAbSwap({
             inputMode="decimal"
             value={amountA}
             onChange={(e) => setAmountA(e.target.value)}
-            placeholder={amountMode === "usdc" ? "USDC notional" : "Token amount"}
+            placeholder={amountMode === "usdc" ? "tBNB notional" : "Token amount"}
             className="w-full min-h-[44px] rounded-xl border border-white/15 bg-black/40 px-3 text-lg font-medium text-white outline-none focus:border-cyan-400/40"
           />
 
@@ -349,14 +350,14 @@ export function NexusAbSwap({
           <Button
             variant="nexus"
             className="min-h-[48px] w-full"
-            disabled={loading || arcPending || !a || !b || balanceA <= 0}
+            disabled={loading || bnbPending || !a || !b || balanceA <= 0}
             onClick={() => void executeSwap()}
           >
-            {loading || arcPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {loading || bnbPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Swap {a?.symbol ?? "A"} → {b?.symbol ?? "B"}
           </Button>
         ) : (
-          <p className="text-center text-xs text-white/50">Connect wallet on Arc to swap</p>
+          <p className="text-center text-xs text-white/50">Connect wallet on {BSC_CHAIN_LABEL} to swap</p>
         )}
 
         {a?.url && (

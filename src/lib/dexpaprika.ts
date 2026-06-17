@@ -107,7 +107,7 @@ export async function fetchDexPaprikaTopTokens(
           sells: h24?.sells ?? 0,
         },
         demoTradeable: true,
-        suggestedNetwork: "arc",
+        suggestedNetwork: "bsc",
       } satisfies TrendingToken;
     });
 }

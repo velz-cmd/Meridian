@@ -5,7 +5,7 @@ import { useAccount } from "wagmi";
 import { Brain, History, Radar, Target, X } from "lucide-react";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { PRISM_FORECAST_FEE_USD } from "@/lib/arc-chain";
-import { arcExplorerTx } from "@/lib/arc";
+import { bscExplorerTx } from "@/lib/bsc-chain";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ArcBackground } from "@/components/layout/arc-background";
@@ -171,7 +171,7 @@ export function PrismConsole() {
       toast({
         type: "success",
         title: "Forecast fee paid",
-        message: `$${PRISM_FORECAST_FEE_USD.toFixed(2)} USDC on Arc · ${truncateHash(fee.txHash, 6, 4)}`,
+        message: `Demo fee on BSC Testnet · ${truncateHash(fee.txHash, 6, 4)}`,
       });
 
       const res = await fetch("/api/prism/analyze", {
@@ -432,9 +432,9 @@ export function PrismConsole() {
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
-                Fee paid on Arc ·{" "}
+                Fee on BSC Testnet ·{" "}
                 <a
-                  href={arcExplorerTx(lastArcFeeTx)}
+                  href={bscExplorerTx(lastArcFeeTx)}
                   target="_blank"
                   rel="noreferrer"
                   className="font-medium underline underline-offset-2"

@@ -7,7 +7,7 @@ export async function GET() {
     const tokens = await fetchTrendingMarketTokens(12);
     return NextResponse.json({
       mode: "demo-testnet",
-      settlement: "Arc Testnet USDC",
+      settlement: "BSC Testnet tBNB",
       tokens: tokens.map((t) => {
         const { intel, ...token } = t as typeof t & { intel?: unknown };
         return { ...trendingToDemoToken(token), intel };

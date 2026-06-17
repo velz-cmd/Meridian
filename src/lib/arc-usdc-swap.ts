@@ -1,31 +1,42 @@
-import { ARC_TESTNET_ID } from "@/lib/arc-chain";
+import { BSC_CHAIN_ID, BSC_EXPLORER } from "@/lib/bsc-chain";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 
-/** Sentinel — Arc testnet native USDC (wallet balance, not a demo position) */
-export const ARC_NATIVE_USDC_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+/** Sentinel — BSC Testnet native tBNB (wallet balance, not a demo position) */
+export const BSC_NATIVE_BNB_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
-const USDC_ICON =
-  "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png";
+/** @deprecated use BSC_NATIVE_BNB_ADDRESS */
+export const ARC_NATIVE_USDC_ADDRESS = BSC_NATIVE_BNB_ADDRESS;
 
-export function isArcNativeUsdc(tokenAddress: string): boolean {
-  return tokenAddress.toLowerCase() === ARC_NATIVE_USDC_ADDRESS.toLowerCase();
+const BNB_ICON = "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png";
+
+export function isBscNativeBnb(tokenAddress: string): boolean {
+  return tokenAddress.toLowerCase() === BSC_NATIVE_BNB_ADDRESS.toLowerCase();
 }
 
-export function createArcUsdcSwapToken(): TrendingMarketToken {
+export function isArcNativeUsdc(tokenAddress: string): boolean {
+  return isBscNativeBnb(tokenAddress);
+}
+
+export function createBscNativeBnbSwapToken(): TrendingMarketToken {
   return {
-    symbol: "USDC",
-    name: "Arc Testnet USDC",
-    tokenAddress: ARC_NATIVE_USDC_ADDRESS,
-    chainId: String(ARC_TESTNET_ID),
+    symbol: "BNB",
+    name: "BSC Testnet tBNB",
+    tokenAddress: BSC_NATIVE_BNB_ADDRESS,
+    chainId: String(BSC_CHAIN_ID),
     pairAddress: "",
-    priceUsd: 1,
+    priceUsd: 0,
     change24h: 0,
     volume24h: 0,
     liquidityUsd: 0,
-    icon: USDC_ICON,
-    url: "https://testnet.arcscan.app",
+    icon: BNB_ICON,
+    url: BSC_EXPLORER,
     demoTradeable: true,
   };
+}
+
+/** @deprecated use createBscNativeBnbSwapToken */
+export function createArcUsdcSwapToken(): TrendingMarketToken {
+  return createBscNativeBnbSwapToken();
 }
 
 export function mergeSwapTokenList(
@@ -61,6 +72,6 @@ export function mergeSwapTokenList(
       demoTradeable: true,
     });
   }
-  add(createArcUsdcSwapToken());
+  add(createBscNativeBnbSwapToken());
   return [...byKey.values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
 }

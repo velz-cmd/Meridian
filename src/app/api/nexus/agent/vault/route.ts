@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              "Could not verify deposit. Send USDC on Arc Testnet from your connected wallet to the vault address, wait for confirmation, then paste that tx hash. Must be the same wallet shown above.",
+              "Could not verify deposit. Send tBNB on BSC Testnet from your connected wallet to the vault address, wait for confirmation, then paste that tx hash. Must be the same wallet shown above.",
           },
           { status: 400 },
         );

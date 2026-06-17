@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAccount, useBalance, useChainId, useDisconnect } from "wagmi";
 import { ChevronDown, LogOut, Wallet } from "lucide-react";
-import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
+import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { truncateHash } from "@/lib/utils";
 import { WalletConnectButton } from "@/components/nexus/wallet-connect-button";
 import { NexusWalletScoreButton } from "@/components/nexus/nexus-wallet-score";
@@ -32,7 +32,7 @@ export function NexusWalletMenu() {
     return <WalletConnectButton compact />;
   }
 
-  const balanceLabel = balance ? `${Number(balance.formatted).toFixed(4)} BNB` : null;
+  const balanceLabel = balance ? `${Number(balance.formatted).toFixed(4)} tBNB` : null;
 
   return (
     <div ref={ref} className="relative">
@@ -55,7 +55,7 @@ export function NexusWalletMenu() {
       {open && (
         <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[220px] rounded-xl border border-white/10 bg-[#0a0f14]/95 p-2 shadow-xl backdrop-blur-xl">
           <p className="px-2 py-1 text-[10px] uppercase tracking-wider text-white/45">
-            {onBsc ? "BNB Smart Chain" : "Switch to BSC"}
+            {onBsc ? BSC_CHAIN_LABEL : `Switch to ${BSC_CHAIN_LABEL}`}
           </p>
           <NexusWalletScoreButton />
           <WalletConnectButton compact />

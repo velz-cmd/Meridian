@@ -6,7 +6,7 @@ import { useAccount } from "wagmi";
 import { useToast } from "@/components/ui/toast-provider";
 import { useAgentWallet } from "@/hooks/use-agent-wallet";
 import { truncateHash } from "@/lib/utils";
-import { arcExplorerAddress } from "@/lib/arc";
+import { BSC_CHAIN_LABEL, bscExplorerAddress } from "@/lib/bsc-chain";
 
 export function NexusAgentWalletCard({
   requiredUsdc,
@@ -49,14 +49,14 @@ export function NexusAgentWalletCard({
             n > 0
               ? `${n} deposit(s) · balance $${bal.toFixed(2)}`
               : bal > 0
-                ? `Vault balance $${bal.toFixed(2)} USDC`
-                : "No deposit found — send native USDC on Arc Testnet from your connected wallet to the vault address, then Credit tx with your hash",
+                ? `Vault balance $${bal.toFixed(2)} (USD notional from tBNB)`
+                : `No deposit found — send tBNB on ${BSC_CHAIN_LABEL} from your connected wallet to the vault address, then Credit tx with your hash`,
         });
       }
       setDepositHint(
         bal > 0
           ? `Ready for autopilot · $${bal.toFixed(2)} available`
-          : "Send USDC from connected wallet → vault, then Sync or Credit tx",
+          : "Send tBNB from connected wallet → vault on BSC Testnet, then Sync or Credit tx",
       );
     } catch (e) {
       toast({
@@ -97,12 +97,12 @@ export function NexusAgentWalletCard({
     >
       <p className="flex items-center gap-2 text-sm font-semibold text-white">
         <Wallet className="h-4 w-4 text-cyan-200" />
-        Agent vault · {usdcBalance.toFixed(2)} USDC
+        Agent vault · {usdcBalance.toFixed(2)} USD notional
       </p>
       <p className="mt-1 text-xs text-white/60">
         {ready
-          ? `Funded · $${requiredUsdc.toFixed(2)} needed per buy (trade only; ~$0.01 Arc fee from wallet)`
-          : `Send USDC on Arc Testnet to the vault below from your connected wallet`}
+          ? `Funded · $${requiredUsdc.toFixed(2)} needed per buy (trade on ${BSC_CHAIN_LABEL})`
+          : `Send tBNB on ${BSC_CHAIN_LABEL} to the vault below from your connected wallet`}
       </p>
       {depositHint && <p className="text-[10px] text-emerald-200/80">{depositHint}</p>}
       {connectedWallet && (
@@ -127,7 +127,7 @@ export function NexusAgentWalletCard({
         </div>
         <div className="flex flex-wrap gap-2">
           <a
-            href={arcExplorerAddress(wallet.address)}
+            href={bscExplorerAddress(wallet.address)}
             target="_blank"
             rel="noreferrer"
             className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-cyan-400/30 px-2.5 text-xs font-bold text-cyan-100"

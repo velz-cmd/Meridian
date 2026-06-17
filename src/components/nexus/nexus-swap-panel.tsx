@@ -157,8 +157,8 @@ export function NexusSwapPanel({ decision }: { decision: NexusDecision | null })
             {isConnected && !chainMismatch ? (
               <div className="space-y-2">
                 <p className="text-xs text-cyan-200/70">
-                  Swap quotes require a ~${feeUsd} USDC fee on Arc Testnet first.
-                  {arcFeeTx && <span className="block text-emerald-300/80">Arc fee paid · {arcFeeTx.slice(0, 10)}…</span>}
+                  Swap quotes require wallet on BSC Testnet first.
+                  {arcFeeTx && <span className="block text-emerald-300/80">BSC Testnet fee · {arcFeeTx.slice(0, 10)}…</span>}
                 </p>
                 <Button variant="nexus" className="w-full" onClick={getQuote} disabled={loading || arcFeePending}>
                   {loading || arcFeePending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

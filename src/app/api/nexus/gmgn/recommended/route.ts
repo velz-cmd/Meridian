@@ -18,6 +18,6 @@ export async function GET() {
     stack,
     minimalInstall: ["gmgn-market", "gmgn-token", "gmgn-track"],
     executionNote:
-      "ARC Autopilot uses demo trades on Arc Testnet. GMGN trading skills execute on Sol/BSC/Base with real funds.",
+      "Autopilot uses demo trades on BSC Testnet (tBNB). GMGN trading skills execute on Sol/BSC/Base with real funds.",
   });
 }

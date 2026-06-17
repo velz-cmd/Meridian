@@ -10,11 +10,10 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { NexusTokenAvatar } from "@/components/nexus/nexus-token-avatar";
-import { ARC_TESTNET_ID } from "@/lib/arc-chain";
-import { arcExplorerTx } from "@/lib/arc";
+import { BSC_CHAIN_ID, BSC_CHAIN_LABEL, bscExplorerTx } from "@/lib/bsc-chain";
 import {
-  createArcUsdcSwapToken,
-  isArcNativeUsdc,
+  createBscNativeBnbSwapToken,
+  isBscNativeBnb,
   mergeSwapTokenList,
 } from "@/lib/arc-usdc-swap";
 import type { DemoPosition, DemoTradeRecord } from "@/lib/storage";
@@ -30,7 +29,7 @@ type SwapSuccessState = {
 };
 
 function formatSwapBalance(token: TrendingMarketToken, amount: number) {
-  if (isArcNativeUsdc(token.tokenAddress)) return amount.toFixed(2);
+  if (isBscNativeBnb(token.tokenAddress)) return amount.toFixed(4);
   if (amount >= 1000) return amount.toFixed(2);
   if (amount >= 1) return amount.toFixed(4);
   return amount.toFixed(6);
@@ -129,8 +128,8 @@ export function NexusQuickSwap({
 }) {
   const toast = useToast();
   const { address, isConnected } = useAccount();
-  const { data: walletBalance } = useBalance({ address, chainId: ARC_TESTNET_ID });
-  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useBnbSettlement();
+  const { data: walletBalance } = useBalance({ address, chainId: BSC_CHAIN_ID });
+  const { payBnbFee, ensureBscNetwork, isPending: bnbPending, feeUsd } = useBnbSettlement();
 
   const allTokens = useMemo(
     () => mergeSwapTokenList(tokens, alphaTokens),
@@ -147,7 +146,7 @@ export function NexusQuickSwap({
   const [success, setSuccess] = useState<SwapSuccessState | null>(null);
   const [swapView, setSwapView] = useState<"swap" | "history">("swap");
 
-  const walletUsdc = walletBalance ? Number(walletBalance.formatted) : 0;
+  const walletTbnb = walletBalance ? Number(walletBalance.formatted) : 0;
 
   const loadPortfolio = useCallback(async () => {
     if (!address) return;
@@ -174,11 +173,11 @@ export function NexusQuickSwap({
   );
 
   const sortedTokens = useMemo(() => {
-    const usdc = createArcUsdcSwapToken();
+    const native = createBscNativeBnbSwapToken();
     return [...allTokens].sort((a, b) => {
-      const aUsdc = isArcNativeUsdc(a.tokenAddress) ? 2 : 0;
-      const bUsdc = isArcNativeUsdc(b.tokenAddress) ? 2 : 0;
-      if (aUsdc !== bUsdc) return bUsdc - aUsdc;
+      const aNative = isBscNativeBnb(a.tokenAddress) ? 2 : 0;
+      const bNative = isBscNativeBnb(b.tokenAddress) ? 2 : 0;
+      if (aNative !== bNative) return bNative - aNative;
       const ah = heldKeys.has(a.tokenAddress.toLowerCase()) ? 1 : 0;
       const bh = heldKeys.has(b.tokenAddress.toLowerCase()) ? 1 : 0;
       if (ah !== bh) return bh - ah;
@@ -206,53 +205,53 @@ export function NexusQuickSwap({
   }, [payToken, receiveToken, receiveOptions]);
 
   useEffect(() => {
-    if (payToken && isArcNativeUsdc(payToken)) setAmountMode("usdc");
+    if (payToken && isBscNativeBnb(payToken)) setAmountMode("usdc");
   }, [payToken]);
 
   const pay = sortedTokens.find((t) => t.tokenAddress.toLowerCase() === payToken.toLowerCase());
   const receive = sortedTokens.find(
     (t) => t.tokenAddress.toLowerCase() === receiveToken.toLowerCase(),
   );
-  const payIsUsdc = pay ? isArcNativeUsdc(pay.tokenAddress) : false;
-  const receiveIsUsdc = receive ? isArcNativeUsdc(receive.tokenAddress) : false;
+  const payIsNative = pay ? isBscNativeBnb(pay.tokenAddress) : false;
+  const receiveIsNative = receive ? isBscNativeBnb(receive.tokenAddress) : false;
   const sameToken =
     !!pay &&
     !!receive &&
     pay.tokenAddress.toLowerCase() === receive.tokenAddress.toLowerCase();
 
   const posPay = positions.find((p) => p.tokenAddress.toLowerCase() === payToken.toLowerCase());
-  const balancePay = payIsUsdc ? walletUsdc : (posPay?.tokenAmount ?? 0);
+  const balancePay = payIsNative ? walletTbnb : (posPay?.tokenAmount ?? 0);
 
   const amountNum = Math.max(0, Number(amount) || 0);
   const tokenAmountSell =
-    payIsUsdc || amountMode === "usdc"
-      ? pay && !payIsUsdc && pay.priceUsd > 0
+    payIsNative || amountMode === "usdc"
+      ? pay && !payIsNative && pay.priceUsd > 0
         ? amountNum / pay.priceUsd
         : amountNum
       : amountNum;
-  const usdcSpend = payIsUsdc
+  const usdcSpend = payIsNative
     ? amountNum
     : amountMode === "usdc"
       ? amountNum
       : tokenAmountSell * (pay?.priceUsd ?? 0);
   const estReceive =
     pay && receive
-      ? receiveIsUsdc
+      ? receiveIsNative
         ? usdcSpend
         : pay.priceUsd > 0 && receive.priceUsd > 0
-          ? payIsUsdc
+          ? payIsNative
             ? usdcSpend / receive.priceUsd
             : (tokenAmountSell * pay.priceUsd) / receive.priceUsd
           : 0
       : 0;
 
   function applyPct(pct: number) {
-    if (payIsUsdc) {
-      if (walletUsdc <= 0) {
-        toast({ type: "error", title: "No USDC", message: "Fund wallet on Arc Testnet" });
+    if (payIsNative) {
+      if (walletTbnb <= 0) {
+        toast({ type: "error", title: "No tBNB", message: `Fund wallet on ${BSC_CHAIN_LABEL}` });
         return;
       }
-      setAmount(((walletUsdc * pct) / 100).toFixed(2));
+      setAmount(((walletTbnb * pct) / 100).toFixed(2));
       return;
     }
     if (amountMode === "token") {
@@ -284,12 +283,12 @@ export function NexusQuickSwap({
       toast({ type: "error", title: "Amount", message: "Enter a valid amount" });
       return;
     }
-    if (payIsUsdc) {
-      if (usdcSpend > walletUsdc + 1e-9) {
+    if (payIsNative) {
+      if (usdcSpend > walletTbnb + 1e-9) {
         toast({
           type: "error",
-          title: "Insufficient USDC",
-          message: `Wallet has ${walletUsdc.toFixed(2)} USDC`,
+          title: "Insufficient tBNB",
+          message: `Wallet has ${walletTbnb.toFixed(4)} tBNB`,
         });
         return;
       }
@@ -309,10 +308,10 @@ export function NexusQuickSwap({
     let sellTrade: DemoTradeRecord | undefined;
 
     try {
-      await ensureArcNetwork();
-      const fee = await payArcFee("SWAP", `${pay.tokenAddress}-${receive.tokenAddress}-${Date.now()}`);
+      await ensureBscNetwork();
+      const fee = await payBnbFee("SWAP", `${pay.tokenAddress}-${receive.tokenAddress}-${Date.now()}`);
 
-      if (payIsUsdc && !receiveIsUsdc) {
+      if (payIsNative && !receiveIsNative) {
         const buyRes = await fetch("/api/nexus/demo/trade", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -322,7 +321,7 @@ export function NexusQuickSwap({
             symbol: receive.symbol,
             tokenAddress: receive.tokenAddress,
             sourceChain: receive.chainId,
-            tradeNetwork: "arc",
+            tradeNetwork: "bsc",
             usdcAmount: usdcSpend,
             priceUsd: receive.priceUsd,
             arcFeeTxHash: fee.txHash,
@@ -334,7 +333,7 @@ export function NexusQuickSwap({
         legs.push(
           `Bought ~${(buyData.trade?.tokenAmount ?? estReceive).toFixed(4)} ${receive.symbol}`,
         );
-      } else if (receiveIsUsdc && !payIsUsdc) {
+      } else if (receiveIsNative && !payIsNative) {
         const sellRes = await fetch("/api/nexus/demo/trade", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -344,7 +343,7 @@ export function NexusQuickSwap({
             symbol: pay.symbol,
             tokenAddress: pay.tokenAddress,
             sourceChain: pay.chainId,
-            tradeNetwork: "arc",
+            tradeNetwork: "bsc",
             tokenAmount: tokenAmountSell,
             priceUsd: pay.priceUsd,
             arcFeeTxHash: fee.txHash,
@@ -354,9 +353,9 @@ export function NexusQuickSwap({
         if (!sellRes.ok) throw new Error(sellData.error ?? "Sell failed");
         sellTrade = sellData.trade;
         legs.push(
-          `Sold ${tokenAmountSell.toFixed(4)} ${pay.symbol} → ~${(sellData.trade?.usdcAmount ?? usdcSpend).toFixed(2)} USDC`,
+          `Sold ${tokenAmountSell.toFixed(4)} ${pay.symbol} → ~${(sellData.trade?.usdcAmount ?? usdcSpend).toFixed(4)} tBNB`,
         );
-      } else if (!payIsUsdc && !receiveIsUsdc) {
+      } else if (!payIsNative && !receiveIsNative) {
         const sellRes = await fetch("/api/nexus/demo/trade", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -366,7 +365,7 @@ export function NexusQuickSwap({
             symbol: pay.symbol,
             tokenAddress: pay.tokenAddress,
             sourceChain: pay.chainId,
-            tradeNetwork: "arc",
+            tradeNetwork: "bsc",
             tokenAmount: tokenAmountSell,
             priceUsd: pay.priceUsd,
             arcFeeTxHash: fee.txHash,
@@ -386,7 +385,7 @@ export function NexusQuickSwap({
             symbol: receive.symbol,
             tokenAddress: receive.tokenAddress,
             sourceChain: receive.chainId,
-            tradeNetwork: "arc",
+            tradeNetwork: "bsc",
             usdcAmount: usdcOut,
             priceUsd: receive.priceUsd,
             arcFeeTxHash: fee.txHash,
@@ -401,10 +400,10 @@ export function NexusQuickSwap({
         );
       }
 
-      const summary = receiveIsUsdc
-        ? `${tokenAmountSell.toFixed(4)} ${pay.symbol} → ${usdcSpend.toFixed(2)} USDC`
-        : payIsUsdc
-          ? `${usdcSpend.toFixed(2)} USDC → ~${(buyTrade?.tokenAmount ?? estReceive).toFixed(4)} ${receive.symbol}`
+      const summary = receiveIsNative
+        ? `${tokenAmountSell.toFixed(4)} ${pay.symbol} → ${usdcSpend.toFixed(4)} tBNB`
+        : payIsNative
+          ? `${usdcSpend.toFixed(4)} tBNB → ~${(buyTrade?.tokenAmount ?? estReceive).toFixed(4)} ${receive.symbol}`
           : `${tokenAmountSell.toFixed(4)} ${pay.symbol} → ~${(buyTrade?.tokenAmount ?? estReceive).toFixed(4)} ${receive.symbol}`;
 
       const trades = [sellTrade, buyTrade].filter(Boolean) as DemoTradeRecord[];
@@ -445,17 +444,17 @@ export function NexusQuickSwap({
 
   const tokenBalance = useCallback(
     (token: TrendingMarketToken) => {
-      if (isArcNativeUsdc(token.tokenAddress)) return walletUsdc;
+      if (isBscNativeBnb(token.tokenAddress)) return walletTbnb;
       const pos = positions.find(
         (p) => p.tokenAddress.toLowerCase() === token.tokenAddress.toLowerCase(),
       );
       return pos?.tokenAmount ?? 0;
     },
-    [walletUsdc, positions],
+    [walletTbnb, positions],
   );
 
   const swapReady =
-    amountNum > 0 && !!pay && !!receive && !sameToken && isConnected && !loading && !arcPending;
+    amountNum > 0 && !!pay && !!receive && !sameToken && isConnected && !loading && !bnbPending;
 
   return (
     <section className="nexus-quick-swap-panel nexus-section-card arc-glass-card arc-glass-card-nexus arc-border-trace relative space-y-2.5 rounded-2xl p-3">
@@ -492,11 +491,11 @@ export function NexusQuickSwap({
                 className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-2 text-[11px]"
               >
                 <span className="text-white/80">
-                  {t.side === "buy" ? "Buy" : t.side === "swap_to_usdc" ? "Swap→USDC" : "Sell"}{" "}
-                  <strong className="text-white">{t.symbol}</strong> · {t.usdcAmount.toFixed(2)} USDC
+                  {t.side === "buy" ? "Buy" : t.side === "swap_to_usdc" ? "Swap→tBNB" : "Sell"}{" "}
+                  <strong className="text-white">{t.symbol}</strong> · {t.usdcAmount.toFixed(4)} tBNB
                 </span>
                 <a
-                  href={arcExplorerTx(t.arcFeeTxHash)}
+                  href={bscExplorerTx(t.arcFeeTxHash)}
                   target="_blank"
                   rel="noreferrer"
                   className="shrink-0 font-semibold text-cyan-300 hover:underline"
@@ -549,7 +548,7 @@ export function NexusQuickSwap({
       <div className="rounded-xl border border-white/10 bg-black/30 p-3">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-white/45">Amount</span>
-          {!payIsUsdc && (
+          {!payIsNative && (
             <div className="inline-flex rounded-lg border border-white/15 p-0.5 text-[10px] font-bold">
               <button
                 type="button"
@@ -567,7 +566,7 @@ export function NexusQuickSwap({
                   amountMode === "usdc" ? "bg-emerald-500/25 text-emerald-100" : "text-white/50"
                 }`}
               >
-                USDC
+                tBNB
               </button>
             </div>
           )}
@@ -581,7 +580,7 @@ export function NexusQuickSwap({
             setAmount(e.target.value);
             setSuccess(null);
           }}
-          placeholder={payIsUsdc || amountMode === "usdc" ? "USDC amount" : "Token amount"}
+          placeholder={payIsNative || amountMode === "usdc" ? "tBNB amount" : "Token amount"}
           className="w-full min-h-[44px] rounded-xl border border-white/15 bg-black/40 px-3 text-lg font-medium text-white outline-none focus:border-cyan-400/40"
         />
 
@@ -608,12 +607,12 @@ export function NexusQuickSwap({
         {pay && receive && amountNum > 0 && (
           <p className="mt-2 text-xs text-cyan-100/85">
             ≈{" "}
-            {payIsUsdc
-              ? `${usdcSpend.toFixed(2)} USDC`
+            {payIsNative
+              ? `${usdcSpend.toFixed(4)} tBNB`
               : `${tokenAmountSell.toFixed(4)} ${pay.symbol}`}{" "}
             →{" "}
-            {receiveIsUsdc
-              ? `${estReceive.toFixed(2)} USDC`
+            {receiveIsNative
+              ? `${estReceive.toFixed(4)} tBNB`
               : `${estReceive.toFixed(4)} ${receive.symbol}`}
           </p>
         )}
@@ -626,7 +625,7 @@ export function NexusQuickSwap({
           disabled={!swapReady}
           onClick={() => void executeSwap()}
         >
-          {loading || arcPending ? (
+          {loading || bnbPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : null}
           {sameToken
@@ -644,7 +643,7 @@ export function NexusQuickSwap({
             Swap successful — {success.summary}
           </span>
           <a
-            href={arcExplorerTx(success.feeTxHash)}
+            href={bscExplorerTx(success.feeTxHash)}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-0.5 font-semibold text-cyan-200 hover:underline"

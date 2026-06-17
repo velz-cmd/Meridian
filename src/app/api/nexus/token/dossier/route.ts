@@ -98,7 +98,7 @@ async function handleTokenDossier(request: Request) {
   try {
     const loaded = await fetchTokenByAddress(chainId, address);
     const token: TrendingToken = loaded
-      ? { ...loaded, demoTradeable: true, suggestedNetwork: "arc" }
+      ? { ...loaded, demoTradeable: true, suggestedNetwork: "bsc" }
       : {
           symbol: searchParams.get("symbol") ?? "???",
           name: searchParams.get("name") ?? "Token",
@@ -112,7 +112,7 @@ async function handleTokenDossier(request: Request) {
           url: `https://dexscreener.com/${chainId}/${address}`,
           txns24h: { buys, sells },
           demoTradeable: true,
-          suggestedNetwork: "arc",
+          suggestedNetwork: "bsc",
         };
 
     if (quick) {
@@ -164,7 +164,7 @@ async function handleTokenDossier(request: Request) {
     if (loaded && tier === "feed") {
       try {
         const fallback = await buildQuickFeedDossier(
-          { ...loaded, demoTradeable: true, suggestedNetwork: "arc" },
+          { ...loaded, demoTradeable: true, suggestedNetwork: "bsc" },
           tier,
         );
         return NextResponse.json({

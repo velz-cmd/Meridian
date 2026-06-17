@@ -19,7 +19,7 @@ export async function POST() {
       vaultSource: vault.source,
       balances,
       hint: vault.configured
-        ? "Deposit USDC on Arc Testnet to this address, then Sync deposits in Autopilot"
+        ? "Deposit tBNB on BSC Testnet to this address, then Sync deposits in Autopilot"
         : "Configure ARC_AGENT_PRIVATE_KEY on Vercel for a real agent vault address",
     });
   } catch (error) {

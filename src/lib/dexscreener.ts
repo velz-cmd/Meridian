@@ -222,7 +222,7 @@ export async function fetchTrendingMarketTokens(
     const key = `${token.chainId}:${token.tokenAddress}`;
     if (seen.has(key)) return;
     seen.add(key);
-    tokens.push({ ...token, demoTradeable: true, suggestedNetwork: "arc" });
+    tokens.push({ ...token, demoTradeable: true, suggestedNetwork: "bsc" });
   }
 
   const fetches = [

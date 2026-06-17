@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { LineChart, Radio, Sparkles } from "lucide-react";
+import { BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { nexusActionGlass } from "@/lib/nexus-action-glass";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { ArcBackground } from "@/components/layout/arc-background";
@@ -324,7 +325,7 @@ export function NexusConsole() {
     } catch (err) {
       const msg = (err instanceof Error ? err.message : "").toLowerCase();
       if (msg.includes("reject") || msg.includes("denied") || msg.includes("cancel")) {
-        throw new Error("Connect wallet on BNB Smart Chain to scan");
+        throw new Error(`Connect wallet on ${BSC_CHAIN_LABEL} to scan`);
       }
       throw err;
     }
@@ -336,7 +337,7 @@ export function NexusConsole() {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 118_000);
     try {
-      if (!isConnected) throw new Error("Connect wallet on BNB Smart Chain to scan");
+      if (!isConnected) throw new Error(`Connect wallet on ${BSC_CHAIN_LABEL} to scan`);
       await ensureWalletOnBsc();
       await payBnbFee("ALPHA", `alpha-${Date.now()}`);
 

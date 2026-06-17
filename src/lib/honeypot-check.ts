@@ -15,6 +15,7 @@ const HONEYPOT_CHAIN: Record<string, number> = {
   eth: 1,
   bsc: 56,
   binance: 56,
+  "bsc-testnet": 97,
   base: 8453,
   arbitrum: 42161,
   optimism: 10,

@@ -293,7 +293,7 @@ export async function buildDecision(token: TrendingToken, arcFeeTxHash?: string)
     arcTxHash: anchor.txHash ?? arcFeeTxHash,
     arcBlockNumber: anchor.blockNumber,
     arcFeeTxHash,
-    settlementNetwork: "Arc Testnet",
+    settlementNetwork: "BSC Testnet",
     feeCurrency: "USDC",
     technical: intel.technical,
   };
@@ -507,7 +507,7 @@ export async function runNexusScan(limit = 15, preferredChain?: string, arcFeeTx
       arcTxHash: anchor.txHash ?? arcFeeTxHash,
       arcBlockNumber: anchor.blockNumber,
       arcFeeTxHash,
-      settlementNetwork: "Arc Testnet",
+      settlementNetwork: "BSC Testnet",
       feeCurrency: "USDC",
       technical: intel.technical,
     };

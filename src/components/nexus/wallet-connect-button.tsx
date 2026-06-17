@@ -10,7 +10,7 @@ import {
   setWalletConnectConsent,
 } from "@/components/security/wallet-connect-consent";
 import { truncateHash } from "@/lib/utils";
-import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
+import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { DEMO_TRADE_NETWORKS } from "@/lib/testnet-chains";
 
 export function WalletConnectButton({ compact = false }: { compact?: boolean }) {
@@ -63,7 +63,7 @@ export function WalletConnectButton({ compact = false }: { compact?: boolean }) 
   }
 
   if (isConnected && address) {
-    const balanceLabel = balance ? `${Number(balance.formatted).toFixed(4)} BNB` : null;
+    const balanceLabel = balance ? `${Number(balance.formatted).toFixed(4)} tBNB` : null;
 
     return (
       <div className="flex flex-wrap items-center gap-2">
@@ -75,7 +75,7 @@ export function WalletConnectButton({ compact = false }: { compact?: boolean }) 
             className="min-h-[44px] border-amber-400/40 text-amber-200"
           >
             <AlertTriangle className="h-4 w-4" />
-            Switch BSC
+            Switch to {BSC_CHAIN_LABEL}
           </Button>
         )}
         <div className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2">

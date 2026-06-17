@@ -1,11 +1,16 @@
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
-import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
+import {
+  BSC_CHAIN_ID,
+  BSC_MARKET_CHAIN_SLUG,
+  BSC_TESTNET_CAKE,
+  BSC_TESTNET_WBNB,
+} from "@/lib/bsc-chain";
 
-/** BSC-aligned demo tokens for BNB Hack judges */
+/** BSC Testnet demo tokens for BNB Hack judges */
 export const HACKATHON_DEMO_SYMBOLS = ["BNB", "CAKE"] as const;
 
-const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
-const CAKE = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82";
+const WBNB = BSC_TESTNET_WBNB;
+const CAKE = BSC_TESTNET_CAKE;
 
 export const HACKATHON_DEMO_TOKENS: TrendingMarketToken[] = [
   {
@@ -18,7 +23,7 @@ export const HACKATHON_DEMO_TOKENS: TrendingMarketToken[] = [
     change24h: 0,
     volume24h: 0,
     liquidityUsd: 0,
-    url: "https://dexscreener.com/bsc/" + WBNB,
+    url: `https://dexscreener.com/${BSC_MARKET_CHAIN_SLUG}/${WBNB}`,
     discoveryTag: "hackathon-demo",
     agent: {
       action: "BUY",
@@ -39,14 +44,14 @@ export const HACKATHON_DEMO_TOKENS: TrendingMarketToken[] = [
     change24h: 0,
     volume24h: 0,
     liquidityUsd: 0,
-    url: "https://dexscreener.com/bsc/" + CAKE,
+    url: `https://dexscreener.com/${BSC_MARKET_CHAIN_SLUG}/${CAKE}`,
     discoveryTag: "hackathon-demo",
     agent: {
       action: "BUY",
       confidence: 78,
       riskScore: 42,
       reasoning: "Hackathon demo — secondary BSC token for constitution compare.",
-      whyAction: "DEX ecosystem token on BNB Smart Chain.",
+      whyAction: "DEX ecosystem token on BSC Testnet demo desk.",
       reasoningFactors: [],
     },
   },
@@ -56,12 +61,13 @@ export const HACKATHON_DEMO_TOKENS: TrendingMarketToken[] = [
 export async function hydrateTokenFromMarket(symbol: string): Promise<Partial<TrendingMarketToken> | null> {
   try {
     const res = await fetch(
-      `/api/nexus/token/search?q=${encodeURIComponent(symbol)}&chainId=${BSC_CHAIN_ID}`,
+      `/api/nexus/token/search?q=${encodeURIComponent(symbol)}&chainId=${BSC_MARKET_CHAIN_SLUG}`,
     );
     const data = await res.json();
     const row = (data.results ?? []).find(
       (r: { symbol?: string; chainId?: string }) =>
-        r.symbol?.toUpperCase() === symbol.toUpperCase() && String(r.chainId) === String(BSC_CHAIN_ID),
+        r.symbol?.toUpperCase() === symbol.toUpperCase() &&
+        (String(r.chainId) === BSC_MARKET_CHAIN_SLUG || String(r.chainId) === String(BSC_CHAIN_ID)),
     );
     if (!row?.priceUsd) return null;
     return {
@@ -93,7 +99,7 @@ export type HackathonDemoStep =
   | "done";
 
 export const HACKATHON_DEMO_STEP_LABELS: Record<Exclude<HackathonDemoStep, "idle">, string> = {
-  "select-bnb": "Selecting BNB on BSC…",
+  "select-bnb": "Selecting BNB on BSC Testnet…",
   "await-permit": "Issuing constitution permit via CMC…",
   "show-constitution": "Agent BUY → constitution GRANT/DENY",
   "show-trade-block": "Buy blocked when constitution DENYs",

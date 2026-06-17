@@ -5,7 +5,7 @@ import { WagmiProvider, createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { bsc } from "@/lib/bsc-chain";
 
-/** BNB Smart Chain — Trust Wallet / MetaMask (BNB Hack) */
+/** BSC Testnet — Trust Wallet / MetaMask (BNB Hack) */
 const config = createConfig({
   chains: [bsc],
   connectors: [injected({ shimDisconnect: true })],

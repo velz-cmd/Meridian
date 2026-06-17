@@ -42,7 +42,7 @@ export async function GET(request: Request) {
       unrealizedPnlUsd: totalValueUsd - totalSpentUsd,
       realizedPnlUsd,
       totalPnlUsd: totalValueUsd - totalSpentUsd + realizedPnlUsd,
-      settlement: "Arc Testnet USDC",
+      settlement: "BSC Testnet tBNB",
     },
   });
 }

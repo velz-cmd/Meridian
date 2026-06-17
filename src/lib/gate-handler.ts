@@ -7,10 +7,12 @@ import {
   toStructuredOutput,
 } from "../../bnb-hack/engine/nexus-gate.mjs";
 import { fetchGateSnapshot } from "../../bnb-hack/live/cmc-fetch.mjs";
+import { fetchKeyInfo } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { runHistoricalBacktest } from "../../bnb-hack/live/run-backtest.mjs";
 import { convictionScore, routeBscCapital } from "../../bnb-hack/live/gate-router.mjs";
 import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
 import { GATE_SYMBOLS, isGateSymbol } from "@/lib/gate-constants";
+import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import type { AgentInput } from "@/lib/constitution-permit-handler";
 
 const PUBLIC_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "https://trader-arc.vercel.app";
@@ -179,18 +181,50 @@ export async function probeGateStatus() {
     }
   }
 
+  let historicalOk = false;
+  if (hasCmc) {
+    try {
+      const { resolveSymbolId, fetchHistoricalDaily } = await import("../../bnb-hack/live/cmc-fetch.mjs");
+      const id = await resolveSymbolId("BNB");
+      const h = await fetchHistoricalDaily(id, 30);
+      historicalOk = (h.data?.quotes?.length ?? 0) > 0;
+    } catch {
+      historicalOk = false;
+    }
+  }
+
+  const keyInfo = hasCmc ? await fetchKeyInfo() : null;
+
   return {
     product: "MERIDIAN Gate · BSC Capital Router",
     track: CONSTITUTION_SKILL.hubTrack,
     skill: CONSTITUTION_SKILL,
     demo: `${PUBLIC_ORIGIN}/gate`,
     symbols: [...GATE_SYMBOLS],
-    dataPolicy: "CMC-only live data · real historical backtest · BSC benchmark capital routing",
+    dataPolicy: "CMC-only live data · CMC historical when plan allows · else Binance venue replay",
+    bnb: {
+      chainId: BSC_CHAIN_ID,
+      chain: BSC_CHAIN_LABEL,
+      wallet: "Trust Wallet / MetaMask on BSC Testnet",
+      faucet: "https://testnet.bnbchain.org/faucet-smart",
+    },
     cmc: {
       configured: hasCmc,
       live: cmcLive,
+      historical: historicalOk,
       fearGreed,
       error: lastError,
+      plan: keyInfo
+        ? {
+            creditsPerMonth: keyInfo.creditLimitMonthly,
+            creditsLeft: keyInfo.creditsLeftMonth,
+            rateLimitPerMinute: keyInfo.rateLimitMinute,
+            note:
+              keyInfo.creditLimitMonthly && keyInfo.creditLimitMonthly <= 15000
+                ? "REST tier still Basic (~15k credits) — historical blocked until CMC upgrades this key to Standard+"
+                : "Paid tier detected — historical should work",
+          }
+        : null,
     },
     endpoints: {
       route: "/api/gate/route",

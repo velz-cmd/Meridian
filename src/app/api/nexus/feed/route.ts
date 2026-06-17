@@ -35,7 +35,7 @@ async function enrichMissingPairs(tokens: TrendingToken[], cap: number) {
     missing,
     async (t) => {
       const pair = await fetchTokenByAddress(t.chainId, t.tokenAddress);
-      return pair ? { ...pair, intel: t.intel, demoTradeable: true, suggestedNetwork: "arc" } : t;
+      return pair ? { ...pair, intel: t.intel, demoTradeable: true, suggestedNetwork: "bsc" } : t;
     },
     6,
   );
@@ -93,7 +93,7 @@ function buildFeedPayload(
     gmgnSkillsRefreshed: meta?.gmgnSkillsRefreshed,
     dataPolicy: meta?.dataPolicy ?? "live-reads-only",
     aiProvider: process.env.GROQ_API_KEY ? "groq" : process.env.OPENAI_API_KEY ? "openai" : "heuristic",
-    settlement: "Arc Testnet USDC",
+    settlement: "BSC Testnet tBNB",
     updatedAt: new Date().toISOString(),
     feedCycle: Math.floor(Date.now() / 45_000),
     refreshSeconds: 45,

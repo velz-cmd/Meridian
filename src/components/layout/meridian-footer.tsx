@@ -13,7 +13,7 @@ export function MeridianFooter({ className = "" }: { className?: string }) {
         rel="noopener noreferrer"
         className="font-mono normal-case text-white/30 underline-offset-2 hover:text-amber-200/70 hover:underline"
       >
-        BscScan
+        BscScan Testnet
       </a>
       {build && build !== "dev" ? (
         <span className="ml-2 font-mono text-white/25">· build {build}</span>

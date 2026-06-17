@@ -50,7 +50,7 @@ export const GMGN_AUTONOMOUS_STACK: {
       "limit-sell",
       "gmgn-swap",
     ],
-    why: "Live on-chain execution on Sol/BSC/Base — needs private key. ARC demo trade on Arc Testnet stays separate.",
+    why: "Live on-chain execution on Sol/BSC/Base — needs private key. MERIDIAN demo trades settle on BSC Testnet.",
   },
   {
     tier: "news",

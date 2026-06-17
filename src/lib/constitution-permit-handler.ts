@@ -7,6 +7,7 @@ import { fetchLiveSnapshot, cmcCacheStats } from "../../bnb-hack/live/cmc-fetch.
 import { fetchGateSnapshot } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
 import { isGateSymbol } from "@/lib/gate-constants";
+import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 
 export type AgentInput = { action: "BUY" | "SELL" | "HOLD"; confidence?: number; reasoning?: string };
 
@@ -122,8 +123,8 @@ export async function buildConstitutionResponse(input: {
       fieldSources: sources,
       cmcLive,
       bnb: {
-        chainId: 56,
-        chain: "BNB Smart Chain",
+        chainId: BSC_CHAIN_ID,
+        chain: BSC_CHAIN_LABEL,
         defaultSymbols: ["BNB", "CAKE"],
       },
       permit,
@@ -168,8 +169,8 @@ export async function buildConstitutionResponse(input: {
     dataSource: deskDex ? "desk-dex+cmc-macro" : cmcSnap ? "cmc-live+desk" : "desk+cmc-fallback",
     cmcLive: Boolean(cmcSnap) && !deskDex,
     bnb: {
-      chainId: 56,
-      chain: "BNB Smart Chain",
+      chainId: BSC_CHAIN_ID,
+      chain: BSC_CHAIN_LABEL,
       wallet: "Trust Wallet / injected (MetaMask)",
       defaultSymbols: ["BNB", "CAKE"],
     },
@@ -215,7 +216,7 @@ export async function probeConstitutionStatus() {
       cache: cmcCacheStats(),
       error: lastError,
     },
-    bnb: { chainId: 56, defaultSymbols: ["BNB", "CAKE"] },
+    bnb: { chainId: BSC_CHAIN_ID, chain: BSC_CHAIN_LABEL, defaultSymbols: ["BNB", "CAKE"] },
     endpoints: {
       gate: "/gate",
       evaluate: "/api/gate/evaluate",

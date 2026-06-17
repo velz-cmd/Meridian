@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       if (ledger.balanceUsdc < spend) {
         return NextResponse.json(
           {
-            error: `Agent vault balance $${ledger.balanceUsdc.toFixed(2)} — deposit USDC on Arc Testnet and tap Sync deposits`,
+            error: `Agent vault balance $${ledger.balanceUsdc.toFixed(2)} — fund wallet with tBNB on BSC Testnet`,
           },
           { status: 400 },
         );
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       quote,
       positions: nextPositions,
       agentBalanceUsdc,
-      settlement: "Arc Testnet USDC",
+      settlement: "BSC Testnet tBNB",
       network: demoNetworkById(body.tradeNetwork).label,
     });
   } catch (error) {

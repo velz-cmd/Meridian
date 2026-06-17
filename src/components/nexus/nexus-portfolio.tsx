@@ -6,7 +6,7 @@ import { ExternalLink, Loader2 } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { formatPct, formatUsd } from "@/lib/utils";
-import { arcExplorerTx } from "@/lib/arc";
+import { bscExplorerTx } from "@/lib/bsc-chain";
 import { NexusTokenAvatar } from "@/components/nexus/nexus-token-avatar";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 import type { DemoTradeRecord } from "@/lib/storage";
@@ -200,7 +200,7 @@ export function NexusPortfolio({
                   </div>
                   {t.arcFeeTxHash && (
                     <a
-                      href={arcExplorerTx(t.arcFeeTxHash)}
+                      href={bscExplorerTx(t.arcFeeTxHash)}
                       target="_blank"
                       rel="noreferrer"
                       className="shrink-0 inline-flex items-center gap-0.5 text-cyan-300 hover:underline"

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isOfficialMeridianHost } from "@/lib/site-security";
+import { BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 
 const CONSENT_KEY = "meridian-wallet-consent-v1";
 
@@ -67,7 +68,7 @@ export function WalletConnectConsent({
         <ul className="space-y-2 text-xs leading-relaxed text-white/75">
           <li>MERIDIAN never asks for your seed phrase or private key.</li>
           <li>You sign transactions only inside MetaMask / your wallet extension.</li>
-          <li>BNB Smart Chain — connect Trust Wallet or MetaMask; review each approval carefully.</li>
+          <li>{BSC_CHAIN_LABEL} — connect Trust Wallet or MetaMask; get tBNB from the BSC testnet faucet.</li>
           <li>Review each approval: network, amount, and contract address.</li>
         </ul>
 

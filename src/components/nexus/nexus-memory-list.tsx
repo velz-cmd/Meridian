@@ -4,7 +4,7 @@ import { AlertTriangle, Database, ExternalLink, History, Shield, Users } from "l
 import { isStablecoin } from "@/lib/token-filters";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { arcExplorerTx } from "@/lib/arc";
+import { bscExplorerTx } from "@/lib/bsc-chain";
 import { formatCompact, formatPct, formatUsd, truncateHash } from "@/lib/utils";
 import type { NexusDecision } from "@/lib/storage";
 
@@ -134,7 +134,7 @@ export function NexusMemoryList({
                 </span>
                 {decision.arcFeeTxHash && (
                   <a
-                    href={arcExplorerTx(decision.arcFeeTxHash)}
+                    href={bscExplorerTx(decision.arcFeeTxHash)}
                     target="_blank"
                     rel="noreferrer"
                     onClick={(e) => e.stopPropagation()}

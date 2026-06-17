@@ -4,7 +4,7 @@ import { Coins } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { useAccount, useBalance } from "wagmi";
-import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
+import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { useAgentWallet } from "@/hooks/use-agent-wallet";
 import { formatUsd } from "@/lib/utils";
 import type { DemoPosition } from "@/lib/storage";
@@ -27,7 +27,7 @@ export function NexusTradeBalanceBar({
   if (!isConnected) {
     return (
       <p className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">
-        Connect wallet on BNB Smart Chain to trade.
+        Connect wallet on {BSC_CHAIN_LABEL} to trade.
       </p>
     );
   }
@@ -39,7 +39,7 @@ export function NexusTradeBalanceBar({
           <ArcIcon3d icon={NEXUS_TRADE_ICONS.wallet} theme="nexus" size="sm" className="!h-8 !w-8" />
           Your wallet
         </p>
-        <p className="mt-1 text-lg font-bold text-white">{walletBnb.toFixed(4)} BNB</p>
+        <p className="mt-1 text-lg font-bold text-white">{walletBnb.toFixed(4)} tBNB</p>
       </div>
       {showAgentVault && (
         <div className="rounded-xl border border-violet-400/25 bg-violet-500/10 px-3 py-2.5">
@@ -48,7 +48,7 @@ export function NexusTradeBalanceBar({
             Agent vault (trades)
           </p>
           <p className="mt-1 text-lg font-bold text-white">
-            {agentLoading ? "…" : `${agentUsdc.toFixed(2)} USDC`}
+            {agentLoading ? "…" : `$${agentUsdc.toFixed(2)} vault`}
           </p>
           {agentWallet?.address && (
             <p className="mt-0.5 truncate text-[9px] text-white/40">{agentWallet.address}</p>

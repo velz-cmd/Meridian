@@ -46,7 +46,7 @@ export const NEXUS_VALUE_STEPS = [
   },
   {
     title: "One-tap trade",
-    detail: "Buy, sell, swap, or portfolio P&L on Arc — without leaving the flow.",
+    detail: "Buy, sell, swap, or portfolio P&L on BSC Testnet — without leaving the flow.",
   },
 ] as const;
 
@@ -66,7 +66,7 @@ export const ALPHA_SCAN_EMPTY =
   "Run a scan from the hero above — the agent will research dozens of tokens and return a short ranked list.";
 
 export const ALPHA_SCAN_ERROR_TIP =
-  "Stay on Arc Testnet, approve the scan fee if prompted, and try again in a moment.";
+  "Stay on BSC Testnet, connect your wallet, and try again in a moment.";
 
 export const ALPHA_SCAN_SUCCESS = (count: number, topSymbol?: string, sentiment?: string) =>
   `${count} picks ready${topSymbol ? ` · best: ${topSymbol}` : ""}${sentiment ? ` · ${sentiment}` : ""}`;

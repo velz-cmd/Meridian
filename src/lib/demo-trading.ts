@@ -77,8 +77,8 @@ export function buildDemoQuote(input: {
     pnlUsd: pnl,
     label:
       input.side === "swap_to_usdc"
-        ? `Swap ${tokens.toFixed(6)} → ${usdcOut.toFixed(2)} Arc USDC`
-        : `Sell ${tokens.toFixed(6)} for ${usdcOut.toFixed(2)} demo USDC`,
+        ? `Swap ${tokens.toFixed(6)} → ${usdcOut.toFixed(2)} tBNB (demo)`
+        : `Sell ${tokens.toFixed(6)} for ${usdcOut.toFixed(2)} tBNB (demo)`,
   };
 }
 
@@ -155,7 +155,7 @@ export function trendingToDemoToken(token: TrendingToken) {
     ...token,
     demoTradeable: true,
     suggestedNetwork: mirrorTestnetForSource(token.chainId),
-    settlement: "Arc Testnet USDC",
+    settlement: "BSC Testnet tBNB",
   };
 }
 
