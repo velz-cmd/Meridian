@@ -1,21 +1,47 @@
 "use client";
 
-import { Bot, Brain, Loader2, XCircle, Zap } from "lucide-react";
+import { Bot, Brain, Loader2, Wallet, XCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAccount, useBalance } from "wagmi";
 import { useNexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
-import { NexusAgentWalletCard } from "@/components/nexus/nexus-agent-wallet-card";
 import { estimateRequiredUsdc, loadAutopilot } from "@/lib/nexus-autopilot";
-import { useAgentWallet } from "@/hooks/use-agent-wallet";
+import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
+import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
 
 export function NexusExecutionPanel({ compact = false }: { compact?: boolean }) {
   const agent = useNexusAgentRuntime();
   const config = loadAutopilot();
-  const { usdcBalance } = useAgentWallet();
-  const requiredUsdc = estimateRequiredUsdc(config, usdcBalance);
+  const { address, isConnected } = useAccount();
+  const { data: balance } = useBalance({ address, chainId: BSC_CHAIN_ID });
+  const walletTbnb = balance ? Number(balance.formatted) : 0;
+  const bnbSpotUsd = useBnbSpotUsd();
+  const walletUsd = walletTbnb * bnbSpotUsd;
+  const requiredUsd = estimateRequiredUsdc(config, walletUsd, bnbSpotUsd);
+  const requiredTbnb = requiredUsd / Math.max(bnbSpotUsd, 1);
+  const funded = config.mode === "sell_only" || walletUsd >= requiredUsd;
 
   return (
     <div className="space-y-3">
-      <NexusAgentWalletCard requiredUsdc={requiredUsdc} compact={false} />
+      <div className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2.5">
+        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-200/85">
+          <Wallet className="h-3.5 w-3.5" />
+          Trading wallet · {BSC_CHAIN_LABEL}
+        </p>
+        {isConnected ? (
+          <>
+            <p className="mt-1 text-lg font-bold text-white">{walletTbnb.toFixed(4)} tBNB</p>
+            <p className="text-[11px] text-white/50">
+              {config.mode === "sell_only"
+                ? "Sell cycles use on-chain token balance — no tBNB needed for buys."
+                : funded
+                  ? `Ready for autopilot buys (need ~${requiredTbnb.toFixed(4)} tBNB per cycle).`
+                  : `Fund ~${requiredTbnb.toFixed(4)} tBNB on testnet for the next buy cycle.`}
+            </p>
+          </>
+        ) : (
+          <p className="mt-1 text-sm text-white/70">Connect wallet on {BSC_CHAIN_LABEL} to run autopilot.</p>
+        )}
+      </div>
 
       {agent.enabled ? (
         <div className="space-y-3 rounded-xl border border-rose-400/35 bg-rose-500/12 p-3">
@@ -27,7 +53,7 @@ export function NexusExecutionPanel({ compact = false }: { compact?: boolean }) 
             <button
               type="button"
               onClick={agent.stop}
-            title="Stops recurring interval only"
+              title="Stops recurring interval only"
               className="inline-flex items-center gap-1 rounded-lg border border-rose-400/50 bg-black/30 px-3 py-1.5 text-xs font-bold text-rose-100"
             >
               <XCircle className="h-3.5 w-3.5" />
@@ -38,12 +64,12 @@ export function NexusExecutionPanel({ compact = false }: { compact?: boolean }) 
             {agent.running ? (
               <span className="inline-flex items-center gap-1.5">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Executing current signal…
+                Executing PancakeSwap tx — confirm in wallet…
               </span>
             ) : (
               <>
-                Next run in <strong className="text-white">{agent.nextIn}s</strong> · vault only (no wallet
-                prompts)
+                Next run in <strong className="text-white">{agent.nextIn}s</strong> · wallet signs each
+                tBNB swap
               </>
             )}
           </p>
@@ -60,7 +86,8 @@ export function NexusExecutionPanel({ compact = false }: { compact?: boolean }) 
       ) : (
         !compact && (
           <p className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/55">
-            Deposit USDC above, then tap <strong className="text-violet-200">Run Agent</strong> below.
+            Keep tBNB in your wallet, then tap <strong className="text-violet-200">Run Agent</strong> below.
+            Each cycle signs a real PancakeSwap trade on testnet.
           </p>
         )
       )}

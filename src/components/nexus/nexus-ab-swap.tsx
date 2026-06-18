@@ -109,7 +109,7 @@ export function NexusAbSwap({
   const [tokenA, setTokenA] = useState("");
   const [tokenB, setTokenB] = useState("");
   const [amountA, setAmountA] = useState("");
-  const [amountMode, setAmountMode] = useState<"token" | "usdc">("token");
+  const [amountMode, setAmountMode] = useState<"token" | "tbnb">("token");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -255,9 +255,9 @@ export function NexusAbSwap({
               </button>
               <button
                 type="button"
-                onClick={() => setAmountMode("usdc")}
+                onClick={() => setAmountMode("tbnb")}
                 className={`rounded-md px-2.5 py-1 transition ${
-                  amountMode === "usdc" ? "bg-emerald-500/25 text-emerald-100" : "text-white/50"
+                  amountMode === "tbnb" ? "bg-emerald-500/25 text-emerald-100" : "text-white/50"
                 }`}
               >
                 tBNB
@@ -280,7 +280,7 @@ export function NexusAbSwap({
             inputMode="decimal"
             value={amountA}
             onChange={(e) => setAmountA(e.target.value)}
-            placeholder={amountMode === "usdc" ? "tBNB notional" : "Token amount"}
+            placeholder={amountMode === "tbnb" ? "tBNB amount" : "Token amount"}
             className="w-full min-h-[44px] rounded-xl border border-white/15 bg-black/40 px-3 text-lg font-medium text-white outline-none focus:border-cyan-400/40"
           />
 

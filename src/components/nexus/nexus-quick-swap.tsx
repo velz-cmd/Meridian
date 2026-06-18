@@ -159,7 +159,7 @@ export function NexusQuickSwap({
   const [payToken, setPayToken] = useState("");
   const [receiveToken, setReceiveToken] = useState("");
   const [amount, setAmount] = useState("");
-  const [amountMode, setAmountMode] = useState<"token" | "usdc">("token");
+  const [amountMode, setAmountMode] = useState<"token" | "tbnb">("token");
   const [loading, setLoading] = useState(false);
   const [recentTrades, setRecentTrades] = useState<SwapHistoryRow[]>([]);
   const [success, setSuccess] = useState<SwapSuccessState | null>(null);
@@ -224,7 +224,7 @@ export function NexusQuickSwap({
   }, [payToken, receiveToken, receiveOptions]);
 
   useEffect(() => {
-    if (payToken && isBscNativeBnb(payToken)) setAmountMode("usdc");
+    if (payToken && isBscNativeBnb(payToken)) setAmountMode("tbnb");
   }, [payToken]);
 
   const pay = sortedTokens.find((t) => t.tokenAddress.toLowerCase() === payToken.toLowerCase());
@@ -250,13 +250,13 @@ export function NexusQuickSwap({
   const amountNum = Math.max(0, Number(amount) || 0);
   const tokenAmountSell = payIsNative
     ? 0
-    : amountMode === "usdc"
+    : amountMode === "tbnb"
       ? amountNum
       : amountNum;
 
   const usdNotional = payIsNative
     ? amountNum * bnbSpotUsd
-    : amountMode === "usdc"
+    : amountMode === "tbnb"
       ? amountNum * bnbSpotUsd
       : tokenAmountSell * (pay?.priceUsd ?? 0);
 
@@ -583,9 +583,9 @@ export function NexusQuickSwap({
               </button>
               <button
                 type="button"
-                onClick={() => setAmountMode("usdc")}
+                onClick={() => setAmountMode("tbnb")}
                 className={`rounded-md px-2.5 py-1 transition ${
-                  amountMode === "usdc" ? "bg-emerald-500/25 text-emerald-100" : "text-white/50"
+                  amountMode === "tbnb" ? "bg-emerald-500/25 text-emerald-100" : "text-white/50"
                 }`}
               >
                 tBNB
@@ -602,7 +602,7 @@ export function NexusQuickSwap({
             setAmount(e.target.value);
             setSuccess(null);
           }}
-          placeholder={payIsNative || amountMode === "usdc" ? "tBNB amount" : "Token amount"}
+          placeholder={payIsNative || amountMode === "tbnb" ? "tBNB amount" : "Token amount"}
           className="w-full min-h-[44px] rounded-xl border border-white/15 bg-black/40 px-3 text-lg font-medium text-white outline-none focus:border-cyan-400/40"
         />
 

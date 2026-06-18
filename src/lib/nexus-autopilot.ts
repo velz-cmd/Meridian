@@ -74,7 +74,7 @@ export function defaultAutopilot(): AutopilotConfig {
     customIntervalMinutes: "60",
     percent: 25,
     amountMode: "percent",
-    customUsdc: "10",
+    customUsdc: "0.01",
     customToken: "",
     customTokenAddress: "",
     customTokenSymbol: "",
@@ -132,23 +132,33 @@ export function onceScheduleLabel(cfg: AutopilotConfig): string {
   return `after ${AUTOPILOT_INTERVALS[cfg.interval as Exclude<AutopilotInterval, "custom">]?.label ?? cfg.interval}`;
 }
 
-/** Vault USDC needed before starting autopilot (sells do not debit vault) */
-export function minVaultUsdcForAutopilot(config: AutopilotConfig, balance: number): number {
-  if (config.mode === "sell_only") return 0;
-  return estimateRequiredUsdc(config, balance);
-}
-
-/** Minimum vault balance to run one buy (trade size only — Arc network fee is paid from wallet, ~$0.01) */
-export function estimateRequiredUsdc(config: AutopilotConfig, balance: number): number {
-  const arcBuffer = 0.005;
+/** Minimum wallet balance (USD notional) before starting autopilot buys */
+export function estimateRequiredUsdc(
+  config: AutopilotConfig,
+  balanceUsd: number,
+  bnbSpotUsd = 600,
+): number {
+  const arcBufferUsd = 0.05 * bnbSpotUsd;
   if (config.amountMode === "custom_usdc") {
-    return Math.max(0.05, Number(config.customUsdc) || 0) + arcBuffer;
+    const tbnb = Math.max(0, Number(config.customUsdc) || 0);
+    return Math.max(0.05 * bnbSpotUsd, tbnb * bnbSpotUsd) + arcBufferUsd;
   }
   if (config.amountMode === "custom_token" && config.customAmountUnit === "usdc") {
-    return Math.max(0.05, Number(config.customToken) || 0) + arcBuffer;
+    const tbnb = Math.max(0, Number(config.customToken) || 0);
+    return Math.max(0.05 * bnbSpotUsd, tbnb * bnbSpotUsd) + arcBufferUsd;
   }
   if (config.amountMode === "percent") {
-    return Math.max(0.05, (balance * config.percent) / 100) + arcBuffer;
+    return Math.max(0.05 * bnbSpotUsd, (balanceUsd * config.percent) / 100) + arcBufferUsd;
   }
-  return 0.055;
+  return 0.055 * bnbSpotUsd;
+}
+
+/** Vault USDC needed before starting autopilot (sells do not debit wallet) */
+export function minVaultUsdcForAutopilot(
+  config: AutopilotConfig,
+  balanceUsd: number,
+  bnbSpotUsd = 600,
+): number {
+  if (config.mode === "sell_only") return 0;
+  return estimateRequiredUsdc(config, balanceUsd, bnbSpotUsd);
 }

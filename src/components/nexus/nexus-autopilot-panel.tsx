@@ -164,7 +164,7 @@ export function NexusAutopilotPanel({
   }, [address]);
 
   const walletUsd = walletTbnb * bnbSpotUsd;
-  const requiredUsdc = minVaultUsdcForAutopilot(config, walletUsd);
+  const requiredUsdc = minVaultUsdcForAutopilot(config, walletUsd, bnbSpotUsd);
   const hasDeposit = config.mode === "sell_only" || walletUsd >= requiredUsdc;
 
   const persist = useCallback((next: AutopilotConfig) => {
@@ -252,18 +252,20 @@ export function NexusAutopilotPanel({
     ): { usdcAmount?: number; tokenAmount?: number } => {
       if (side === "buy") {
         if (cfg.amountMode === "custom_usdc") {
-          return { usdcAmount: Math.max(0, Number(cfg.customUsdc) || 0) };
+          const tbnb = Math.max(0, Number(cfg.customUsdc) || 0);
+          return { usdcAmount: tbnb * bnbSpotUsd };
         }
         if (cfg.amountMode === "custom_token" && cfg.customAmountUnit === "usdc") {
-          return { usdcAmount: Math.max(0, Number(cfg.customToken) || 0) };
+          const tbnb = Math.max(0, Number(cfg.customToken) || 0);
+          return { usdcAmount: tbnb * bnbSpotUsd };
         }
-        const avail = Math.max(0, (buyBalanceUsdc ?? walletTbnbRef.current * bnbSpotUsd) - 0.01);
-        return { usdcAmount: Math.max(0.05, (avail * cfg.percent) / 100) };
+        const avail = Math.max(0, (buyBalanceUsdc ?? walletTbnbRef.current * bnbSpotUsd) - 0.01 * bnbSpotUsd);
+        return { usdcAmount: Math.max(0.05 * bnbSpotUsd, (avail * cfg.percent) / 100) };
       }
       if (cfg.amountMode === "custom_token") {
         if (cfg.customAmountUnit === "usdc" && priceUsd > 0) {
-          const usdc = Math.max(0, Number(cfg.customToken) || 0);
-          return { tokenAmount: usdc / priceUsd };
+          const tbnb = Math.max(0, Number(cfg.customToken) || 0);
+          return { tokenAmount: (tbnb * bnbSpotUsd) / priceUsd };
         }
         return { tokenAmount: Math.max(0, Number(cfg.customToken) || 0) };
       }
@@ -377,7 +379,7 @@ export function NexusAutopilotPanel({
 
       let walletBal = walletTbnbRef.current;
       const buyFundingUsd = walletBal * bnbSpotUsd;
-      const need = minVaultUsdcForAutopilot(cfg, buyFundingUsd);
+      const need = minVaultUsdcForAutopilot(cfg, buyFundingUsd, bnbSpotUsd);
       if (side === "buy" && buyFundingUsd < need) {
         const msg = `Wallet ${walletBal.toFixed(4)} tBNB (~$${buyFundingUsd.toFixed(2)}) — need ~$${need.toFixed(2)} for this cycle. Fund BSC Testnet wallet or lower size.`;
         pushLog(msg, "error");
@@ -437,8 +439,8 @@ export function NexusAutopilotPanel({
         buyFundingUsd,
       );
 
-      if (side === "buy" && (!usdcAmount || usdcAmount < 0.05)) {
-        const msg = "Buy size too small (min $0.05 USDC) — check amount settings";
+      if (side === "buy" && (!usdcAmount || usdcAmount / bnbSpotUsd < 0.0001)) {
+        const msg = "Buy size too small (min 0.0001 tBNB) — check amount settings";
         pushLog(msg, "error");
         toast({ type: "error", title: "Amount too small", message: msg });
         return;
@@ -609,7 +611,7 @@ export function NexusAutopilotPanel({
       const cfgNow = configRef.current;
       const walletBal = walletTbnbRef.current;
       const walletUsdNow = walletBal * bnbSpotUsd;
-      const need = minVaultUsdcForAutopilot(cfgNow, walletUsdNow);
+      const need = minVaultUsdcForAutopilot(cfgNow, walletUsdNow, bnbSpotUsd);
 
       if (cfgNow.mode !== "sell_only" && walletUsdNow < need) {
         toast({
@@ -945,8 +947,8 @@ export function NexusAutopilotPanel({
           <div className="grid grid-cols-3 gap-2">
             {(
               [
-                { id: "percent" as AutopilotAmountMode, label: "% of USDC", icon: Percent },
-                { id: "custom_usdc" as AutopilotAmountMode, label: "Fixed USDC", icon: DollarSign },
+                { id: "percent" as AutopilotAmountMode, label: "% of tBNB", icon: Percent },
+                { id: "custom_usdc" as AutopilotAmountMode, label: "Fixed tBNB", icon: DollarSign },
                 { id: "custom_token" as AutopilotAmountMode, label: "Custom token", icon: TrendingDown },
               ] as const
             ).map(({ id, label, icon: Icon }) => (
@@ -988,14 +990,14 @@ export function NexusAutopilotPanel({
           {config.amountMode === "custom_usdc" && (
             <div>
               <p className="nexus-caption mb-1 flex items-center gap-1">
-                <DollarSign className="h-3 w-3" /> USDC per buy
+                <DollarSign className="h-3 w-3" /> tBNB per buy
               </p>
               <input
                 inputMode="decimal"
                 value={config.customUsdc}
                 onChange={(e) => persist({ ...config, customUsdc: e.target.value })}
                 className="w-full min-h-[44px] rounded-xl border border-white/15 bg-black/30 px-3 text-white"
-                placeholder="e.g. 25"
+                placeholder="e.g. 0.01"
               />
             </div>
           )}
@@ -1037,7 +1039,7 @@ export function NexusAutopilotPanel({
                       : "border-white/10 text-white/55"
                   }`}
                 >
-                  USDC amount
+                  tBNB amount
                 </button>
               </div>
               <input
@@ -1045,7 +1047,7 @@ export function NexusAutopilotPanel({
                 value={config.customToken}
                 onChange={(e) => persist({ ...config, customToken: e.target.value })}
                 placeholder={
-                  config.customAmountUnit === "usdc" ? "USDC per buy" : "Tokens per sell"
+                  config.customAmountUnit === "usdc" ? "tBNB per buy" : "Tokens per sell"
                 }
                 className="w-full min-h-[44px] rounded-xl border border-white/15 bg-black/30 px-3 text-white"
               />

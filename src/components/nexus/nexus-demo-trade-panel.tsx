@@ -41,7 +41,7 @@ function asTradeToken(token: TradeToken) {
   };
 }
 
-type AmountMode = "usdc" | "token";
+type AmountMode = "tbnb" | "token";
 
 const TRADE_NETWORK = "bsc" as const;
 const BUY_PRESETS = [10, 25, 50, 100] as const;
@@ -92,12 +92,12 @@ export function NexusTradeHub({
   const trade = asTradeToken(token);
   const side = tradeTab === "sell" ? "sell" : "buy";
   const [amount, setAmount] = useState("25");
-  const [amountMode, setAmountMode] = useState<AmountMode>("usdc");
+  const [amountMode, setAmountMode] = useState<AmountMode>("tbnb");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastTx, setLastTx] = useState<{ hash: string; block?: number } | null>(null);
 
-  const usdcBalance = balance ? Number(balance.formatted) : 0;
+  const walletTbnb = balance ? Number(balance.formatted) : 0;
   const onChainBal = useOnChainTokenBalance({
     symbol: trade?.symbol ?? "",
     tokenAddress: trade?.tokenAddress ?? "",
@@ -109,7 +109,7 @@ export function NexusTradeHub({
   const tradeOnChainHint = trade ? testnetSwapHint(trade) : null;
 
   useEffect(() => {
-    setAmountMode(side === "buy" ? "usdc" : "token");
+    setAmountMode(side === "buy" ? "tbnb" : "token");
     setAmount(side === "buy" ? "0.01" : "0");
   }, [side, trade?.tokenAddress]);
 
@@ -119,7 +119,7 @@ export function NexusTradeHub({
   const spendTbnb = useMemo(() => {
     if (!trade || amountNum <= 0) return 0;
     if (side === "buy") {
-      if (amountMode === "usdc") return amountNum;
+      if (amountMode === "tbnb") return amountNum;
       if (livePrice > 0) return (amountNum * livePrice) / bnbSpotUsd;
     }
     return 0;
@@ -178,11 +178,11 @@ export function NexusTradeHub({
 
   function applyPct(pct: number) {
     if (side === "buy") {
-      if (amountMode === "usdc") {
-        const spend = (usdcBalance * pct) / 100;
+      if (amountMode === "tbnb") {
+        const spend = (walletTbnb * pct) / 100;
         setAmount(formatAmount(Math.max(0, spend)));
       } else if (livePrice > 0) {
-        const maxTokens = (usdcBalance * bnbSpotUsd) / livePrice;
+        const maxTokens = (walletTbnb * bnbSpotUsd) / livePrice;
         setAmount(formatAmount((maxTokens * pct) / 100));
       }
       return;
@@ -196,12 +196,12 @@ export function NexusTradeHub({
 
   function applyBuyPreset(usd: number) {
     setTab("buy");
-    setAmountMode("usdc");
+    setAmountMode("tbnb");
     setAmount((usd / bnbSpotUsd).toFixed(4));
   }
 
   function applySellUsdcReceive(targetUsd: number) {
-    setAmountMode("usdc");
+    setAmountMode("tbnb");
     setAmount((targetUsd / bnbSpotUsd).toFixed(4));
   }
 
@@ -214,8 +214,8 @@ export function NexusTradeHub({
       setError(tradeOnChainHint ?? "This token is not on BSC Testnet — pick CAKE or a testnet token");
       return;
     }
-    if (side === "buy" && resolved.tbnbSpent > usdcBalance) {
-      setError(`Insufficient tBNB — need ${resolved.tbnbSpent.toFixed(4)}, have ${usdcBalance.toFixed(4)}`);
+    if (side === "buy" && resolved.tbnbSpent > walletTbnb) {
+      setError(`Insufficient tBNB — need ${resolved.tbnbSpent.toFixed(4)}, have ${walletTbnb.toFixed(4)}`);
       return;
     }
     if (side === "sell" && resolved.tokenAmount > tokenBalance + 1e-9) {
@@ -347,7 +347,7 @@ export function NexusTradeHub({
           </a>
         )}
         <p className="text-center text-[11px] text-white/45">
-          PancakeSwap V2 on {BSC_CHAIN_LABEL} · wallet signature required · permit gate
+          PancakeSwap V2 on {BSC_CHAIN_LABEL} · pay/receive tBNB · wallet signature required
         </p>
       </div>
     ) : null;
@@ -361,7 +361,7 @@ export function NexusTradeHub({
             <ArcIcon3d icon={NEXUS_TRADE_ICONS.trade} theme="nexus" size="md" />
             <div className="min-w-0 flex-1">
               <p className="arc-caption text-violet-300/85">Execution</p>
-              <span className="text-base font-semibold text-white">{BSC_CHAIN_LABEL} Trade · Agent</span>
+              <span className="text-base font-semibold text-white">{BSC_CHAIN_LABEL} · tBNB trades</span>
             </div>
             {agentLive && (
               <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-200">
@@ -507,7 +507,7 @@ export function NexusTradeHub({
 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="nexus-caption flex items-center gap-1.5">
-                  {amountMode === "usdc" ? (
+                  {amountMode === "tbnb" ? (
                     <DollarSign className="h-3.5 w-3.5 text-emerald-300" />
                   ) : (
                     <Coins className="h-3.5 w-3.5 text-cyan-300" />
@@ -526,9 +526,9 @@ export function NexusTradeHub({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setAmountMode("usdc")}
+                    onClick={() => setAmountMode("tbnb")}
                     className={`rounded-md px-2.5 py-1 transition ${
-                      amountMode === "usdc" ? "bg-emerald-500/25 text-emerald-100" : "text-white/50"
+                      amountMode === "tbnb" ? "bg-emerald-500/25 text-emerald-100" : "text-white/50"
                     }`}
                   >
                     tBNB
@@ -541,13 +541,16 @@ export function NexusTradeHub({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="arc-input-glass w-full min-h-[48px] px-4 text-lg font-medium text-white"
-                placeholder={amountMode === "usdc" ? "tBNB amount" : `${trade.symbol} amount`}
+                placeholder={amountMode === "tbnb" ? "tBNB amount" : `${trade.symbol} amount`}
               />
+              <p className="text-[11px] text-white/45">
+                Wallet: {walletTbnb.toFixed(4)} tBNB on {BSC_CHAIN_LABEL}
+              </p>
 
               {amountNum > 0 && livePrice > 0 && (
                 <p className="text-[11px] text-white/50">
                   {side === "buy" ? "≈ " : "≈ "}
-                  {amountMode === "usdc"
+                  {amountMode === "tbnb"
                     ? `${formatTokenAmount(resolved.tokenAmount)} ${trade.symbol}`
                     : side === "buy"
                       ? `${resolved.tbnbSpent.toFixed(4)} tBNB (~$${resolved.usdcAmount.toFixed(2)})`
