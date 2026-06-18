@@ -57,7 +57,7 @@ export function GateCapitalRouter({
                 )}
               </h2>
               <p className="mt-1 text-xs text-white/50">
-                {regime.replace("-", " ")} · F&G {fearGreed} · ranked by conviction across 4 CMC benchmarks
+                {regime.replace("-", " ")} · F&G {fearGreed} · relative conviction — each coin scored on its own CMC tape
               </p>
             </div>
           </div>
@@ -108,7 +108,13 @@ export function GateCapitalRouter({
                 </div>
                 <p className="mt-1 text-xs text-white/70">
                   {row.conviction} conviction · {row.checks} · {row.permit}
+                  {row.alignmentScore != null ? ` · ${row.alignmentScore}/100` : ""}
                 </p>
+                {row.rationale && (
+                  <p className="mt-1 line-clamp-2 text-[9px] leading-snug text-white/45" title={row.rationale}>
+                    {row.rationale}
+                  </p>
+                )}
                 <p className={cn("text-[10px]", row.change24h >= 0 ? "text-emerald-300" : "text-rose-300")}>
                   ${row.price < 1 ? row.price.toFixed(6) : row.price.toFixed(2)} · {row.change24h >= 0 ? "+" : ""}
                   {row.change24h.toFixed(2)}%

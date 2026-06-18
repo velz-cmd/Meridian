@@ -18,12 +18,33 @@ export type GateRoutePayload = {
     tier: string;
     edge: number;
     checks: string;
+    alignmentScore?: number | null;
+    gaps?: string[];
+    rationale?: string;
     price: number;
     change24h: number;
   }[];
 };
 
+export type GateBenchmarkPayload = {
+  symbol: string;
+  gate: {
+    signal: string;
+    tier: string;
+    regime?: string;
+    confidence?: number;
+    edge?: number;
+    checksPassed: number;
+    checksTotal: number;
+    gaps?: string[];
+  };
+  market: { price: number; change24h: number; fearGreed?: number };
+  skills?: {
+    composite?: { signal?: string; alignmentScore?: number; thesis?: string };
+  };
+};
+
 export type GateRouteResponse = {
-  benchmarks?: unknown[];
+  benchmarks?: GateBenchmarkPayload[];
   route?: GateRoutePayload;
 };

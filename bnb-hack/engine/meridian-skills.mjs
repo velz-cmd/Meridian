@@ -179,7 +179,14 @@ export function evaluateRegimeSkill(t, macro = {}) {
   let signal = "HOLD";
   if (regime === "risk-off") {
     strategyMode = positioning === "crowded-long-unwind" ? "defensive" : "tight";
-    signal = positioning === "capitulation" ? "ENTER_LONG" : "AVOID";
+    const ch24 = t.change24h ?? 0;
+    const ch7 = t.change7d ?? 0;
+    if (positioning === "crowded-long-unwind") signal = "AVOID";
+    else if (positioning === "capitulation") {
+      signal = ch7 > 3 && ch24 > -4 ? "ENTER_LONG" : Math.abs(ch24) < 1.5 ? "HOLD" : ch24 < -4 ? "HOLD" : "ENTER_LONG";
+    } else {
+      signal = Math.abs(ch24) < 2 ? "HOLD" : ch24 < -5 ? "AVOID" : "HOLD";
+    }
   } else if (regime === "risk-on") {
     strategyMode = positioning === "crowded-long" ? "tight" : "aggressive";
     signal = positioning === "crowded-long" ? "HOLD" : "ENTER_LONG";
@@ -248,6 +255,10 @@ export function composeSkillVerdict(t, gate, macro = {}) {
       (regime.regime === "neutral" || regime.regime === "risk-on" ? 33 : regime.regime === "risk-off" ? 12 : 20)),
   );
 
+  const sym = (t.symbol ?? "TOKEN").toUpperCase();
+  const rsi = momentum.metrics.rsi;
+  const alignLabel = alignmentScore >= 70 ? "skills aligned" : alignmentScore >= 50 ? "partial alignment" : "weak alignment";
+
   return {
     momentum,
     sentiment,
@@ -259,10 +270,10 @@ export function composeSkillVerdict(t, gate, macro = {}) {
       cleared: blockers.length === 0 && compositeSignal === "ENTER_LONG",
       thesis:
         blockers.length > 0
-          ? `Blocked by ${blockers.join(", ")} — constitution holds flat despite partial setup.`
+          ? `${sym}: blocked (${blockers.join(", ")}) — ${gate.gaps?.[0] ?? "constitution holds flat"}.`
           : compositeSignal === "ENTER_LONG"
-            ? `All skills aligned (${alignmentScore}/100) — momentum, flow, and regime permit entry.`
-            : gate.thesis,
+            ? `${sym}: ${rsi.toFixed(1)} RSI · ${sentiment.state.replace(/_/g, " ").toLowerCase()} · ${gate.checksPassed}/${gate.checksTotal} checks · edge +${gate.edge ?? 0} · ${alignLabel} (${alignmentScore}/100).`
+            : `${sym}: ${gate.thesis}`,
     },
   };
 }

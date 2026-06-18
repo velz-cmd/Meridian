@@ -15,8 +15,10 @@ export type GateBoardRow = {
     edge?: number;
     checksPassed: number;
     checksTotal: number;
+    gaps?: string[];
   };
   market: { price: number; change24h: number };
+  skills?: { alignmentScore?: number; compositeSignal?: string };
 };
 
 export function GateStrategyBoard({
@@ -104,7 +106,13 @@ export function GateStrategyBoard({
                     <p className="mt-2 text-[10px] text-white/40">
                       {row.gate.checksPassed}/{row.gate.checksTotal} checks · {row.gate.tier.toUpperCase()}
                       {row.gate.edge != null ? ` · edge +${row.gate.edge}` : ""}
+                      {row.skills?.alignmentScore != null ? ` · ${row.skills.alignmentScore}/100 align` : ""}
                     </p>
+                    {row.gate.gaps && row.gate.gaps.length > 0 && (
+                      <p className="mt-1 truncate text-[9px] text-amber-300/80" title={row.gate.gaps.join("; ")}>
+                        gap: {row.gate.gaps[0]}
+                      </p>
+                    )}
                   </>
                 )}
               </button>

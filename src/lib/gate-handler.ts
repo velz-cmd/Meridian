@@ -34,6 +34,11 @@ async function evaluateSymbol(
   const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {});
   const permit = agent ? issueConstitutionPermit(snapshot, agent) : null;
 
+  const stubPermit = {
+    status: gate.signal === "ENTER_LONG" ? ("GRANT" as const) : ("DENY" as const),
+    execute: gate.signal === "ENTER_LONG" ? ("LONG" as const) : ("FLAT" as const),
+  };
+
   return {
     symbol,
     cmcLive,
@@ -52,7 +57,7 @@ async function evaluateSymbol(
     gate,
     skills,
     permit: permit ? { ...permit, skill: CONSTITUTION_SKILL } : null,
-    conviction: permit ? convictionScore(gate, permit) : null,
+    conviction: convictionScore(gate, permit ?? stubPermit, skills),
   };
 }
 
@@ -145,7 +150,8 @@ export async function buildGateRouteResponse(input: { agent?: AgentInput | null 
         execute: r.gate.signal === "ENTER_LONG" ? "LONG" : "FLAT",
       },
       market: r.market,
-      conviction: r.conviction ?? convictionScore(r.gate, { status: r.gate.signal === "ENTER_LONG" ? "GRANT" : "DENY" }),
+      skills: r.skills,
+      conviction: r.conviction ?? convictionScore(r.gate, { status: r.gate.signal === "ENTER_LONG" ? "GRANT" : "DENY" }, r.skills),
     })),
     { agentAction: agent?.action, regime, fearGreed },
   );

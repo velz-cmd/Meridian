@@ -8,7 +8,7 @@ import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { GATE_SKILL_REPO, GATE_SYMBOLS, type GateSymbol } from "@/lib/gate-constants";
 import { GITHUB_SKILL, strategyPosition } from "@/lib/gate-strategy-copy";
 import { GateStrategyLive } from "@/components/gate/gate-strategy-live";
-import { GateStrategyBoard, type GateBoardRow } from "@/components/gate/gate-strategy-board";
+import { GateStrategyBoard } from "@/components/gate/gate-strategy-board";
 import { GateCheckRadar } from "@/components/gate/gate-check-radar";
 import { GateSkillStack, type GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import { GateDataProvenance } from "@/components/gate/gate-data-provenance";
@@ -56,42 +56,15 @@ type BacktestPayload = {
 export function GateConsole() {
   const router = useRouter();
   const [symbol, setSymbol] = useState<GateSymbol>("BNB");
-  const [board, setBoard] = useState<GateBoardRow[]>([]);
   const [live, setLive] = useState<EvaluatePayload | null>(null);
   const [backtest, setBacktest] = useState<BacktestPayload | null>(null);
-  const [boardLoading, setBoardLoading] = useState(true);
   const [liveLoading, setLiveLoading] = useState(true);
   const [liveError, setLiveError] = useState<string | null>(null);
   const [btLoading, setBtLoading] = useState(true);
   const [fearGreed, setFearGreed] = useState<number | undefined>();
-  const { route: gateRoute, loading: gateRouteLoading } = useGateRoute(45_000);
+  const { route: gateRoute, benchmarks: board, loading: gateRouteLoading } = useGateRoute(45_000);
   const liveReq = useRef(0);
   const btReq = useRef(0);
-  const boardReq = useRef(0);
-
-  const loadBoard = useCallback(async () => {
-    const id = ++boardReq.current;
-    setBoardLoading(true);
-    try {
-      const res = await fetch("/api/gate/route", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-        cache: "no-store",
-      });
-      const data = (await res.json()) as { benchmarks?: GateBoardRow[] };
-      if (id !== boardReq.current) return;
-      if (res.ok && data.benchmarks?.length) {
-        setBoard(data.benchmarks);
-        const fg = (data.benchmarks[0] as EvaluatePayload)?.market?.fearGreed;
-        if (fg != null) setFearGreed(fg);
-      }
-    } catch {
-      /* optional */
-    } finally {
-      if (id === boardReq.current) setBoardLoading(false);
-    }
-  }, []);
 
   const loadLive = useCallback(async (sym: GateSymbol) => {
     const id = ++liveReq.current;
@@ -134,15 +107,13 @@ export function GateConsole() {
   }, []);
 
   useEffect(() => {
-    void loadBoard();
-    const t = setInterval(() => void loadBoard(), 60_000);
-    return () => clearInterval(t);
-  }, [loadBoard]);
-
-  useEffect(() => {
     void loadLive(symbol);
     void loadBacktest(symbol);
   }, [symbol, loadLive, loadBacktest]);
+
+  useEffect(() => {
+    if (gateRoute?.fearGreed != null) setFearGreed(gateRoute.fearGreed);
+  }, [gateRoute?.fearGreed]);
 
   const regime = live?.gate.regime ?? board.find((r) => r.symbol === symbol)?.gate.regime;
   const displaySignal = live?.skills?.composite?.signal ?? live?.gate.signal ?? "HOLD";
@@ -198,10 +169,10 @@ export function GateConsole() {
         />
 
         <GateStrategyBoard
-          rows={board.length ? board : live ? [live] : []}
+          rows={board.length ? board : live ? [{ symbol: live.symbol, gate: live.gate, market: live.market, skills: live.skills ? { alignmentScore: live.skills.composite?.alignmentScore, compositeSignal: live.skills.composite?.signal } : undefined }] : []}
           selected={symbol}
           onSelect={setSymbol}
-          loading={boardLoading}
+          loading={gateRouteLoading}
           regime={regime}
           fearGreed={fearGreed}
         />
