@@ -23,6 +23,17 @@ type EvaluatePayload = {
   cmcLive?: boolean;
   fieldSources?: Record<string, string | number | null>;
   skills?: GateSkillsPayload;
+  oracle?: {
+    priceUsd: number;
+    pair: string;
+    updatedAt: number;
+    ageHours: number;
+    stale: boolean;
+    adapter: string;
+    spaceId: string;
+    cmcPriceUsd?: number;
+    cmcDeltaPct?: number | null;
+  } | null;
   gate: {
     signal: string;
     tier: string;
@@ -181,7 +192,9 @@ export function GateConsole() {
           <GateSkillStack skills={live.skills} constitutionSignal={live.gate.signal} />
         )}
 
-        {live?.fieldSources && <GateDataProvenance sources={live.fieldSources} />}
+        {live?.fieldSources && (
+          <GateDataProvenance sources={live.fieldSources} oracle={live.oracle} />
+        )}
 
         {live?.gate.checks && live.gate.checks.length > 0 && (
           <GateCheckRadar checks={live.gate.checks} confidence={live.gate.confidence} edge={live.gate.edge} />

@@ -11,6 +11,8 @@ import { fetchGateSnapshot, fetchGlobalMacro } from "../../bnb-hack/live/cmc-fet
 import { fetchKeyInfo } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { runHistoricalBacktest } from "../../bnb-hack/live/run-backtest.mjs";
 import { convictionScore, routeBscCapital } from "../../bnb-hack/live/gate-router.mjs";
+import { fetchBoracleUsdPrice, oracleCmcDeltaPct } from "@/lib/boracle-price";
+import { isBoracleGateSymbol } from "@/lib/boracle-testnet-feeds";
 import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
 import { GATE_SKILL_REPO, GATE_SYMBOLS, isGateSymbol } from "@/lib/gate-constants";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
@@ -29,6 +31,8 @@ async function evaluateSymbol(
   macro: Awaited<ReturnType<typeof fetchGlobalMacro>> | null = null,
 ) {
   const { snapshot, sources, cmcLive } = await fetchGateSnapshot(symbol);
+  const oracle =
+    isBoracleGateSymbol(symbol) ? await fetchBoracleUsdPrice(symbol) : null;
   const gateRaw = evaluateNexusGate(snapshot);
   const gate = toStructuredOutput(snapshot, gateRaw);
   const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {});
@@ -42,7 +46,17 @@ async function evaluateSymbol(
   return {
     symbol,
     cmcLive,
-    fieldSources: sources,
+    fieldSources: {
+      ...sources,
+      ...(oracle ? { oracleUsd: "boracle-bsc-testnet/feed-adapter" } : {}),
+    },
+    oracle: oracle
+      ? {
+          ...oracle,
+          cmcPriceUsd: snapshot.price,
+          cmcDeltaPct: oracleCmcDeltaPct(oracle.priceUsd, snapshot.price ?? 0),
+        }
+      : null,
     market: {
       price: snapshot.price,
       marketCap: snapshot.marketCap,
