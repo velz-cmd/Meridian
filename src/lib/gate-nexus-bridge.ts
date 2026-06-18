@@ -15,6 +15,10 @@ export function buildGateExecutionUrl(input: {
   permit?: "GRANT" | "DENY";
   permitId?: string;
   tab?: "trade";
+  action?: "buy" | "sell" | "agent";
+  direction?: "LONG" | "SHORT" | "FLAT";
+  leverage?: number;
+  auto?: boolean;
 }): string {
   const params = new URLSearchParams();
   params.set("from", "gate");
@@ -22,6 +26,10 @@ export function buildGateExecutionUrl(input: {
   if (input.permit) params.set("permit", input.permit);
   if (input.permitId) params.set("permitId", input.permitId);
   params.set("tab", input.tab ?? "trade");
+  if (input.action) params.set("action", input.action);
+  if (input.direction) params.set("direction", input.direction);
+  if (input.leverage != null && input.leverage > 0) params.set("leverage", String(Math.round(input.leverage)));
+  if (input.auto) params.set("auto", "1");
   return `/nexus?${params.toString()}`;
 }
 

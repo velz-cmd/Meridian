@@ -191,8 +191,8 @@ export function NexusConstitutionDesk({
                 <ArrowRight className="mx-auto hidden h-5 w-5 text-white/25 sm:block" />
                 <ArbitrationCell
                   label="Trade"
-                  value={granted ? "GO" : "STOP"}
-                  sub={permit.execute}
+                  value={granted ? (permit.execute === "LONG" ? "BUY" : permit.execute === "FLAT" ? "HOLD" : permit.execute) : "STOP"}
+                  sub={permit.execute === "LONG" ? "spot long · use Buy desk" : permit.execute}
                   tone={granted ? "emerald" : "rose"}
                   highlight
                 />

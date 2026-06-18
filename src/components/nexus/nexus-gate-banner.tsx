@@ -10,6 +10,10 @@ export type GateHandoff = {
   permit?: "GRANT" | "DENY";
   permitId?: string;
   scroll?: "constitution" | "trade";
+  action?: "buy" | "sell" | "agent";
+  direction?: "LONG" | "SHORT" | "FLAT";
+  leverage?: number;
+  autoStart?: boolean;
 };
 
 export function NexusGateBanner({ handoff }: { handoff: GateHandoff }) {
@@ -39,10 +43,20 @@ export function NexusGateBanner({ handoff }: { handoff: GateHandoff }) {
             <p className="mt-0.5 text-xs opacity-85">
               {tradable
                 ? granted
-                  ? "Connect wallet on BSC Testnet to sign the swap."
+                  ? handoff.action === "sell"
+                    ? "Sell desk ready — wallet signs spot exit on Chapel."
+                    : handoff.action === "agent"
+                      ? "Autopilot desk — follow gate direction on BSC Testnet."
+                      : "Buy desk ready — wallet signs PancakeSwap on Chapel."
                   : "Buy stays blocked until rules clear a long entry."
                 : `${handoff.symbol} is analysis-only here — use BNB or CAKE on testnet for signed swaps.`}
             </p>
+            {(handoff.direction || (handoff.leverage && handoff.leverage > 1)) && (
+              <p className="mt-1 font-mono text-[10px] text-white/45">
+                {handoff.direction ? `${handoff.direction} signal` : ""}
+                {handoff.leverage && handoff.leverage > 1 ? ` · ${handoff.leverage}x thesis size` : ""}
+              </p>
+            )}
           </div>
         </div>
         <Link

@@ -7,6 +7,7 @@ import { MeridianFooter } from "@/components/layout/meridian-footer";
 import { GateConfigPanel } from "@/components/gate/gate-config-panel";
 import { GateDeskHero } from "@/components/gate/gate-desk-hero";
 import { GateDeskTabs, type GateDeskTab } from "@/components/gate/gate-desk-tabs";
+import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
 import { GateTechnicalPanel } from "@/components/gate/gate-technical-panel";
 import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
 import { usePositionRoute } from "@/hooks/use-position-route";
@@ -173,7 +174,19 @@ export function GateConsole() {
             {tab === "overview" && (
               <div className="space-y-3">
                 <NexusAgentPulseStrip pulse={marketPulse} loading={pulseLoading} symbol={symbol} compact />
-                <NexusDirectionDesk route={positionRoute} loading={directionLoading} />
+                <GateExecutionDesk
+                  symbol={symbol}
+                  route={positionRoute}
+                  loading={directionLoading}
+                  permit={
+                    gateRoute?.ranked.find((r) => r.symbol === symbol)?.permit === "GRANT"
+                      ? "GRANT"
+                      : selected?.gate.signal === "ENTER_LONG"
+                        ? "GRANT"
+                        : "DENY"
+                  }
+                />
+                <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact />
                 <GateOutputPanel
                   selected={selected}
                   route={gateRoute}

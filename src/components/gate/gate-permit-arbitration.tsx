@@ -5,7 +5,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, Bot, Copy, Scale, ShieldCheck, ShieldBan } from "lucide-react";
 import { buildGateExecutionUrl } from "@/lib/gate-nexus-bridge";
-import { GatePermitSwap } from "@/components/gate/gate-permit-swap";
+import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
+import { usePositionRoute } from "@/hooks/use-position-route";
 import { cn } from "@/lib/utils";
 
 type Arbitration = {
@@ -23,15 +24,16 @@ export function GatePermitArbitration({
   symbol,
   arbitration,
   granted,
-  priceUsd,
   checks,
 }: {
   symbol: string;
   arbitration: Arbitration | null;
   granted: boolean;
-  priceUsd: number;
+  priceUsd?: number;
   checks?: { id: string; pass: boolean; label: string }[];
 }) {
+  const { route, loading } = usePositionRoute(symbol, { intervalMs: 90_000 });
+
   if (!arbitration) return null;
 
   const agentPct = Math.min(100, arbitration.agent.confidence);
@@ -107,18 +109,27 @@ export function GatePermitArbitration({
           </div>
         )}
 
-        <GatePermitSwap
+        <GateExecutionDesk
           symbol={symbol}
-          priceUsd={priceUsd}
+          route={route}
+          loading={loading}
+          permit={granted ? "GRANT" : "DENY"}
           permitId={arbitration.permitId}
-          granted={granted}
+          compact
         />
 
         <Link
-          href={buildGateExecutionUrl({ symbol, permit: granted ? "GRANT" : "DENY", permitId: arbitration.permitId })}
-          className="text-xs text-white/40 hover:text-white/70"
+          href={buildGateExecutionUrl({
+            symbol,
+            permit: granted ? "GRANT" : "DENY",
+            permitId: arbitration.permitId,
+            action: granted ? "buy" : "agent",
+            direction: granted ? "LONG" : "FLAT",
+            leverage: 2,
+          })}
+          className="inline-flex items-center gap-1 text-xs text-cyan-300/80 hover:text-cyan-200"
         >
-          Full desk →
+          Open full NEXUS desk <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
     </section>

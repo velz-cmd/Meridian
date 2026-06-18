@@ -63,6 +63,7 @@ import { useConstitution } from "@/contexts/nexus-constitution-context";
 import { NexusAgentProvider, type NexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
 import { NexusExecutionPanel } from "@/components/nexus/nexus-execution-panel";
 import { NexusTokenSearchPicker } from "@/components/nexus/nexus-token-search-picker";
+import type { GateExecutionIntent } from "@/lib/gate-execution-intent";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 
 const PCT_OPTIONS = [25, 50, 75, 100] as const;
@@ -96,6 +97,8 @@ export function NexusAutopilotPanel({
   onTradeComplete,
   embedded = false,
   onAgentLiveChange,
+  gateAutoStart = false,
+  gateIntent = null,
 }: {
   token: TrendingMarketToken | null;
   /** Live feed tokens for unified name/CA search */
@@ -104,6 +107,8 @@ export function NexusAutopilotPanel({
   embedded?: boolean;
   /** Only reports enabled state — avoids re-rendering Buy/Sell every second */
   onAgentLiveChange?: (live: boolean) => void;
+  gateAutoStart?: boolean;
+  gateIntent?: GateExecutionIntent | null;
 }) {
   const toast = useToast();
   const { canExecuteBuy } = useConstitution();
@@ -137,6 +142,7 @@ export function NexusAutopilotPanel({
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [permissionIntent, setPermissionIntent] = useState<"recurring" | "once">("recurring");
   const [granting, setGranting] = useState(false);
+  const gateAutoAppliedRef = useRef(false);
   const [awaitingWallet, setAwaitingWallet] = useState(false);
   const [agentRuntime, setAgentRuntime] = useState<NexusAgentRuntime>(defaultRuntime);
 
@@ -175,6 +181,29 @@ export function NexusAutopilotPanel({
     setConfig(next);
     saveAutopilot(next);
   }, []);
+
+  useEffect(() => {
+    if (!gateAutoStart || gateAutoAppliedRef.current) return;
+    gateAutoAppliedRef.current = true;
+    const lev = gateIntent?.leverage ?? 2;
+    const pct = Math.min(75, Math.max(20, lev * 15));
+    persist({
+      ...configRef.current,
+      mode: "follow_direction",
+      percent: pct,
+      scheduleMode: "recurring",
+      interval: "15m",
+      holdAction: "skip",
+    });
+    setAdvancedOpen(true);
+    setPermissionIntent("recurring");
+    setPermissionOpen(true);
+    toast({
+      title: "Gate autopilot",
+      message: `Follow ${gateIntent?.direction ?? "gate"} direction · ${lev}x thesis · authorize session to run.`,
+      type: "info",
+    });
+  }, [gateAutoStart, gateIntent, persist, toast]);
 
   const pushLog = useCallback((message: string, type: AutopilotLog["type"] = "info") => {
     setLogs((prev) => [{ at: new Date().toISOString(), message, type }, ...prev].slice(0, 20));
@@ -905,6 +934,13 @@ export function NexusAutopilotPanel({
       ) : (
         <>
           <NexusExecutionPanel compact />
+
+          {gateIntent && (
+            <p className="rounded-xl border border-violet-400/25 bg-violet-500/10 px-3 py-2 text-[11px] leading-relaxed text-violet-100">
+              Gate signal · <strong>{gateIntent.direction}</strong> · {gateIntent.leverage}x thesis · mode{" "}
+              <strong>follow direction</strong> — each cycle signs real PancakeSwap txs on Chapel.
+            </p>
+          )}
 
           {!hasDeposit && (
             <div className="rounded-xl border border-amber-400/35 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">

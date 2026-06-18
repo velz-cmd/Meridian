@@ -18,6 +18,9 @@ import { isGateSymbol } from "./gate-constants";
 
 export type PositionDirection = "LONG" | "SHORT" | "FLAT";
 
+/** Wallet action on spot desk — not the same as futures/perp short. */
+export type SpotDeskAction = "buy" | "sell" | "hold";
+
 export type PositionExecutionKind = "none" | "long_tbnb" | "short_stable" | "exit_tbnb";
 
 export type DirectionLayerStatus = "pass" | "warn" | "block" | "neutral";
@@ -59,6 +62,9 @@ export type PositionRoute = {
     confidence: number | null;
     regime: string | null;
   } | null;
+  /** Spot desk action mapped from strategy — Buy/Sell/Hold, not "Execute LONG". */
+  spotAction: SpotDeskAction;
+  spotActionLabel: string;
   settlement: {
     network: string;
     venue: string;
@@ -317,6 +323,9 @@ export function buildPositionRoute(input: {
   const gateSignal = input.gate?.signal ?? input.pulse.gateSignal ?? "HOLD";
   const gateTier = input.gate?.tier ?? input.pulse.gateTier ?? "—";
 
+  const spotAction = resolveSpotDeskAction(resolved.direction, execution);
+  const spotActionLabel = spotDeskActionLabel(spotAction, sym);
+
   return {
     ok: true,
     symbol: sym,
@@ -346,6 +355,8 @@ export function buildPositionRoute(input: {
             regime: input.pulse.macro?.label ?? null,
           }
         : null,
+    spotAction,
+    spotActionLabel,
     settlement: {
       network: "BSC Testnet (Chapel)",
       venue: "PancakeSwap V2",
@@ -356,3 +367,27 @@ export function buildPositionRoute(input: {
 }
 
 export { layerStatusIcon };
+
+export function resolveSpotDeskAction(
+  direction: PositionDirection,
+  execution: PositionExecution,
+): SpotDeskAction {
+  if (execution.kind === "long_tbnb") return "buy";
+  if (execution.kind === "short_stable" || execution.kind === "exit_tbnb") return "sell";
+  if (direction === "LONG") return "buy";
+  if (direction === "SHORT") return "sell";
+  return "hold";
+}
+
+export function spotDeskActionLabel(action: SpotDeskAction, symbol: string): string {
+  const sym = symbol.toUpperCase();
+  if (action === "buy") return `Buy ${sym} · spot long exposure`;
+  if (action === "sell") return `Sell ${sym} · spot exit / reduce`;
+  return "Hold flat · no spot size change";
+}
+
+export function positionExposureLabel(direction: PositionDirection): string {
+  if (direction === "LONG") return "Long exposure";
+  if (direction === "SHORT") return "Short exposure (exit bias on spot)";
+  return "Flat · no position";
+}

@@ -22,6 +22,11 @@ import { usePancakeQuote } from "@/hooks/use-pancake-quote";
 import { useOnChainTokenBalance } from "@/hooks/use-onchain-token-balance";
 import { buySizingFromTbnb, formatTokenAmount } from "@/lib/demo-tbnb-math";
 import { canSwapOnBscTestnet, testnetSwapHint } from "@/lib/testnet-onchain";
+import {
+  computeGateSpendTbnb,
+  loadGateExecutionIntent,
+  type GateExecutionIntent,
+} from "@/lib/gate-execution-intent";
 import { bscExplorerAddress, bscExplorerTx } from "@/lib/bsc-chain";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { formatPct, formatTokenPrice, truncateHash } from "@/lib/utils";
@@ -55,6 +60,10 @@ function formatAmount(n: number) {
 
 type TradeTab = "buy" | "sell" | "agent";
 
+function normalizeTradeSym(symbol: string) {
+  return symbol.replace(/^\$/, "").trim().toUpperCase();
+}
+
 export function NexusTradeHub({
   token,
   catalogTokens = [],
@@ -62,6 +71,7 @@ export function NexusTradeHub({
   activeTab,
   onTabChange,
   embedded = false,
+  gateAutoStart = false,
 }: {
   token: TradeToken;
   /** Live feed catalog for Autopilot token search */
@@ -69,6 +79,8 @@ export function NexusTradeHub({
   onTradeComplete?: () => void;
   activeTab?: TradeTab;
   onTabChange?: (tab: TradeTab) => void;
+  /** From gate router — open autopilot follow-direction flow */
+  gateAutoStart?: boolean;
   /** Inside NexusCollapsible — skip duplicate outer panel */
   embedded?: boolean;
 }) {
@@ -96,6 +108,7 @@ export function NexusTradeHub({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastTx, setLastTx] = useState<{ hash: string; block?: number } | null>(null);
+  const [gateIntent, setGateIntent] = useState<GateExecutionIntent | null>(null);
 
   const walletTbnb = balance ? Number(balance.formatted) : 0;
   const onChainBal = useOnChainTokenBalance({
@@ -111,6 +124,19 @@ export function NexusTradeHub({
   useEffect(() => {
     setAmount(side === "buy" ? "0.01" : "0");
   }, [side, trade?.tokenAddress]);
+
+  useEffect(() => {
+    const intent = loadGateExecutionIntent();
+    if (!intent || !trade) return;
+    if (normalizeTradeSym(intent.symbol) !== normalizeTradeSym(trade.symbol)) return;
+    setGateIntent(intent);
+    const spend =
+      intent.suggestedTbnb ??
+      computeGateSpendTbnb(walletTbnb, intent.leverage, intent.confidence ?? 50, intent.direction);
+    if (side === "buy" && spend > 0) {
+      setAmount(String(Math.min(spend, walletTbnb > 0 ? walletTbnb * 0.95 : spend)));
+    }
+  }, [trade?.symbol, side, walletTbnb]);
 
   const livePrice = trade?.priceUsd ?? 0;
   const amountNum = Math.max(0, Number(amount) || 0);
@@ -417,6 +443,8 @@ export function NexusTradeHub({
                 onTradeComplete={onTradeComplete}
                 embedded
                 onAgentLiveChange={setAgentLive}
+                gateAutoStart={gateAutoStart}
+                gateIntent={gateIntent}
               />
             </div>
             {tradeTab !== "agent" && !trade ? (
@@ -440,6 +468,12 @@ export function NexusTradeHub({
               {tradeOnChainHint && (
                 <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
                   {tradeOnChainHint}
+                </p>
+              )}
+
+              {gateIntent && side === "buy" && (
+                <p className="rounded-lg border border-violet-400/25 bg-violet-500/10 px-3 py-2 text-[11px] text-violet-100">
+                  Gate router · {gateIntent.direction} · {gateIntent.leverage}x thesis · pre-sized from CMC gate
                 </p>
               )}
 

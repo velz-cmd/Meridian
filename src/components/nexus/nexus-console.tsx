@@ -353,6 +353,8 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
       const sym = normalizeSym(handoff.symbol);
       const feedHit = findGateTokenInFeed(tokens, sym);
       const tradable = gateSymbolTradableOnTestnet(sym);
+      const tradeAction =
+        handoff.action ?? (handoff.permit === "GRANT" ? "buy" : handoff.direction === "SHORT" ? "sell" : "agent");
 
       setGateHandoff(handoff);
       setRightTab("trade");
@@ -366,10 +368,10 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         if (tradable) {
           const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
           if (desk) setTradeDeskToken(desk);
-          setTradeTab(handoff.permit === "GRANT" ? "buy" : "agent");
+          setTradeTab(tradeAction);
           if (isMobile) setMobilePanel("trade");
         } else {
-          setTradeTab("agent");
+          setTradeTab(tradeAction === "buy" ? "agent" : tradeAction);
           requestAnimationFrame(() => {
             document.getElementById("nexus-constitution-desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
           });
@@ -383,7 +385,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           if (tradable) {
             const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
             if (desk) setTradeDeskToken(desk);
-            setTradeTab(handoff.permit === "GRANT" ? "buy" : "agent");
+            setTradeTab(tradeAction);
             if (isMobile) setMobilePanel("trade");
           }
           openChartView();
@@ -392,14 +394,21 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
 
       if (!opts?.silent && !handoffToastShown.current) {
         handoffToastShown.current = true;
+        const lev = handoff.leverage && handoff.leverage > 1 ? ` · ${handoff.leverage}x thesis` : "";
         toast({
-          title: `${sym} from router`,
+          title: `${sym} from router${lev}`,
           message: tradable
-            ? handoff.permit === "GRANT"
-              ? "Rules cleared — wallet swap on BSC Testnet."
-              : "Opened trade desk — buy may stay blocked."
+            ? tradeAction === "agent"
+              ? handoff.autoStart
+                ? "Autopilot desk opened — authorize session to run gate signal."
+                : "Autopilot desk opened — follow gate direction."
+              : tradeAction === "sell"
+                ? "Sell desk opened on BSC Testnet."
+                : handoff.permit === "GRANT"
+                  ? "Buy desk opened — wallet signs PancakeSwap on Chapel."
+                  : "Trade desk opened — buy may stay blocked until GRANT."
             : "Analysis view — swap BNB or CAKE on testnet for on-chain execution.",
-          type: handoff.permit === "GRANT" && tradable ? "success" : "info",
+          type: handoff.permit === "GRANT" && tradable && tradeAction === "buy" ? "success" : "info",
         });
       }
 
@@ -795,6 +804,8 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
             token={selectedToken}
             hasRiskPosition={hasRiskPosition}
             agentAction={permitAgent?.action}
+            onBuySpot={() => openTradePanel("buy")}
+            onSellSpot={() => openTradePanel("sell")}
           />
         )}
 
@@ -805,26 +816,27 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           loading={constitution.loading}
           error={constitution.error}
         />
+
+        <NexusAgentReasoningStrip
+          token={selectedToken}
+          payload={tokenDossier.payload}
+          loading={tokenDossier.loading}
+          tier={intelTier}
+          alphaThesis={alphaThesis}
+        />
+        {tokenDossier.error && !tokenDossier.loading && (
+          <p className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+            {tokenDossier.error}
+          </p>
+        )}
+        <NexusIntelCollapsibles
+          token={selectedToken}
+          payload={tokenDossier.payload}
+          loading={tokenDossier.loading}
+          reasoningInStrip={!isGateSymbol(benchSym)}
+        />
         {!isGateSymbol(selectedToken.symbol) && (
           <>
-            <NexusAgentReasoningStrip
-              token={selectedToken}
-              payload={tokenDossier.payload}
-              loading={tokenDossier.loading}
-              tier={intelTier}
-              alphaThesis={alphaThesis}
-            />
-            {tokenDossier.error && !tokenDossier.loading && (
-              <p className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                {tokenDossier.error}
-              </p>
-            )}
-            <NexusIntelCollapsibles
-              token={selectedToken}
-              payload={tokenDossier.payload}
-              loading={tokenDossier.loading}
-              reasoningInStrip
-            />
             <NexusResearchDossierLive
               token={selectedToken}
               payload={tokenDossier.payload}
@@ -891,6 +903,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           activeTab={tradeTab}
           onTabChange={setTradeTab}
           onTradeComplete={() => setPortfolioKey((k) => k + 1)}
+          gateAutoStart={Boolean(gateHandoff?.autoStart && gateHandoff.action === "agent")}
         />
       </div>
     </div>
