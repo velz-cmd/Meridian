@@ -39,11 +39,18 @@ export function appendMeridianActivity(
     const prev = readMeridianActivityLog();
     const at = entry.at ?? new Date().toISOString();
     const last = prev[0];
+    const dedupeMs = entry.kind === "gate" ? 300_000 : 8_000;
+    const gateDup =
+      entry.kind === "gate" &&
+      last?.kind === "gate" &&
+      entry.symbol &&
+      last.symbol === entry.symbol &&
+      last.message.startsWith("Gate ranked") &&
+      entry.message.startsWith("Gate ranked");
     if (
       last &&
-      last.message === entry.message &&
-      last.kind === entry.kind &&
-      Date.now() - new Date(last.at).getTime() < 8_000
+      ((last.message === entry.message && last.kind === entry.kind) || gateDup) &&
+      Date.now() - new Date(last.at).getTime() < dedupeMs
     ) {
       return;
     }

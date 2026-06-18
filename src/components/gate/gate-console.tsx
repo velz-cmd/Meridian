@@ -16,8 +16,6 @@ import { GateDataProvenance } from "@/components/gate/gate-data-provenance";
 import { GateEquityChart } from "@/components/gate/gate-equity-chart";
 import { GateBenchmarkDesk } from "@/components/gate/gate-benchmark-desk";
 import { GateLiveStats } from "@/components/gate/gate-live-stats";
-import { MeridianHowItWorks } from "@/components/shared/meridian-how-it-works";
-import { BscTestnetTradingBanner } from "@/components/shared/bsc-testnet-trading-banner";
 import { MeridianActivityLogPanel } from "@/components/shared/meridian-activity-log-panel";
 import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { useGateRoute } from "@/hooks/use-gate-route";
@@ -49,12 +47,20 @@ export function GateConsole() {
 
   const { route: gateRoute, benchmarks, loading: gateRouteLoading, error: routeError, reload } = useGateRoute(120_000);
 
-  const lastLeadRef = useRef<string | null>(null);
+  const lastLeadRef = useRef<string | null>(
+    typeof window !== "undefined" ? sessionStorage.getItem("meridian-gate-lead-key") : null,
+  );
   useEffect(() => {
     const lead = gateRoute?.allocation?.primary;
     if (!lead || gateRouteLoading) return;
-    if (lastLeadRef.current === lead) return;
-    lastLeadRef.current = lead;
+    const key = `${lead}|${gateRoute.regime ?? "—"}`;
+    if (lastLeadRef.current === key) return;
+    lastLeadRef.current = key;
+    try {
+      sessionStorage.setItem("meridian-gate-lead-key", key);
+    } catch {
+      /* private mode */
+    }
     appendMeridianActivity({
       kind: "gate",
       level: "info",
@@ -154,10 +160,6 @@ export function GateConsole() {
           cmcLive={benchmarks.some((b) => b.cmcLive)}
         />
 
-        <BscTestnetTradingBanner />
-
-        <MeridianHowItWorks compact />
-
         {routeError && (
           <div className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
             <p className="font-medium">{routeError}</p>
@@ -175,8 +177,6 @@ export function GateConsole() {
           onSelect={handleSelectSymbol}
           onDeploy={openInNexus}
         />
-
-        <MeridianActivityLogPanel />
 
         <div id="gate-symbol-detail" className="space-y-5 scroll-mt-6">
         {selected?.skills && selected.gate && (
@@ -295,6 +295,8 @@ export function GateConsole() {
             )}
           </div>
         </section>
+
+        <MeridianActivityLogPanel maxHeight="max-h-36" title="Activity log" />
 
         <footer className="flex flex-wrap items-center gap-4 text-xs text-white/40">
           <a

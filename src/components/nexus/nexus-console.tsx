@@ -10,9 +10,6 @@ import { ArcBackground } from "@/components/layout/arc-background";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { ArcPanel } from "@/components/ui/arc-panel";
 import { NexusCollapsible } from "@/components/nexus/nexus-collapsible";
-import { NexusPremiumHero } from "@/components/nexus/nexus-premium-hero";
-import { GateCapitalRouter } from "@/components/gate/gate-capital-router";
-import { useGateRoute } from "@/hooks/use-gate-route";
 import { NexusAlphaHero } from "@/components/nexus/nexus-alpha-hero";
 import { CommunityPulsePanel } from "@/components/shared/community-pulse-panel";
 import type { CommunityPulse } from "@/lib/community-pulse";
@@ -48,10 +45,7 @@ import { NexusMobileContextBar } from "@/components/nexus/nexus-mobile-context-b
 import { NexusMobileTokenActions } from "@/components/nexus/nexus-mobile-token-actions";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
-import { MeridianPipelineBar } from "@/components/shared/meridian-pipeline-bar";
 import { BscTestnetTradingBanner } from "@/components/shared/bsc-testnet-trading-banner";
-import { MeridianActivityLogPanel } from "@/components/shared/meridian-activity-log-panel";
-import { NexusTestnetDeskStrip } from "@/components/nexus/nexus-testnet-desk-strip";
 import { meridianClientHeaders } from "@/lib/circle-agents";
 import { buildBscTestnetTradeTokens, isTestnetDeskToken, matchTestnetDeskBySymbol } from "@/lib/testnet-onchain";
 import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
@@ -176,7 +170,6 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
   const pendingHandoffSym = useRef<string | null>(initialGateHandoff?.symbol ?? null);
   const handoffToastShown = useRef(false);
   const isMobile = useIsMobile();
-  const { route: gateRoute, loading: gateRouteLoading } = useGateRoute(45_000);
 
   useEffect(() => {
     const onHandoff = (e: Event) => {
@@ -474,50 +467,6 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
     [openChartView, feedTokens, bnbSpotUsd],
   );
 
-  const selectBenchmarkBySymbol = useCallback(
-    (sym: string) => {
-      const upper = sym.replace(/^\$/, "").trim().toUpperCase();
-      const fromFeed = findGateTokenInFeed(feedTokens, upper);
-      if (fromFeed) {
-        handleTokenSelect(fromFeed, true);
-        return;
-      }
-      if (isGateSymbol(upper)) {
-        void fetchCanonicalGateBenchmarkToken(upper).then((row) => {
-          if (!row) return;
-          handleTokenSelect(row, true);
-        });
-        return;
-      }
-      const desk = matchTestnetDeskBySymbol(upper, bnbSpotUsd);
-      if (desk) {
-        setTradeDeskToken(desk);
-        setSelectedToken(desk);
-        setIntelTier("feed");
-        openChartView();
-      }
-    },
-    [feedTokens, handleTokenSelect, bnbSpotUsd, openChartView],
-  );
-
-  const deployBenchmark = useCallback(
-    (sym: string) => {
-      selectBenchmarkBySymbol(sym);
-      setRightTab("trade");
-      if (gateSymbolTradableOnTestnet(sym)) {
-        setTradeTab("buy");
-        if (isMobile) setMobilePanel("trade");
-      } else {
-        setTradeTab("agent");
-        requestAnimationFrame(() => {
-          document.getElementById("nexus-constitution-desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-      }
-      scrollToMobileContent();
-    },
-    [selectBenchmarkBySymbol, isMobile, scrollToMobileContent],
-  );
-
   const handleMobilePanel = useCallback(
     (panel: NexusMobilePanel) => {
       setMobilePanel(panel);
@@ -568,11 +517,6 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
     },
     [bnbSpotUsd],
   );
-
-  const rankingSelectedSymbol =
-    selectedToken?.symbol ??
-    gateHandoff?.symbol ??
-    initialGateHandoff?.symbol;
 
   const livePrices = useMemo(() => markPricesFromFeed(feedTokens), [feedTokens]);
 
@@ -903,12 +847,11 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         )}
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="mb-2 shrink-0 px-1">
-          <NexusTestnetDeskStrip
-            selected={activeTradeToken}
-            onSelect={(t) => handleTokenSelect(t, true)}
-          />
-        </div>
+        {!isConnected && (
+          <div className="mb-2 shrink-0 px-1">
+            <BscTestnetTradingBanner compact selectedSymbol={activeTradeToken?.symbol} />
+          </div>
+        )}
         <NexusTradeHub
           embedded
           token={activeTradeToken}
@@ -986,58 +929,14 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           alphaCount={alphaOpportunities.length}
           disabled={bnbFeePending}
         />
-        <div className="mb-4 hidden lg:block">
-          <NexusPremiumHero stableCount={STABLE_FEED_LIMIT} />
-        </div>
-
-        <div className="mb-4">
-          <BscTestnetTradingBanner
-            compact
-            selectedSymbol={selectedToken?.symbol ?? rankingSelectedSymbol}
-            permitGranted={
-              constitution.loading
-                ? null
-                : constitution.payload?.permit?.status === "GRANT"
-            }
-          />
-        </div>
-
-        <div className="mb-4">
-          <MeridianActivityLogPanel maxHeight="max-h-40" />
-        </div>
-
-        <div className="mb-4">
-          <MeridianPipelineBar
-            route={gateRoute}
-            routeLoading={gateRouteLoading}
-            selectedSymbol={selectedToken?.symbol ?? rankingSelectedSymbol}
-            permitStatus={
-              constitution.loading
-                ? "PENDING"
-                : constitution.payload?.permit?.status ?? null
-            }
-            feedLive={constitution.payload?.cmcLive ?? gateRoute != null}
-          />
-        </div>
-
-        <div className="mb-4">
-          <GateCapitalRouter
-            route={gateRoute}
-            loading={gateRouteLoading}
-            selectedSymbol={rankingSelectedSymbol}
-            onSelectSymbol={selectBenchmarkBySymbol}
-            onDeploy={deployBenchmark}
-            compact={isMobile}
-          />
-        </div>
-
-        <NexusMobileContextBar selectedToken={selectedToken} />
 
         {gateHandoff && (
           <div className="mb-4">
             <NexusGateBanner handoff={gateHandoff} />
           </div>
         )}
+
+        <NexusMobileContextBar selectedToken={selectedToken} />
 
         {actionBanner && (
           <div

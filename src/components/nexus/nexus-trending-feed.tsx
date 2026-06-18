@@ -26,7 +26,7 @@ import { dedupeFeedTokens } from "@/lib/feed-curation";
 import { mergeFeedTokensStable } from "@/lib/token-security";
 import { filterTradableTokens, isStablecoin } from "@/lib/token-filters";
 import { STABLE_FEED_LIMIT } from "@/lib/feed-config";
-import { agentVerdictLine, FEED_ROW_HINT, LIVE_FEED_INTRO } from "@/lib/nexus-copy";
+import { agentVerdictLine } from "@/lib/nexus-copy";
 import { filterReasoningFactorsForDisplay } from "@/lib/reasoning-factors";
 import { cn } from "@/lib/utils";
 import type { TokenIntel } from "@/lib/storage";
@@ -562,11 +562,6 @@ export function NexusTrendingFeed({
         </div>
       </div>
 
-      <p className="text-xs text-white/50 max-lg:hidden">
-        {LIVE_FEED_INTRO} {FEED_ROW_HINT}. Tap a row for chart + collapsed reasoning.{" "}
-        <strong className="text-fuchsia-200/90">Alpha Scan</strong> = paid pro desk (different tokens).
-        {refreshing && <span className="ml-1 text-cyan-300"> Updating prices…</span>}
-      </p>
       <p className="text-xs text-white/55 lg:hidden">
         Tap any token to open its chart. Bottom tabs: Tokens · Chart · Trade.
         {refreshing && <span className="ml-1 text-cyan-300"> Updating…</span>}

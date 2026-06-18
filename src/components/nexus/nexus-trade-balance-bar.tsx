@@ -6,7 +6,6 @@ import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { useAccount, useBalance } from "wagmi";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { useAgentWallet } from "@/hooks/use-agent-wallet";
-import { formatUsd } from "@/lib/utils";
 import type { DemoPosition } from "@/lib/storage";
 
 export function NexusTradeBalanceBar({
@@ -66,13 +65,8 @@ export function NexusTradeBalanceBar({
             <ArcIcon3d icon={NEXUS_TRADE_ICONS.holdings} theme="nexus" size="sm" className="!h-8 !w-8" />
             Holding {symbol} on-chain
           </p>
-          <p className="text-sm font-semibold text-white">
+          <p className="text-sm font-semibold text-white tabular-nums">
             {(onChainBalance ?? position?.tokenAmount ?? 0).toFixed(4)} {symbol}
-            {onChainBalance != null && onChainBalance > 0 && markPriceUsd != null && markPriceUsd > 0 && (
-              <span className="ml-1 text-xs font-normal text-white/50">
-                · {formatUsd(onChainBalance * markPriceUsd)}
-              </span>
-            )}
           </p>
         </div>
       ) : null}

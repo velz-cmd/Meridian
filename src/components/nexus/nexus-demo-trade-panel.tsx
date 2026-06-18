@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, useBalance } from "wagmi";
-import { Coins, DollarSign, ExternalLink, Loader2 } from "lucide-react";
+import { Coins, ExternalLink, Loader2 } from "lucide-react";
 import { NexusAutopilotPanel } from "@/components/nexus/nexus-autopilot-panel";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 import { NexusTradeBalanceBar } from "@/components/nexus/nexus-trade-balance-bar";
@@ -24,8 +24,7 @@ import { buySizingFromTbnb, formatTokenAmount } from "@/lib/demo-tbnb-math";
 import { canSwapOnBscTestnet, testnetSwapHint } from "@/lib/testnet-onchain";
 import { bscExplorerAddress, bscExplorerTx } from "@/lib/bsc-chain";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
-import { formatPct, formatTokenPrice, formatUsd, truncateHash } from "@/lib/utils";
-import { NexusPermitReport } from "@/components/nexus/nexus-permit-report";
+import { formatPct, formatTokenPrice, truncateHash } from "@/lib/utils";
 import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import type { NexusDecision } from "@/lib/storage";
 
@@ -46,13 +45,18 @@ function asTradeToken(token: TradeToken) {
 type AmountMode = "tbnb" | "token";
 
 const TRADE_NETWORK = "bsc" as const;
-const BUY_PRESETS = [10, 25, 50, 100] as const;
+const BUY_PRESETS = [0.01, 0.025, 0.05, 0.1] as const;
+const SELL_RECEIVE_PRESETS = [0.01, 0.025, 0.05, 0.1] as const;
 const PCT_OPTIONS = [25, 50, 75] as const;
 
 function formatAmount(n: number) {
   if (n >= 1000) return n.toFixed(0);
   if (n >= 1) return n.toFixed(2);
   return n.toFixed(6);
+}
+
+function formatTbnbPreset(n: number) {
+  return n.toFixed(3).replace(/0$/, "");
 }
 
 type TradeTab = "buy" | "sell" | "agent";
@@ -93,7 +97,7 @@ export function NexusTradeHub({
 
   const trade = asTradeToken(token);
   const side = tradeTab === "sell" ? "sell" : "buy";
-  const [amount, setAmount] = useState("25");
+  const [amount, setAmount] = useState("0.01");
   const [amountMode, setAmountMode] = useState<AmountMode>("tbnb");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,7 +177,7 @@ export function NexusTradeHub({
     if (!trade || amountNum <= 0) return null;
     if (pancakeQuote.loading) return "Fetching PancakeSwap quote…";
     if (side === "buy") {
-      return `Sign buy ~${formatTokenAmount(resolved.tokenAmount)} ${trade.symbol} for ${resolved.tbnbSpent.toFixed(4)} tBNB (~$${resolved.usdcAmount.toFixed(2)}) via PancakeSwap`;
+      return `Sign buy ~${formatTokenAmount(resolved.tokenAmount)} ${trade.symbol} for ${resolved.tbnbSpent.toFixed(4)} tBNB via PancakeSwap`;
     }
     return `Sign sell ${resolved.tokenAmount.toFixed(4)} ${trade.symbol} for ~${resolved.tbnbSpent.toFixed(4)} tBNB via PancakeSwap`;
   }, [trade, side, amountNum, resolved, pancakeQuote.loading]);
@@ -196,15 +200,15 @@ export function NexusTradeHub({
     }
   }
 
-  function applyBuyPreset(usd: number) {
+  function applyBuyPreset(tbnb: number) {
     setTab("buy");
     setAmountMode("tbnb");
-    setAmount((usd / bnbSpotUsd).toFixed(4));
+    setAmount(tbnb.toFixed(4));
   }
 
-  function applySellUsdcReceive(targetUsd: number) {
+  function applySellTbnbReceive(tbnb: number) {
     setAmountMode("tbnb");
-    setAmount((targetUsd / bnbSpotUsd).toFixed(4));
+    setAmount(tbnb.toFixed(4));
   }
 
   async function executeOnChainTrade() {
@@ -315,9 +319,15 @@ export function NexusTradeHub({
   const tradeConfirmFooter =
     tradeTab !== "agent" && trade ? (
       <div className="space-y-2">
-        <div className="flex justify-between text-xs text-cyan-100/80">
-          <span>Permit gate · wallet ready</span>
-          <span className="font-semibold">Risk gated</span>
+        <div className="flex justify-between text-[11px] tracking-wide text-white/50">
+          <span>
+            {constitutionBlocked
+              ? "Constitution · blocked"
+              : canExecuteBuy
+                ? "Constitution · cleared"
+                : "Constitution · pending"}
+          </span>
+          <span className="font-medium text-cyan-100/90">Wallet signs on-chain</span>
         </div>
         {isConnected ? (
           <button
@@ -439,8 +449,7 @@ export function NexusTradeHub({
             {tradeTab !== "agent" && !trade ? (
               <p className="text-center text-sm text-white/60">Select a token from the feed to trade.</p>
             ) : tradeTab !== "agent" && trade ? (
-          <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
-            <div className="space-y-3 min-w-0">
+          <div className="space-y-3 min-w-0">
             <div className="arc-glass-card arc-glass-card-nexus flex items-center justify-between gap-2 px-3 py-2.5">
               <div>
                 <span className="text-lg font-bold text-white">{trade.symbol}</span>
@@ -453,19 +462,7 @@ export function NexusTradeHub({
             <NexusTradeBalanceBar
               symbol={trade.symbol}
               onChainBalance={tokenBalance}
-              markPriceUsd={livePrice}
             />
-
-              {tokenBalance > 0 && livePrice > 0 && (
-                <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2.5 text-sm text-cyan-100">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span>
-                      {tokenBalance.toFixed(4)} {trade.symbol} on-chain
-                    </span>
-                    <span className="font-semibold">{formatUsd(tokenBalance * livePrice)}</span>
-                  </div>
-                </div>
-              )}
 
               {tradeOnChainHint && (
                 <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
@@ -476,7 +473,7 @@ export function NexusTradeHub({
               {side === "buy" && (
                 <div>
                   <p className="nexus-caption mb-2 flex items-center gap-1.5">
-                    <DollarSign className="h-3.5 w-3.5 text-emerald-300" />
+                    <Coins className="h-3.5 w-3.5 text-emerald-300" />
                     Quick spend (tBNB)
                   </p>
                   <div className="grid grid-cols-4 gap-2">
@@ -485,9 +482,14 @@ export function NexusTradeHub({
                         key={v}
                         type="button"
                         onClick={() => applyBuyPreset(v)}
-                        className="min-h-[40px] rounded-lg border border-emerald-400/20 bg-emerald-500/10 text-sm font-medium text-emerald-100 active:bg-emerald-500/20"
+                        className="flex min-h-[44px] flex-col items-center justify-center rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-1 py-2 transition hover:border-emerald-400/40 hover:bg-emerald-500/15 active:scale-[0.98]"
                       >
-                        ${v}
+                        <span className="font-mono text-sm tabular-nums text-emerald-50">
+                          {formatTbnbPreset(v)}
+                        </span>
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-200/70">
+                          tBNB
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -497,18 +499,23 @@ export function NexusTradeHub({
               {side === "sell" && (
                 <div>
                   <p className="nexus-caption mb-2 flex items-center gap-1.5">
-                    <DollarSign className="h-3.5 w-3.5 text-rose-300" />
+                    <Coins className="h-3.5 w-3.5 text-rose-300" />
                     Quick receive (tBNB)
                   </p>
                   <div className="grid grid-cols-4 gap-2">
-                    {BUY_PRESETS.map((v) => (
+                    {SELL_RECEIVE_PRESETS.map((v) => (
                       <button
                         key={v}
                         type="button"
-                        onClick={() => applySellUsdcReceive(v)}
-                        className="arc-glass-interactive min-h-[40px] rounded-lg border border-rose-400/20 bg-rose-500/10 text-sm font-medium text-rose-100 active:bg-rose-500/20"
+                        onClick={() => applySellTbnbReceive(v)}
+                        className="flex min-h-[44px] flex-col items-center justify-center rounded-xl border border-rose-400/25 bg-rose-500/10 px-1 py-2 transition hover:border-rose-400/40 hover:bg-rose-500/15 active:scale-[0.98]"
                       >
-                        ${v}
+                        <span className="font-mono text-sm tabular-nums text-rose-50">
+                          {formatTbnbPreset(v)}
+                        </span>
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-rose-200/70">
+                          tBNB
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -517,11 +524,7 @@ export function NexusTradeHub({
 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="nexus-caption flex items-center gap-1.5">
-                  {amountMode === "tbnb" ? (
-                    <DollarSign className="h-3.5 w-3.5 text-emerald-300" />
-                  ) : (
-                    <Coins className="h-3.5 w-3.5 text-cyan-300" />
-                  )}
+                  <Coins className="h-3.5 w-3.5 text-cyan-300" />
                   {side === "buy" ? "Buy amount" : "Sell amount"}
                 </p>
                 <div className="inline-flex rounded-lg border border-white/15 p-0.5 text-[10px] font-bold">
@@ -559,12 +562,13 @@ export function NexusTradeHub({
 
               {amountNum > 0 && livePrice > 0 && (
                 <p className="text-[11px] text-white/50">
-                  {side === "buy" ? "≈ " : "≈ "}
                   {amountMode === "tbnb"
-                    ? `${formatTokenAmount(resolved.tokenAmount)} ${trade.symbol}`
+                    ? side === "buy"
+                      ? `≈ ${formatTokenAmount(resolved.tokenAmount)} ${trade.symbol}`
+                      : `≈ ${(resolved.usdcAmount / bnbSpotUsd).toFixed(4)} tBNB receive`
                     : side === "buy"
-                      ? `${resolved.tbnbSpent.toFixed(4)} tBNB (~$${resolved.usdcAmount.toFixed(2)})`
-                      : `${(resolved.usdcAmount / bnbSpotUsd).toFixed(4)} tBNB (~$${resolved.usdcAmount.toFixed(2)})`}
+                      ? `${resolved.tbnbSpent.toFixed(4)} tBNB`
+                      : `${(resolved.usdcAmount / bnbSpotUsd).toFixed(4)} tBNB receive`}
                 </p>
               )}
               <div className="grid grid-cols-4 gap-2">
@@ -589,9 +593,8 @@ export function NexusTradeHub({
 
               {side === "sell" && amountNum > 0 && livePrice > 0 && (
                 <p className="rounded-lg border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-100">
-                  Receive ≈ {(resolved.usdcAmount / bnbSpotUsd).toFixed(4)} tBNB (~$
-                  {resolved.usdcAmount.toFixed(2)}) · sell {resolved.tokenAmount.toFixed(4)}{" "}
-                  {trade.symbol}
+                  Receive ≈ {(resolved.usdcAmount / bnbSpotUsd).toFixed(4)} tBNB · sell{" "}
+                  {resolved.tokenAmount.toFixed(4)} {trade.symbol}
                 </p>
               )}
 
@@ -603,8 +606,6 @@ export function NexusTradeHub({
 
               {!embedded && tradeConfirmFooter}
             </div>
-            <NexusPermitReport symbol={trade.symbol} compact className="lg:sticky lg:top-2" />
-          </div>
             ) : null}
           </>
         )}

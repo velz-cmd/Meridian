@@ -19,17 +19,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
-import { ArcGlassPreview } from "@/components/landing/arc-glass-preview";
 import { ArcLivePulseCard } from "@/components/landing/arc-live-pulse-card";
 import { ArcPortalHero } from "@/components/landing/arc-portal-hero";
 import { ArcDeployedBadge } from "@/components/landing/arc-deployed-badge";
-import { MeridianHowItWorks } from "@/components/shared/meridian-how-it-works";
-
-const metrics = [
-  { icon: ScanLine, label: "Narrative layers", value: "06", sub: "Acceleration · flow · risk" },
-  { icon: Radio, label: "Data planes", value: "12", sub: "On-chain · social · macro" },
-  { icon: Activity, label: "Agent systems", value: "02", sub: "NEXUS · PRISM" },
-];
 
 export function ArcEcosystemHero() {
   return (
@@ -92,38 +84,7 @@ export function ArcEcosystemHero() {
         </motion.div>
       </div>
 
-      <div className="relative z-10 mx-auto mt-10 max-w-[1680px] px-0 sm:px-0">
-        <MeridianHowItWorks />
-      </div>
-
       <ArcLivePulseCard />
-
-      <div className="relative z-10 mt-6">
-        <ArcGlassPreview />
-      </div>
-
-      <div className="relative z-10 mt-10 grid gap-3 sm:mt-14 sm:grid-cols-3 sm:gap-4">
-        {metrics.map((m, i) => (
-          <motion.div
-            key={m.label}
-            initial={{ opacity: 0, y: 14 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.08 + i * 0.06 }}
-            className="arc-panel relative overflow-hidden p-5 pt-6"
-          >
-            <div className="arc-panel-stripe arc-panel-stripe-home absolute inset-x-0 top-0" />
-            <div className="flex gap-4">
-              <ArcIcon3d icon={m.icon} theme="home" size="md" delay={i * 0.15} />
-              <div className="text-left">
-                <p className="arc-caption">{m.label}</p>
-                <p className="mt-2 font-mono text-3xl font-semibold tracking-tight text-white">{m.value}</p>
-                <p className="mt-1 text-xs text-white/48">{m.sub}</p>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
     </section>
   );
 }
