@@ -273,7 +273,7 @@ export function composeSkillVerdict(t, gate, macro = {}) {
           ? `${sym}: blocked (${blockers.join(", ")}) — ${gate.gaps?.[0] ?? "constitution holds flat"}.`
           : compositeSignal === "ENTER_LONG"
             ? `${sym}: ${rsi.toFixed(1)} RSI · ${sentiment.state.replace(/_/g, " ").toLowerCase()} · ${gate.checksPassed}/${gate.checksTotal} checks · edge +${gate.edge ?? 0} · ${alignLabel} (${alignmentScore}/100).`
-            : `${sym}: ${gate.thesis}`,
+            : gate.thesis?.startsWith(sym) ? gate.thesis : `${sym}: ${gate.thesis}`,
     },
   };
 }
