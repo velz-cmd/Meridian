@@ -6,6 +6,8 @@ import {
   ArcSystemsShowcase,
 } from "@/components/landing/arc-home-sections";
 import { MeridianProblemSection } from "@/components/shared/meridian-problem-section";
+import { MeridianSkillArchitectureHero } from "@/components/shared/meridian-skill-architecture-hero";
+import { BscTestnetTradingBanner } from "@/components/shared/bsc-testnet-trading-banner";
 
 export default function HomePage() {
   return (
@@ -13,6 +15,8 @@ export default function HomePage() {
       <ArcBackground theme="home" />
       <div className="relative">
         <ArcEcosystemHero />
+        <MeridianSkillArchitectureHero />
+        <BscTestnetTradingBanner />
         <ArcIntelligenceGrid />
         <MeridianProblemSection />
         <ArcSystemsShowcase />

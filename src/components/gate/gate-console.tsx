@@ -18,6 +18,8 @@ import { GateBenchmarkDesk } from "@/components/gate/gate-benchmark-desk";
 import { GateLiveStats } from "@/components/gate/gate-live-stats";
 import { MeridianHowItWorks } from "@/components/shared/meridian-how-it-works";
 import { BscTestnetTradingBanner } from "@/components/shared/bsc-testnet-trading-banner";
+import { MeridianActivityLogPanel } from "@/components/shared/meridian-activity-log-panel";
+import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { useGateRoute } from "@/hooks/use-gate-route";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
 
@@ -46,6 +48,20 @@ export function GateConsole() {
   const btReq = useRef(0);
 
   const { route: gateRoute, benchmarks, loading: gateRouteLoading, error: routeError, reload } = useGateRoute(120_000);
+
+  const lastLeadRef = useRef<string | null>(null);
+  useEffect(() => {
+    const lead = gateRoute?.allocation?.primary;
+    if (!lead || gateRouteLoading) return;
+    if (lastLeadRef.current === lead) return;
+    lastLeadRef.current = lead;
+    appendMeridianActivity({
+      kind: "gate",
+      level: "info",
+      message: `Gate ranked · lead ${lead} · regime ${gateRoute.regime ?? "—"}`,
+      symbol: lead,
+    });
+  }, [gateRoute?.allocation?.primary, gateRoute?.regime, gateRouteLoading]);
 
   const selected: GateBenchmarkFull | undefined = useMemo(
     () => benchmarks.find((b) => b.symbol === symbol) ?? benchmarks[0],
@@ -159,6 +175,8 @@ export function GateConsole() {
           onSelect={handleSelectSymbol}
           onDeploy={openInNexus}
         />
+
+        <MeridianActivityLogPanel />
 
         <div id="gate-symbol-detail" className="space-y-5 scroll-mt-6">
         {selected?.skills && selected.gate && (

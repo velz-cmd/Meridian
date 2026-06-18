@@ -55,6 +55,7 @@ import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
 import { usePancakeSwap } from "@/hooks/use-pancake-swap";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { canSwapOnBscTestnet, fetchDeskTokenBalance } from "@/lib/testnet-onchain";
+import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { useConstitution } from "@/contexts/nexus-constitution-context";
 import { NexusAgentProvider, type NexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
 import { NexusExecutionPanel } from "@/components/nexus/nexus-execution-panel";
@@ -505,6 +506,13 @@ export function NexusAutopilotPanel({
         }
         pushLog(`Buy confirmed · ${result.summary}`, "trade");
         toast({ type: "success", title: "Autopilot buy", message: result.summary });
+        appendMeridianActivity({
+          kind: "trade",
+          level: "success",
+          message: `Autopilot BUY ${t.symbol} · ${result.summary}`,
+          symbol: t.symbol,
+          txHash: result.hash,
+        });
       } else {
         pushLog(`Signing sell ${tokenAmount?.toFixed(4) ?? "0"} ${t.symbol}…`, "info");
         const result = await swapTokenForNative({
@@ -536,6 +544,13 @@ export function NexusAutopilotPanel({
         }
         pushLog(`Sell confirmed · ${result.summary}`, "trade");
         toast({ type: "success", title: "Autopilot sell", message: result.summary });
+        appendMeridianActivity({
+          kind: "trade",
+          level: "success",
+          message: `Autopilot SELL ${t.symbol} · ${result.summary}`,
+          symbol: t.symbol,
+          txHash: result.hash,
+        });
       }
 
       onTradeComplete?.();

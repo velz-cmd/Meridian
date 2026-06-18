@@ -25,6 +25,8 @@ import { canSwapOnBscTestnet, testnetSwapHint } from "@/lib/testnet-onchain";
 import { bscExplorerAddress, bscExplorerTx } from "@/lib/bsc-chain";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { formatPct, formatTokenPrice, formatUsd, truncateHash } from "@/lib/utils";
+import { NexusPermitReport } from "@/components/nexus/nexus-permit-report";
+import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import type { NexusDecision } from "@/lib/storage";
 
 type TradeToken = TrendingMarketToken | NexusDecision | null;
@@ -275,6 +277,13 @@ export function NexusTradeHub({
         title: side === "buy" ? "Buy confirmed on-chain" : "Sell confirmed on-chain",
         message: result.summary,
       });
+      appendMeridianActivity({
+        kind: "trade",
+        level: "success",
+        message: `${side.toUpperCase()} ${trade.symbol} · ${result.summary}`,
+        symbol: trade.symbol,
+        txHash: result.hash,
+      });
       onTradeComplete?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Trade failed";
@@ -430,7 +439,8 @@ export function NexusTradeHub({
             {tradeTab !== "agent" && !trade ? (
               <p className="text-center text-sm text-white/60">Select a token from the feed to trade.</p>
             ) : tradeTab !== "agent" && trade ? (
-          <>
+          <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+            <div className="space-y-3 min-w-0">
             <div className="arc-glass-card arc-glass-card-nexus flex items-center justify-between gap-2 px-3 py-2.5">
               <div>
                 <span className="text-lg font-bold text-white">{trade.symbol}</span>
@@ -592,7 +602,9 @@ export function NexusTradeHub({
               )}
 
               {!embedded && tradeConfirmFooter}
-            </>
+            </div>
+            <NexusPermitReport symbol={trade.symbol} compact className="lg:sticky lg:top-2" />
+          </div>
             ) : null}
           </>
         )}

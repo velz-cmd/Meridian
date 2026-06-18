@@ -50,6 +50,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
 import { MeridianPipelineBar } from "@/components/shared/meridian-pipeline-bar";
 import { BscTestnetTradingBanner } from "@/components/shared/bsc-testnet-trading-banner";
+import { MeridianActivityLogPanel } from "@/components/shared/meridian-activity-log-panel";
 import { NexusTestnetDeskStrip } from "@/components/nexus/nexus-testnet-desk-strip";
 import { meridianClientHeaders } from "@/lib/circle-agents";
 import { buildBscTestnetTradeTokens, isTestnetDeskToken, matchTestnetDeskBySymbol } from "@/lib/testnet-onchain";
@@ -990,7 +991,19 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         </div>
 
         <div className="mb-4">
-          <BscTestnetTradingBanner compact />
+          <BscTestnetTradingBanner
+            compact
+            selectedSymbol={selectedToken?.symbol ?? rankingSelectedSymbol}
+            permitGranted={
+              constitution.loading
+                ? null
+                : constitution.payload?.permit?.status === "GRANT"
+            }
+          />
+        </div>
+
+        <div className="mb-4">
+          <MeridianActivityLogPanel maxHeight="max-h-40" />
         </div>
 
         <div className="mb-4">

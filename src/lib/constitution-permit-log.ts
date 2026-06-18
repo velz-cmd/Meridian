@@ -1,3 +1,5 @@
+import { appendMeridianActivity } from "@/lib/meridian-activity-log";
+
 export type PermitLogEntry = {
   permitId: string;
   symbol: string;
@@ -26,6 +28,12 @@ export function appendPermitLog(entry: PermitLogEntry) {
     }
     const next = [entry, ...prev.filter((e) => e.permitId !== entry.permitId)].slice(0, MAX);
     localStorage.setItem(LOG_KEY, JSON.stringify(next));
+    appendMeridianActivity({
+      kind: "permit",
+      level: entry.status === "GRANT" ? "success" : "warn",
+      message: `Constitution ${entry.status} · ${entry.symbol}${entry.regime ? ` · ${entry.regime}` : ""}`,
+      symbol: entry.symbol,
+    });
   } catch {
     /* private mode */
   }
