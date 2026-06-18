@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { GATE_SYMBOLS, type GateSymbol } from "@/lib/gate-constants";
 import {
   CHECK_PSEUDOCODE,
   EXIT_PSEUDOCODE,
@@ -8,16 +9,20 @@ import {
   checkRuleKind,
   type RuleCardKind,
 } from "@/lib/gate-rule-pseudocode";
+import { buildGateSignalMeter } from "@/lib/gate-signal-meter";
 import {
   GATE_STRATEGY_NAME,
   GATE_STRATEGY_TAGLINE,
   STRATEGY_EXIT_RULES,
+  STRATEGY_POSITION_RULES,
   GITHUB_SKILL,
   strategyPosition,
   strategySignalLabel,
 } from "@/lib/gate-strategy-copy";
 import { GateEquityChart } from "@/components/gate/gate-equity-chart";
-import type { GateBenchmarkFull } from "@/lib/gate-route-types";
+import { GateSignalMeter } from "@/components/gate/gate-signal-meter";
+import { GateVerdictBlock } from "@/components/gate/gate-verdict-block";
+import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +41,21 @@ type BacktestPayload = {
   equityCurves?: { t: string | number; constitution: number; naive: number }[];
   note?: string;
 };
+
+const LOAD_STEPS = [
+  "Fetching CMC global metrics",
+  "Loading benchmark quotes",
+  "Running constitution checks",
+  "Computing skill layers",
+  "Packaging live spec",
+];
+
+const SHORTCUTS: { sym: GateSymbol; title: string; sub: string }[] = [
+  { sym: "BNB", title: "BNB momentum", sub: "Router lead · full rule stack" },
+  { sym: "CAKE", title: "CAKE liquidity", sub: "Turnover + structure checks" },
+  { sym: "FLOKI", title: "FLOKI sentiment", sub: "Social heat · flow score" },
+  { sym: "XVS", title: "XVS regime", sub: "Macro tape · alignment" },
+];
 
 function RuleCard({
   kind,
@@ -59,22 +79,30 @@ function RuleCard({
   );
 }
 
+function LiveDot() {
+  return <span className="gate-stat-live">live cmc</span>;
+}
+
 export function GateOutputPanel({
   selected,
+  route,
   skills,
   loading,
   backtest,
   backtestLoading,
   backtestRequested,
+  onQuickSelect,
   onRunBacktest,
   onOpenNexus,
 }: {
   selected?: GateBenchmarkFull;
+  route: GateRoutePayload | null;
   skills?: GateSkillsPayload | null;
   loading?: boolean;
   backtest: BacktestPayload | null;
   backtestLoading: boolean;
   backtestRequested: boolean;
+  onQuickSelect: (sym: GateSymbol) => void;
   onRunBacktest: () => void;
   onOpenNexus: () => void;
 }) {
@@ -83,11 +111,19 @@ export function GateOutputPanel({
       <div className="gate-output-panel">
         <div className="gate-output-empty">
           <div className="gate-loading-bars">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="gate-loading-bar" style={{ animationDelay: `${i * 0.15}s` }} />
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="gate-loading-bar" style={{ animationDelay: `${i * 0.12}s` }} />
             ))}
           </div>
-          <p className="font-mono text-xs">Applying live CMC rules…</p>
+          <p className="gate-load-ticker">{LOAD_STEPS[0]}</p>
+          <div className="gate-load-steps">
+            {LOAD_STEPS.map((s, i) => (
+              <div key={s} className={cn("gate-load-step", i === 0 && "cur")}>
+                <span className="gate-load-step-ic">{i === 0 ? "›" : "·"}</span>
+                {s}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -97,7 +133,19 @@ export function GateOutputPanel({
     return (
       <div className="gate-output-panel">
         <div className="gate-output-empty">
-          <p className="text-sm">Select a benchmark on the left — output updates from the live rule engine.</p>
+          <p className="gate-empty-glyph">Σ</p>
+          <p className="gate-empty-title">Ready to analyze</p>
+          <p className="gate-empty-sub">
+            Pick a BSC benchmark on the left — output updates from the live rule engine. No generated stats.
+          </p>
+          <div className="gate-shortcut-grid">
+            {SHORTCUTS.map((sc) => (
+              <button key={sc.sym} type="button" className="gate-shortcut" onClick={() => onQuickSelect(sc.sym)}>
+                <p className="gate-shortcut-title">{sc.title}</p>
+                <p className="gate-shortcut-sub">{sc.sub}</p>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -113,12 +161,18 @@ export function GateOutputPanel({
   const passedWeight = checks.filter((c) => c.pass).reduce((s, c) => s + c.weight, 0);
   const totalWeight = checks.reduce((s, c) => s + c.weight, 0);
   const agreementPct = totalWeight > 0 ? Math.round((passedWeight / totalWeight) * 100) : 0;
+  const verdictConfidence = gate.confidence ?? skills?.composite.alignmentScore ?? agreementPct;
+  const signalRows = buildGateSignalMeter(selected, route, skills);
+  const verdictLabel = long ? "LONG" : displaySignal === "EXIT" ? "EXIT" : displaySignal === "AVOID" ? "AVOID" : "FLAT";
+
+  const entryChecks = checks.filter((c) => checkRuleKind(c.id) === "entry");
+  const filterChecks = checks.filter((c) => checkRuleKind(c.id) === "filter");
 
   const regimeRows = [
     {
       label: skills?.regime.regime?.replace(/-/g, " ") ?? gate.regime?.replace(/-/g, " ") ?? "Neutral",
       action: skills?.regime.positioning ?? "Hold flat unless tier clears",
-      color: "#F5A623",
+      color: "#67e8f9",
     },
     {
       label: "Current tape",
@@ -138,6 +192,8 @@ export function GateOutputPanel({
     backtest.backtest &&
     backtest.backtest.totalReturnPct < backtest.compare.naiveAgent.totalReturnPct;
 
+  const fng = route?.fearGreed ?? selected.market.fearGreed ?? 50;
+
   return (
     <div className="gate-output-panel">
       <div className="gate-strategy-output">
@@ -148,10 +204,13 @@ export function GateOutputPanel({
             </p>
             <p className="gate-strategy-tagline">{gate.thesis ?? GATE_STRATEGY_TAGLINE}</p>
             <div className="gate-meta-chips">
-              <span className="gate-meta-chip amber">{gate.tier.toUpperCase()}</span>
+              <span className="gate-meta-chip accent">{gate.tier.toUpperCase()}</span>
               <span className={cn("gate-meta-chip", long ? "green" : "")}>{position}</span>
               <span className="gate-meta-chip">{strategySignalLabel(displaySignal)}</span>
               {selected.cmcLive && <span className="gate-meta-chip green">CMC live</span>}
+              {GATE_SYMBOLS.map((s) => s).includes(selected.symbol as GateSymbol) && (
+                <span className="gate-meta-chip">{selected.symbol}/USDT</span>
+              )}
             </div>
           </div>
           <div className="gate-score-ring">
@@ -166,23 +225,29 @@ export function GateOutputPanel({
             <p className="gate-stat-value">
               ${selected.market.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}
             </p>
+            <p className={cn("gate-stat-sub", selected.market.change24h >= 0 ? "green" : "red")}>
+              {selected.market.change24h >= 0 ? "+" : ""}
+              {selected.market.change24h.toFixed(2)}% 24h
+            </p>
+            {selected.cmcLive && <LiveDot />}
           </div>
           <div className="gate-stat-card">
-            <p className="gate-stat-label">24h</p>
-            <p className={cn("gate-stat-value", selected.market.change24h >= 0 ? "green" : "red")}>
-              {selected.market.change24h >= 0 ? "+" : ""}
-              {selected.market.change24h.toFixed(2)}%
-            </p>
+            <p className="gate-stat-label">Fear & Greed</p>
+            <p className={cn("gate-stat-value", fng > 60 ? "red" : fng < 40 ? "green" : "accent")}>{fng}</p>
+            <p className="gate-stat-sub">{fng > 60 ? "Greed" : fng < 40 ? "Fear" : "Neutral"}</p>
+            {selected.cmcLive && <LiveDot />}
           </div>
           <div className="gate-stat-card">
             <p className="gate-stat-label">Checks</p>
-            <p className="gate-stat-value amber">
+            <p className="gate-stat-value accent">
               {gate.checksPassed}/{gate.checksTotal}
             </p>
+            <p className="gate-stat-sub">Agreement {agreementPct}%</p>
           </div>
           <div className="gate-stat-card">
             <p className="gate-stat-label">Edge</p>
             <p className="gate-stat-value green">+{gate.edge ?? 0}</p>
+            <p className="gate-stat-sub">{gate.regime?.replace(/-/g, " ") ?? "—"}</p>
           </div>
           {backtest?.ok && backtest.backtest && (
             <>
@@ -203,7 +268,7 @@ export function GateOutputPanel({
               </div>
               <div className="gate-stat-card">
                 <p className="gate-stat-label">vs naive</p>
-                <p className="gate-stat-value amber">
+                <p className="gate-stat-value accent">
                   {backtest.compare?.edge.returnDeltaPct != null
                     ? `${backtest.compare.edge.returnDeltaPct >= 0 ? "+" : ""}${backtest.compare.edge.returnDeltaPct}%`
                     : "—"}
@@ -213,52 +278,91 @@ export function GateOutputPanel({
           )}
         </div>
 
-        <div className="gate-section-block">
-          <div className="gate-section-block-header">Live rule checks · this bar</div>
-          <div className="gate-section-block-body">
-            <div className="gate-rule-list">
-              {checks.map((c) => (
-                <RuleCard
-                  key={c.id}
-                  kind={checkRuleKind(c.id)}
-                  condition={c.label}
-                  code={CHECK_PSEUDOCODE[c.id] ?? c.id}
-                  pass={c.pass}
-                />
-              ))}
-            </div>
-            <p className="mt-3 font-mono text-[10px] text-[var(--gate-muted)]">
-              Agreement {agreementPct}% · deterministic · no LLM in signal path
-            </p>
-          </div>
-        </div>
+        <GateSignalMeter rows={signalRows} verdict={verdictLabel} verdictConfidence={verdictConfidence} />
 
-        <div className="gate-section-block">
-          <div className="gate-section-block-header">Exit conditions · constitution</div>
-          <div className="gate-section-block-body">
-            <div className="gate-rule-list">
-              {STRATEGY_EXIT_RULES.map((rule, i) => (
-                <RuleCard
-                  key={rule}
-                  kind="exit"
-                  condition={rule}
-                  code={Object.values(EXIT_PSEUDOCODE)[i] ?? "exit_rule()"}
-                />
-              ))}
+        <GateVerdictBlock
+          signal={displaySignal}
+          confidence={verdictConfidence}
+          regime={skills?.regime.regime ?? gate.regime}
+          thesis={gate.thesis}
+        />
+
+        <div className="gate-rules-grid">
+          <div className="gate-section-block">
+            <div className="gate-section-block-header">Entry & filter · live checks</div>
+            <div className="gate-section-block-body">
+              <div className="gate-rule-list">
+                {entryChecks.length
+                  ? entryChecks.map((c) => (
+                      <RuleCard
+                        key={c.id}
+                        kind={checkRuleKind(c.id)}
+                        condition={c.label}
+                        code={CHECK_PSEUDOCODE[c.id] ?? c.id}
+                        pass={c.pass}
+                      />
+                    ))
+                  : checks.map((c) => (
+                      <RuleCard
+                        key={c.id}
+                        kind={checkRuleKind(c.id)}
+                        condition={c.label}
+                        code={CHECK_PSEUDOCODE[c.id] ?? c.id}
+                        pass={c.pass}
+                      />
+                    ))}
+              </div>
+            </div>
+          </div>
+          <div className="gate-section-block">
+            <div className="gate-section-block-header">Exit · constitution</div>
+            <div className="gate-section-block-body">
+              <div className="gate-rule-list">
+                {STRATEGY_EXIT_RULES.map((rule, i) => (
+                  <RuleCard
+                    key={rule}
+                    kind="exit"
+                    condition={rule}
+                    code={Object.values(EXIT_PSEUDOCODE)[i] ?? "exit_rule()"}
+                  />
+                ))}
+                {filterChecks.map((c) => (
+                  <RuleCard
+                    key={`f-${c.id}`}
+                    kind="filter"
+                    condition={c.label}
+                    code={CHECK_PSEUDOCODE[c.id] ?? c.id}
+                    pass={c.pass}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
         <div className="gate-section-block">
           <div className="gate-section-block-header">Market regime map</div>
-          <div className="gate-section-block-body">
+          <div className="gate-section-block-body gate-regime-grid">
             {regimeRows.map((r) => (
-              <div key={r.label} className="gate-regime-row">
+              <div key={r.label} className="gate-regime-card">
                 <div className="gate-regime-dot" style={{ background: r.color }} />
-                <span className="flex-1 font-medium">{r.label}</span>
-                <span className="font-mono text-[11px]" style={{ color: r.color }}>
-                  {r.action}
-                </span>
+                <div>
+                  <p className="gate-regime-label">{r.label}</p>
+                  <p className="gate-regime-action" style={{ color: r.color }}>
+                    {r.action}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="gate-section-block">
+          <div className="gate-section-block-header">Position & replay rules</div>
+          <div className="gate-section-block-body gate-risk-grid">
+            {STRATEGY_POSITION_RULES.map((rule) => (
+              <div key={rule} className="gate-risk-item">
+                <p className="gate-risk-val">{rule}</p>
               </div>
             ))}
           </div>
@@ -282,9 +386,7 @@ export function GateOutputPanel({
               )}
               {!backtestLoading && backtest?.ok && backtest.equityCurves && (
                 <>
-                  {backtest.note && (
-                    <p className="text-xs text-[var(--gate-muted)]">{backtest.note}</p>
-                  )}
+                  {backtest.note && <p className="text-xs text-[var(--gate-muted)]">{backtest.note}</p>}
                   {underperformed && backtest.compare && backtest.backtest && (
                     <p className="text-xs text-[var(--gate-muted)]">
                       Lower return vs naive agent this window — rules favor lower drawdown (
@@ -295,7 +397,7 @@ export function GateOutputPanel({
                 </>
               )}
               {!backtestLoading && backtest && !backtest.ok && (
-                <p className="text-xs text-[var(--gate-amber)]">
+                <p className="text-xs text-cyan-200/80">
                   {backtest.error}
                   {backtest.hint ? ` — ${backtest.hint}` : ""}
                 </p>
@@ -316,7 +418,7 @@ export function GateOutputPanel({
       </div>
 
       <div className="gate-export-bar">
-        <a className="gate-export-btn" href={`${GITHUB_SKILL}/SKILL.md`} target="_blank" rel="noopener noreferrer">
+        <a className="gate-export-btn primary" href={`${GITHUB_SKILL}/SKILL.md`} target="_blank" rel="noopener noreferrer">
           SKILL.md
         </a>
         <a className="gate-export-btn" href={`${GITHUB_SKILL}/STRATEGY_SPEC.md`} target="_blank" rel="noopener noreferrer">
@@ -324,6 +426,9 @@ export function GateOutputPanel({
         </a>
         <button type="button" className="gate-export-btn" onClick={onOpenNexus}>
           Open trade desk →
+        </button>
+        <button type="button" className="gate-export-btn" onClick={onRunBacktest}>
+          {backtestRequested ? "Re-run replay" : "Run 90-day replay"}
         </button>
       </div>
     </div>

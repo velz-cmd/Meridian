@@ -14,7 +14,7 @@ import { MERIDIAN_BUILT_FOR, MERIDIAN_MODULES, MERIDIAN_NAME, MERIDIAN_TAGLINE }
 
 const links = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/gate", label: "Gate", icon: Scale },
+  { href: "/gate", label: "Strategy", icon: Scale },
   { href: "/nexus", label: "NEXUS", icon: Zap },
   { href: "/prism", label: "PRISM", icon: Radar },
 ] as const;

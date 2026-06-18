@@ -34,6 +34,8 @@ import {
 import { NexusIntelCollapsibles } from "@/components/nexus/nexus-intel-collapsibles";
 import { NexusAgentReasoningStrip } from "@/components/nexus/nexus-agent-reasoning-strip";
 import { NexusConstitutionDesk } from "@/components/nexus/nexus-constitution-desk";
+import { NexusAgentPulseStrip } from "@/components/nexus/nexus-agent-pulse-strip";
+import { useMarketPulse } from "@/hooks/use-market-pulse";
 import { useConstitutionPermit } from "@/hooks/use-constitution-permit";
 import { NexusConstitutionStartPicks } from "@/components/nexus/nexus-constitution-start-picks";
 import { ConstitutionProvider } from "@/contexts/nexus-constitution-context";
@@ -268,6 +270,8 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
   }, [deskAgent, benchSym, tradeTab]);
 
   const constitution = useConstitutionPermit(selectedToken, permitAgent);
+  const pulseSymbol = isGateSymbol(benchSym) ? benchSym : selectedToken?.symbol;
+  const { pulse: marketPulse, loading: pulseLoading } = useMarketPulse(pulseSymbol, 90_000);
 
   const scrollToConstitutionDesk = useCallback(() => {
     document.getElementById("nexus-constitution-desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -769,6 +773,13 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
             onFullscreenChange={setChartFullscreen}
           />
         </div>
+
+        <NexusAgentPulseStrip
+          pulse={marketPulse}
+          loading={pulseLoading}
+          symbol={pulseSymbol}
+          compact
+        />
 
         <NexusConstitutionDesk
           symbol={selectedToken.symbol}

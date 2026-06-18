@@ -56,6 +56,7 @@ import { usePancakeSwap } from "@/hooks/use-pancake-swap";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { canSwapOnBscTestnet, fetchDeskTokenBalance } from "@/lib/testnet-onchain";
 import { appendMeridianActivity } from "@/lib/meridian-activity-log";
+import { pulseAdjustAgentAction, type MarketPulse } from "@/lib/market-pulse";
 import { useConstitution } from "@/contexts/nexus-constitution-context";
 import { NexusAgentProvider, type NexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
 import { NexusExecutionPanel } from "@/components/nexus/nexus-execution-panel";
@@ -339,7 +340,36 @@ export function NexusAutopilotPanel({
         else if (agent?.reasoning) setLastReasoning(agent.reasoning);
       }
 
-      const signal = cfg.mode === "follow_agent" ? agent : null;
+      let pulse: MarketPulse | null = null;
+      try {
+        const pulseRes = await fetch(
+          `/api/nexus/market-pulse?symbol=${encodeURIComponent(t.symbol)}`,
+          { cache: "no-store", signal: AbortSignal.timeout(12_000) },
+        );
+        if (pulseRes.ok) pulse = (await pulseRes.json()) as MarketPulse;
+      } catch {
+        /* pulse optional */
+      }
+
+      let signal = cfg.mode === "follow_agent" ? agent : null;
+      if (signal?.action && pulse?.ok) {
+        const raw = signal.action.toUpperCase();
+        const normalized =
+          raw === "BUY" || raw === "SELL" || raw === "HOLD" ? (raw as "BUY" | "SELL" | "HOLD") : "HOLD";
+        const adjusted = pulseAdjustAgentAction(pulse, normalized);
+        if (adjusted !== normalized) {
+          pushLog(
+            `Market pulse · ${pulse.cascadeLevel} stress · agent ${normalized} → ${adjusted}`,
+            "info",
+          );
+          signal = { ...signal, action: adjusted };
+          setLastReasoning(`${pulse.headline} · Adjusted to ${adjusted}.`);
+        } else if (pulse.headline) {
+          setLastReasoning((prev) => (prev ? `${pulse.headline} · ${prev}` : pulse.headline));
+        }
+      } else if (pulse?.headline && cfg.mode === "follow_agent") {
+        setLastReasoning((prev) => (prev ? `${pulse.headline} · ${prev}` : pulse.headline));
+      }
 
       let side: "buy" | "sell" | null = null;
       let userOverride = false;

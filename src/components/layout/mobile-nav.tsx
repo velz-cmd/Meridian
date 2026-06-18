@@ -9,7 +9,7 @@ import { MERIDIAN_BUILT_FOR } from "@/lib/meridian-brand";
 
 const links = [
   { href: "/", label: "Home", icon: Home, desc: "Overview" },
-  { href: "/gate", label: "Gate", icon: Scale, desc: "CMC strategy skill" },
+  { href: "/gate", label: "Strategy", icon: Scale, desc: "CMC strategy skill" },
   { href: "/nexus", label: "NEXUS", icon: Zap, desc: "AI trading agent" },
   { href: "/prism", label: "PRISM", icon: LineChart, desc: "Macro forecasts" },
 ] as const;

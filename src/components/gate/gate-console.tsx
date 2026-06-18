@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArcBackground } from "@/components/layout/arc-background";
+import { MeridianFooter } from "@/components/layout/meridian-footer";
+import { GateConfigPanel } from "@/components/gate/gate-config-panel";
+import { GateDeskHero } from "@/components/gate/gate-desk-hero";
+import { GateOutputPanel } from "@/components/gate/gate-output-panel";
+import { NexusAgentPulseStrip } from "@/components/nexus/nexus-agent-pulse-strip";
+import { useMarketPulse } from "@/hooks/use-market-pulse";
+import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
+import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { type GateSymbol } from "@/lib/gate-constants";
 import { buildGateExecutionUrl } from "@/lib/gate-nexus-bridge";
 import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
-import { GateConfigPanel } from "@/components/gate/gate-config-panel";
-import { GateOutputPanel } from "@/components/gate/gate-output-panel";
-import { GateSkillHeader, GateSkillHero } from "@/components/gate/gate-skill-hero";
-import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
-import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { useGateRoute } from "@/hooks/use-gate-route";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
 import "@/styles/gate-skill.css";
@@ -68,6 +72,12 @@ export function GateConsole() {
   );
 
   const skills = selected?.skills as GateSkillsPayload | undefined;
+  const cmcLive = benchmarks.some((b) => b.cmcLive);
+  const { pulse: marketPulse, loading: pulseLoading } = useMarketPulse(symbol, 90_000);
+  const leadSymbol =
+    gateRoute?.allocation.primary && gateRoute.allocation.primary !== "FLAT"
+      ? gateRoute.allocation.primary
+      : symbol;
 
   const runBacktest = useCallback(async (sym: GateSymbol) => {
     const id = ++btReq.current;
@@ -119,42 +129,58 @@ export function GateConsole() {
   }, [benchmarks, symbol]);
 
   return (
-    <div className="flex min-h-screen flex-col" data-gate-page data-gate-skill-desk>
-      <GateSkillHeader />
-      <GateSkillHero route={gateRoute} cmcLive={benchmarks.some((b) => b.cmcLive)} />
-
-      {routeError && (
-        <div className="mx-4 mt-3 rounded-lg border border-[var(--gate-amber-glow)] bg-[var(--gate-amber-dim)] px-4 py-3 text-sm text-[var(--gate-amber)] sm:mx-6">
-          <p className="font-medium">{routeError}</p>
-          <button type="button" className="mt-2 font-mono text-xs underline" onClick={() => void reload()}>
-            Retry scan
-          </button>
-        </div>
-      )}
-
-      <div className="gate-desk-main">
-        <GateConfigPanel
-          symbol={symbol}
-          onSelectSymbol={setSymbol}
-          benchmarks={benchmarks}
+    <div className="relative min-h-screen text-white" data-arc-theme="nexus" data-gate-page>
+      <ArcBackground theme="nexus" />
+      <div className="relative z-10 mx-auto max-w-[1680px] px-4 pb-10 pt-1 sm:px-6">
+        <GateDeskHero
           route={gateRoute}
+          cmcLive={cmcLive}
           loading={gateRouteLoading}
-          skills={skills ?? null}
-          backtestLoading={btLoading}
-          backtestRequested={btRequested}
-          onRunBacktest={() => void runBacktest(symbol)}
+          leadSymbol={leadSymbol}
           onOpenNexus={openInNexus}
-        />
-        <GateOutputPanel
-          selected={selected}
-          skills={skills ?? null}
-          loading={gateRouteLoading}
-          backtest={backtest}
-          backtestLoading={btLoading}
-          backtestRequested={btRequested}
           onRunBacktest={() => void runBacktest(symbol)}
-          onOpenNexus={openInNexus}
+          backtestLoading={btLoading}
         />
+
+        <NexusAgentPulseStrip pulse={marketPulse} loading={pulseLoading} symbol={symbol} compact />
+
+        {routeError && (
+          <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            <p className="font-medium">{routeError}</p>
+            <button type="button" className="mt-2 font-mono text-xs underline" onClick={() => void reload()}>
+              Retry scan
+            </button>
+          </div>
+        )}
+
+        <div className="gate-desk-main">
+          <GateConfigPanel
+            symbol={symbol}
+            onSelectSymbol={setSymbol}
+            benchmarks={benchmarks}
+            route={gateRoute}
+            loading={gateRouteLoading}
+            skills={skills ?? null}
+            backtestLoading={btLoading}
+            backtestRequested={btRequested}
+            onRunBacktest={() => void runBacktest(symbol)}
+            onOpenNexus={openInNexus}
+          />
+          <GateOutputPanel
+            selected={selected}
+            route={gateRoute}
+            skills={skills ?? null}
+            loading={gateRouteLoading}
+            backtest={backtest}
+            backtestLoading={btLoading}
+            backtestRequested={btRequested}
+            onQuickSelect={setSymbol}
+            onRunBacktest={() => void runBacktest(symbol)}
+            onOpenNexus={openInNexus}
+          />
+        </div>
+
+        <MeridianFooter className="mt-8" />
       </div>
     </div>
   );
