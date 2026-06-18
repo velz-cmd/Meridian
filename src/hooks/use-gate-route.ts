@@ -1,39 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { GateBoardRow } from "@/components/gate/gate-strategy-board";
-import type { GateRoutePayload, GateRouteResponse } from "@/lib/gate-route-types";
+import type { GateBenchmarkFull, GateRoutePayload, GateRouteResponse } from "@/lib/gate-route-types";
 
-function toBoardRows(benchmarks: GateRouteResponse["benchmarks"]): GateBoardRow[] {
-  if (!benchmarks?.length) return [];
-  return benchmarks.map((b) => ({
-    symbol: b.symbol,
-    gate: {
-      signal: b.gate.signal,
-      tier: b.gate.tier,
-      regime: b.gate.regime,
-      confidence: b.gate.confidence,
-      edge: b.gate.edge,
-      checksPassed: b.gate.checksPassed,
-      checksTotal: b.gate.checksTotal,
-      gaps: b.gate.gaps,
-    },
-    market: { price: b.market.price, change24h: b.market.change24h },
-    skills: b.skills
-      ? { alignmentScore: b.skills.composite?.alignmentScore, compositeSignal: b.skills.composite?.signal }
-      : undefined,
-  }));
-}
-
-export function useGateRoute(refreshMs = 60_000) {
+/** Single /api/gate/route poll — batched CMC, no duplicate per-symbol evaluate calls. */
+export function useGateRoute(refreshMs = 120_000) {
   const [route, setRoute] = useState<GateRoutePayload | null>(null);
-  const [benchmarks, setBenchmarks] = useState<GateBoardRow[]>([]);
+  const [benchmarks, setBenchmarks] = useState<GateBenchmarkFull[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const req = useRef(0);
 
   const load = useCallback(async () => {
     const id = ++req.current;
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/gate/route", {
         method: "POST",
@@ -41,14 +22,18 @@ export function useGateRoute(refreshMs = 60_000) {
         body: "{}",
         cache: "no-store",
       });
-      const data = (await res.json()) as GateRouteResponse;
+      const data = (await res.json()) as GateRouteResponse & { error?: string };
       if (id !== req.current) return;
       if (res.ok && data.route) setRoute(data.route);
-      if (res.ok && data.benchmarks?.length) setBenchmarks(toBoardRows(data.benchmarks));
+      if (res.ok && data.benchmarks?.length) setBenchmarks(data.benchmarks);
+      if (!res.ok) {
+        setError(data.error ?? `Gate route failed (${res.status})`);
+      }
     } catch {
       if (id === req.current) {
         setRoute(null);
         setBenchmarks([]);
+        setError("Could not reach gate API");
       }
     } finally {
       if (id === req.current) setLoading(false);
@@ -61,5 +46,5 @@ export function useGateRoute(refreshMs = 60_000) {
     return () => clearInterval(t);
   }, [load, refreshMs]);
 
-  return { route, benchmarks, loading, reload: load };
+  return { route, benchmarks, loading, error, reload: load };
 }

@@ -30,15 +30,22 @@ async function hydrateTechnicalsFromBinance(symbol, quotes) {
   }
 }
 
-const TTL_MS = { fearGreed: 60_000, quotes: 30_000, map: 300_000 };
+const TTL_MS = { fearGreed: 120_000, quotes: 90_000, map: 600_000, batch: 90_000 };
 /** @type {Map<string, { at: number; data: unknown }>} */
 const cache = new Map();
 
-function cacheGet(key) {
+function cacheGet(key, allowStale = false) {
   const row = cache.get(key);
   if (!row) return null;
-  const ttl = key.startsWith("fg:") ? TTL_MS.fearGreed : key.startsWith("map:") ? TTL_MS.map : TTL_MS.quotes;
+  const ttl = key.startsWith("fg:")
+    ? TTL_MS.fearGreed
+    : key.startsWith("map:")
+      ? TTL_MS.map
+      : key.startsWith("quotes:batch:")
+        ? TTL_MS.batch
+        : TTL_MS.quotes;
   if (Date.now() - row.at > ttl) {
+    if (allowStale) return row.data;
     cache.delete(key);
     return null;
   }
@@ -80,6 +87,10 @@ export async function cmcFetch(path, params = {}, opts = {}) {
       msg = j.status?.error_message || text;
     } catch {
       /* keep raw */
+    }
+    if (res.status === 429 && cacheKey) {
+      const stale = cache.get(cacheKey);
+      if (stale) return stale.data;
     }
     const err = /** @type {Error & { status?: number; code?: string }} */ (new Error(`CMC ${res.status}: ${msg}`));
     err.status = res.status;
@@ -203,6 +214,87 @@ export async function fetchGateSnapshot(symbol) {
   return { snapshot: quotes, sources, cmcLive: true };
 }
 
+function quoteRowToSnapshot(sym, row, fearGreed) {
+  const usd = row.quote?.USD ?? {};
+  const ch1 = usd.percent_change_1h ?? 0;
+  const ch24 = usd.percent_change_24h ?? 0;
+  const ch7 = usd.percent_change_7d ?? 0;
+  return {
+    symbol: sym,
+    price: usd.price ?? 0,
+    marketCap: usd.market_cap ?? 0,
+    volume24h: usd.volume_24h ?? 0,
+    change1h: ch1,
+    change24h: ch24,
+    change7d: ch7,
+    rsi: rsiProxy(ch24, ch7),
+    macdSignal: macdProxy(ch1, ch24),
+    fearGreed,
+  };
+}
+
+/**
+ * One CMC quotes call for all gate symbols + shared F&G — avoids 429 from parallel per-symbol fetches.
+ * Technicals from Binance daily (labeled) on scan path; full historical only on single /evaluate.
+ * @param {string[]} symbols
+ */
+export async function fetchGateSnapshotsBatch(symbols) {
+  const syms = symbols.map((s) => s.toUpperCase());
+  const symParam = syms.join(",");
+  const [quotes, fgRes] = await Promise.all([
+    cmcFetch(
+      "/v1/cryptocurrency/quotes/latest",
+      { symbol: symParam },
+      { cacheKey: `quotes:batch:${symParam}` },
+    ),
+    cmcFetch("/v3/fear-and-greed/latest", {}, { cacheKey: "fg:latest" }),
+  ]);
+  const fearGreed = fgRes.data?.value ?? 50;
+
+  /** @type {Record<string, { snapshot: object; sources: Record<string, string | number | null>; cmcLive: boolean }>} */
+  const out = {};
+
+  await Promise.all(
+    syms.map(async (sym) => {
+      const row = quotes.data?.[sym];
+      if (!row) return;
+      const base = quoteRowToSnapshot(sym, row, fearGreed);
+      /** @type {Record<string, string | number | null>} */
+      const sources = {
+        price: "coinmarketcap/quotes/latest",
+        marketCap: "coinmarketcap/quotes/latest",
+        volume24h: "coinmarketcap/quotes/latest",
+        change1h: "coinmarketcap/quotes/latest",
+        change24h: "coinmarketcap/quotes/latest",
+        change7d: "coinmarketcap/quotes/latest",
+        fearGreed: "coinmarketcap/fear-and-greed/latest",
+        rsi: "binance-spot-daily-14rsi",
+        macd: "binance-spot-daily-derived",
+        historicalBars: null,
+      };
+      try {
+        const venue = await hydrateTechnicalsFromBinance(sym, base);
+        if (venue) {
+          sources.rsi = venue.sourceRsi;
+          sources.macd = venue.sourceMacd;
+          sources.historicalBars = venue.bars;
+          out[sym] = {
+            snapshot: { ...base, rsi: venue.rsi, macdSignal: venue.macdSignal },
+            sources,
+            cmcLive: true,
+          };
+          return;
+        }
+      } catch {
+        /* quotes-only */
+      }
+      out[sym] = { snapshot: base, sources, cmcLive: true };
+    }),
+  );
+
+  return out;
+}
+
 /**
  * @param {string} symbol
  * @returns {Promise<import("../engine/nexus-gate.mjs").CmcTokenSnapshot>}
@@ -216,23 +308,7 @@ export async function fetchLiveSnapshot(symbol) {
 
   const row = quotes.data?.[sym];
   if (!row) throw new Error(`No quote for ${sym}`);
-  const usd = row.quote?.USD ?? {};
-  const ch1 = usd.percent_change_1h ?? 0;
-  const ch24 = usd.percent_change_24h ?? 0;
-  const ch7 = usd.percent_change_7d ?? 0;
-
-  return {
-    symbol: sym,
-    price: usd.price ?? 0,
-    marketCap: usd.market_cap ?? 0,
-    volume24h: usd.volume_24h ?? 0,
-    change1h: ch1,
-    change24h: ch24,
-    change7d: ch7,
-    rsi: rsiProxy(ch24, ch7),
-    macdSignal: macdProxy(ch1, ch24),
-    fearGreed: fgRes.data?.value ?? 50,
-  };
+  return quoteRowToSnapshot(sym, row, fgRes.data?.value ?? 50);
 }
 
 export async function fetchHistoricalDaily(id, days) {

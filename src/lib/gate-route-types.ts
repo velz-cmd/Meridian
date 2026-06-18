@@ -26,25 +26,52 @@ export type GateRoutePayload = {
   }[];
 };
 
-export type GateBenchmarkPayload = {
+export type GateBenchmarkFull = {
   symbol: string;
+  cmcLive?: boolean;
+  fieldSources?: Record<string, string | number | null>;
+  oracle?: {
+    priceUsd: number;
+    pair: string;
+    updatedAt: number;
+    ageHours: number;
+    stale: boolean;
+    adapter: string;
+    spaceId: string;
+    cmcPriceUsd?: number;
+    cmcDeltaPct?: number | null;
+  } | null;
   gate: {
     signal: string;
     tier: string;
     regime?: string;
+    thesis?: string;
     confidence?: number;
     edge?: number;
     checksPassed: number;
     checksTotal: number;
     gaps?: string[];
+    checks?: { id: string; pass: boolean; weight: number; label: string }[];
   };
-  market: { price: number; change24h: number; fearGreed?: number };
+  market: {
+    price: number;
+    change24h: number;
+    fearGreed?: number;
+    rsi?: number;
+    macdSignal?: string;
+    marketCap?: number;
+    volume24h?: number;
+  };
   skills?: {
+    momentum?: { signal?: string; metrics?: { rsi?: number; macd?: string } };
+    sentiment?: { state?: string; signal?: string };
+    regime?: { regime?: string; signal?: string };
     composite?: { signal?: string; alignmentScore?: number; thesis?: string };
   };
 };
 
 export type GateRouteResponse = {
-  benchmarks?: GateBenchmarkPayload[];
+  benchmarks?: GateBenchmarkFull[];
   route?: GateRoutePayload;
+  error?: string;
 };

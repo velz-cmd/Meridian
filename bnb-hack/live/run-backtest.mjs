@@ -37,21 +37,25 @@ async function fetchFearGreed() {
 
 /** Scale venue bars with live CMC market cap so turnover checks work (no fake mc=0). */
 async function hydrateBarsWithCmcFundamentals(symbol, bars) {
-  const live = await fetchLiveSnapshot(symbol);
-  const cmcPrice = live.price ?? 0;
-  const cmcMc = live.marketCap ?? 0;
-  if (cmcPrice <= 0 || cmcMc <= 0) return bars;
+  try {
+    const live = await fetchLiveSnapshot(symbol);
+    const cmcPrice = live.price ?? 0;
+    const cmcMc = live.marketCap ?? 0;
+    if (cmcPrice <= 0 || cmcMc <= 0) return bars;
 
-  return bars.map((b, i, arr) => {
-    const p7 = i >= 7 ? arr[i - 7].price : null;
-    const change7d =
-      p7 && p7 > 0 ? Math.round(((b.price - p7) / p7) * 1000) / 10 : (b.change7d ?? 0);
-    return {
-      ...b,
-      marketCap: cmcMc * (b.price / cmcPrice),
-      change7d,
-    };
-  });
+    return bars.map((b, i, arr) => {
+      const p7 = i >= 7 ? arr[i - 7].price : null;
+      const change7d =
+        p7 && p7 > 0 ? Math.round(((b.price - p7) / p7) * 1000) / 10 : (b.change7d ?? 0);
+      return {
+        ...b,
+        marketCap: cmcMc * (b.price / cmcPrice),
+        change7d,
+      };
+    });
+  } catch {
+    return bars;
+  }
 }
 
 function buildSeries(raw, symbol, fearGreed) {
@@ -203,19 +207,20 @@ export async function runHistoricalBacktest(opts = {}) {
     });
   } catch (e) {
     const msg = e.message || String(e);
+    const rateLimited = e.status === 429 || msg.includes("429");
     const planLimited =
       msg.includes("1006") ||
       msg.includes("subscription plan") ||
       msg.includes("doesn't support this endpoint");
 
-    if (!planLimited) {
+    if (!planLimited && !rateLimited) {
       return { ok: false, mode: "error", error: msg };
     }
 
     try {
       const raw = await fetchBinanceDailySeries(symbol, days);
       const tail = raw.slice(-days);
-      const hydrated = await hydrateBarsWithCmcFundamentals(symbol, tail);
+      const hydrated = rateLimited ? tail : await hydrateBarsWithCmcFundamentals(symbol, tail);
       const series = buildSeries(hydrated, symbol, fg);
       return packBacktestResult(series, {
         symbol,
@@ -223,10 +228,13 @@ export async function runHistoricalBacktest(opts = {}) {
         feeBps,
         slippageBps,
         includeCompare,
-        mode: "binance-venue-replay",
-        dataSource: "binance-spot-daily-klines+cmc-market-cap-scaled",
-        note:
-          "CMC historical unavailable on this API tier. Prices from Binance spot daily closes; market cap scaled from live CMC quote; Fear & Greed from CoinMarketCap.",
+        mode: rateLimited ? "binance-venue-replay-rate-limited" : "binance-venue-replay",
+        dataSource: rateLimited
+          ? "binance-spot-daily-klines (CMC rate-limited — skipped live quote hydrate)"
+          : "binance-spot-daily-klines+cmc-market-cap-scaled",
+        note: rateLimited
+          ? "CMC rate limit hit — backtest uses Binance daily bars only. Retry in ~1 min for CMC-hydrated replay."
+          : "CMC historical unavailable on this API tier. Prices from Binance spot daily closes; market cap scaled from live CMC quote; Fear & Greed from CoinMarketCap.",
         methodology: {
           rsi: "14-period from Binance daily close",
           macd: "derived from daily change",

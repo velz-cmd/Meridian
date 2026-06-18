@@ -7,7 +7,7 @@ import {
   toStructuredOutput,
 } from "../../bnb-hack/engine/nexus-gate.mjs";
 import { composeSkillVerdict } from "../../bnb-hack/engine/meridian-skills.mjs";
-import { fetchGateSnapshot, fetchGlobalMacro } from "../../bnb-hack/live/cmc-fetch.mjs";
+import { fetchGateSnapshot, fetchGateSnapshotsBatch, fetchGlobalMacro } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { fetchKeyInfo } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { runHistoricalBacktest } from "../../bnb-hack/live/run-backtest.mjs";
 import { convictionScore, routeBscCapital } from "../../bnb-hack/live/gate-router.mjs";
@@ -25,14 +25,14 @@ import type { AgentInput } from "@/lib/constitution-permit-handler";
 
 const PUBLIC_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "https://trader-arc.vercel.app";
 
-async function evaluateSymbol(
+async function evaluateFromPack(
   symbol: string,
+  pack: { snapshot: Record<string, unknown>; sources: Record<string, string | number | null>; cmcLive: boolean },
   agent: AgentInput | null,
-  macro: Awaited<ReturnType<typeof fetchGlobalMacro>> | null = null,
+  macro: Awaited<ReturnType<typeof fetchGlobalMacro>> | null,
+  oracle: Awaited<ReturnType<typeof fetchBoracleUsdPrice>> | null,
 ) {
-  const { snapshot, sources, cmcLive } = await fetchGateSnapshot(symbol);
-  const oracle =
-    isBoracleGateSymbol(symbol) ? await fetchBoracleUsdPrice(symbol) : null;
+  const snapshot = pack.snapshot as Parameters<typeof evaluateNexusGate>[0];
   const gateRaw = evaluateNexusGate(snapshot);
   const gate = toStructuredOutput(snapshot, gateRaw);
   const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {});
@@ -45,9 +45,9 @@ async function evaluateSymbol(
 
   return {
     symbol,
-    cmcLive,
+    cmcLive: pack.cmcLive,
     fieldSources: {
-      ...sources,
+      ...pack.sources,
       ...(oracle ? { oracleUsd: "boracle-bsc-testnet/feed-adapter" } : {}),
     },
     oracle: oracle
@@ -73,6 +73,16 @@ async function evaluateSymbol(
     permit: permit ? { ...permit, skill: CONSTITUTION_SKILL } : null,
     conviction: convictionScore(gate, permit ?? stubPermit, skills),
   };
+}
+
+async function evaluateSymbol(
+  symbol: string,
+  agent: AgentInput | null,
+  macro: Awaited<ReturnType<typeof fetchGlobalMacro>> | null = null,
+) {
+  const { snapshot, sources, cmcLive } = await fetchGateSnapshot(symbol);
+  const oracle = isBoracleGateSymbol(symbol) ? await fetchBoracleUsdPrice(symbol) : null;
+  return evaluateFromPack(symbol, { snapshot, sources, cmcLive }, agent, macro, oracle);
 }
 
 function buildArbitration(
@@ -151,7 +161,28 @@ export async function buildGateEvaluateResponse(input: {
 export async function buildGateRouteResponse(input: { agent?: AgentInput | null } = {}) {
   const agent = input.agent ?? null;
   const macro = await fetchGlobalMacro();
-  const results = await Promise.all(GATE_SYMBOLS.map((sym) => evaluateSymbol(sym, agent, macro)));
+  const batch = await fetchGateSnapshotsBatch([...GATE_SYMBOLS]);
+  const oracles = await Promise.all(
+    GATE_SYMBOLS.map(async (sym) => ({
+      sym,
+      oracle: isBoracleGateSymbol(sym) ? await fetchBoracleUsdPrice(sym) : null,
+    })),
+  );
+  const oracleBySym = Object.fromEntries(oracles.map((o) => [o.sym, o.oracle]));
+
+  const results = await Promise.all(
+    GATE_SYMBOLS.map((sym) => {
+      const pack = batch[sym];
+      if (!pack) throw new Error(`No CMC batch quote for ${sym}`);
+      return evaluateFromPack(
+        sym,
+        pack as { snapshot: Record<string, unknown>; sources: Record<string, string | number | null>; cmcLive: boolean },
+        agent,
+        macro,
+        oracleBySym[sym] ?? null,
+      );
+    }),
+  );
   const regime = results[0]?.gate.regime ?? "neutral";
   const fearGreed = results[0]?.market.fearGreed ?? 50;
 

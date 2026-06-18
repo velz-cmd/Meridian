@@ -250,9 +250,12 @@ export function composeSkillVerdict(t, gate, macro = {}) {
   }
 
   const alignmentScore = Math.round(
-    ((momentum.checksPassed / momentum.checksTotal) * 34 +
-      (sentiment.flagged ? 0 : 33) +
-      (regime.regime === "neutral" || regime.regime === "risk-on" ? 33 : regime.regime === "risk-off" ? 12 : 20)),
+    (momentum.checksPassed / momentum.checksTotal) * 22 +
+      (sentiment.flagged ? 0 : 18) +
+      (sentiment.state === "BULLISH_DIVERGE" ? 14 : sentiment.state === "BEARISH_DIVERGE" ? 0 : 10) +
+      (gate.checksPassed / Math.max(gate.checksTotal, 1)) * 24 +
+      Math.min(12, Math.abs(momentum.metrics.change24h ?? 0) * 0.8) +
+      (regime.regime === "risk-off" ? (t.change7d > 3 ? 8 : t.change24h > -2 ? 4 : 0) : 10),
   );
 
   const sym = (t.symbol ?? "TOKEN").toUpperCase();

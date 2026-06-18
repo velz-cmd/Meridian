@@ -1,52 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BarChart3, ExternalLink, FileText, Loader2 } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
-import { GATE_SKILL_REPO, GATE_SYMBOLS, type GateSymbol } from "@/lib/gate-constants";
+import { GATE_SKILL_REPO, type GateSymbol } from "@/lib/gate-constants";
 import { GITHUB_SKILL, strategyPosition } from "@/lib/gate-strategy-copy";
 import { GateStrategyLive } from "@/components/gate/gate-strategy-live";
-import { GateStrategyBoard } from "@/components/gate/gate-strategy-board";
 import { GateCheckRadar } from "@/components/gate/gate-check-radar";
 import { GateSkillStack, type GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import { GateDataProvenance } from "@/components/gate/gate-data-provenance";
 import { GateEquityChart } from "@/components/gate/gate-equity-chart";
-import { GateCapitalRouter } from "@/components/gate/gate-capital-router";
+import { GateBenchmarkDesk } from "@/components/gate/gate-benchmark-desk";
 import { useGateRoute } from "@/hooks/use-gate-route";
-
-type GateCheck = { id: string; pass: boolean; weight: number; label: string };
-
-type EvaluatePayload = {
-  symbol: string;
-  cmcLive?: boolean;
-  fieldSources?: Record<string, string | number | null>;
-  skills?: GateSkillsPayload;
-  oracle?: {
-    priceUsd: number;
-    pair: string;
-    updatedAt: number;
-    ageHours: number;
-    stale: boolean;
-    adapter: string;
-    spaceId: string;
-    cmcPriceUsd?: number;
-    cmcDeltaPct?: number | null;
-  } | null;
-  gate: {
-    signal: string;
-    tier: string;
-    regime?: string;
-    thesis: string;
-    confidence?: number;
-    edge?: number;
-    checksPassed: number;
-    checksTotal: number;
-    checks?: GateCheck[];
-  };
-  market: { price: number; change24h: number; fearGreed?: number };
-};
+import type { GateBenchmarkFull } from "@/lib/gate-route-types";
 
 type BacktestPayload = {
   ok: boolean;
@@ -67,44 +35,23 @@ type BacktestPayload = {
 export function GateConsole() {
   const router = useRouter();
   const [symbol, setSymbol] = useState<GateSymbol>("BNB");
-  const [live, setLive] = useState<EvaluatePayload | null>(null);
   const [backtest, setBacktest] = useState<BacktestPayload | null>(null);
-  const [liveLoading, setLiveLoading] = useState(true);
-  const [liveError, setLiveError] = useState<string | null>(null);
-  const [btLoading, setBtLoading] = useState(true);
-  const [fearGreed, setFearGreed] = useState<number | undefined>();
-  const { route: gateRoute, benchmarks: board, loading: gateRouteLoading } = useGateRoute(45_000);
-  const liveReq = useRef(0);
+  const [btLoading, setBtLoading] = useState(false);
+  const [btRequested, setBtRequested] = useState(false);
   const btReq = useRef(0);
 
-  const loadLive = useCallback(async (sym: GateSymbol) => {
-    const id = ++liveReq.current;
-    setLiveLoading(true);
-    setLiveError(null);
-    try {
-      const res = await fetch(`/api/gate/evaluate?symbol=${sym}`, { cache: "no-store" });
-      const data = (await res.json()) as EvaluatePayload & { error?: string };
-      if (id !== liveReq.current) return;
-      if (res.ok && data.symbol?.toUpperCase() === sym) {
-        setLive(data);
-        if (data.market.fearGreed != null) setFearGreed(data.market.fearGreed);
-      } else {
-        setLive(null);
-        setLiveError(data.error ?? `Strategy evaluation failed (${res.status})`);
-      }
-    } catch {
-      if (id === liveReq.current) {
-        setLive(null);
-        setLiveError("Could not reach strategy API");
-      }
-    } finally {
-      if (id === liveReq.current) setLiveLoading(false);
-    }
-  }, []);
+  const { route: gateRoute, benchmarks, loading: gateRouteLoading, error: routeError, reload } = useGateRoute(120_000);
 
-  const loadBacktest = useCallback(async (sym: GateSymbol) => {
+  const selected: GateBenchmarkFull | undefined = useMemo(
+    () => benchmarks.find((b) => b.symbol === symbol) ?? benchmarks[0],
+    [benchmarks, symbol],
+  );
+
+  const runBacktest = useCallback(async (sym: GateSymbol) => {
     const id = ++btReq.current;
     setBtLoading(true);
+    setBtRequested(true);
+    setBacktest(null);
     try {
       const res = await fetch(`/api/gate/backtest?symbol=${sym}&days=90`, { cache: "no-store" });
       const data = (await res.json()) as BacktestPayload;
@@ -117,17 +64,7 @@ export function GateConsole() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadLive(symbol);
-    void loadBacktest(symbol);
-  }, [symbol, loadLive, loadBacktest]);
-
-  useEffect(() => {
-    if (gateRoute?.fearGreed != null) setFearGreed(gateRoute.fearGreed);
-  }, [gateRoute?.fearGreed]);
-
-  const regime = live?.gate.regime ?? board.find((r) => r.symbol === symbol)?.gate.regime;
-  const displaySignal = live?.skills?.composite?.signal ?? live?.gate.signal ?? "HOLD";
+  const displaySignal = selected?.skills?.composite?.signal ?? selected?.gate.signal ?? "HOLD";
   const underperformed =
     backtest?.ok &&
     backtest.compare &&
@@ -155,8 +92,7 @@ export function GateConsole() {
             </p>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Strategy desk</h1>
             <p className="max-w-xl text-sm text-white/55">
-              Live CMC quotes → 3 skills → constitution checks → capital router → NEXUS execution. Same engine judges
-              replay via CLI.
+              One batched CMC scan → per-coin skills & checks → capital rank → drill into any symbol below.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -171,72 +107,90 @@ export function GateConsole() {
           </div>
         </header>
 
-        <GateCapitalRouter
+        {routeError && (
+          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            <p className="font-medium">{routeError}</p>
+            <button type="button" className="mt-2 text-xs underline" onClick={() => void reload()}>
+              Retry scan
+            </button>
+          </div>
+        )}
+
+        <GateBenchmarkDesk
           route={gateRoute}
+          benchmarks={benchmarks}
           loading={gateRouteLoading}
-          selectedSymbol={symbol}
-          onSelectSymbol={(s) => setSymbol(s as GateSymbol)}
+          selected={symbol}
+          onSelect={setSymbol}
           onDeploy={deployToNexus}
         />
 
-        <GateStrategyBoard
-          rows={board.length ? board : live ? [{ symbol: live.symbol, gate: live.gate, market: live.market, skills: live.skills ? { alignmentScore: live.skills.composite?.alignmentScore, compositeSignal: live.skills.composite?.signal } : undefined }] : []}
-          selected={symbol}
-          onSelect={setSymbol}
-          loading={gateRouteLoading}
-          regime={regime}
-          fearGreed={fearGreed}
-        />
-
-        {live?.skills && live.gate && (
-          <GateSkillStack skills={live.skills} constitutionSignal={live.gate.signal} />
+        {selected?.skills && selected.gate && (
+          <GateSkillStack
+            skills={selected.skills as GateSkillsPayload}
+            constitutionSignal={selected.gate.signal}
+          />
         )}
 
-        {live?.fieldSources && (
-          <GateDataProvenance sources={live.fieldSources} oracle={live.oracle} />
+        {selected?.fieldSources && (
+          <GateDataProvenance sources={selected.fieldSources} oracle={selected.oracle} />
         )}
 
-        {live?.gate.checks && live.gate.checks.length > 0 && (
-          <GateCheckRadar checks={live.gate.checks} confidence={live.gate.confidence} edge={live.gate.edge} />
+        {selected?.gate.checks && selected.gate.checks.length > 0 && (
+          <GateCheckRadar
+            checks={selected.gate.checks}
+            confidence={selected.gate.confidence}
+            edge={selected.gate.edge}
+          />
         )}
 
         <GateStrategyLive
           symbol={symbol}
-          loading={liveLoading}
-          error={liveError}
+          loading={gateRouteLoading && !selected}
+          error={null}
           gate={
-            live?.gate
+            selected?.gate
               ? {
-                  ...live.gate,
+                  ...selected.gate,
                   signal: displaySignal,
-                  thesis: live.skills?.composite?.thesis ?? live.gate.thesis,
+                  thesis: selected.skills?.composite?.thesis ?? selected.gate.thesis ?? "",
                 }
               : null
           }
-          price={live?.market.price}
-          change24h={live?.market.change24h}
-          cmcLive={live?.cmcLive}
+          price={selected?.market.price}
+          change24h={selected?.market.change24h}
+          cmcLive={selected?.cmcLive}
           rsiSource={
-            typeof live?.fieldSources?.rsi === "string" ? live.fieldSources.rsi : undefined
+            typeof selected?.fieldSources?.rsi === "string" ? selected.fieldSources.rsi : undefined
           }
           positionLabel={
-            live?.skills?.composite
-              ? strategyPosition(live.skills.composite.signal)
+            selected?.skills?.composite
+              ? strategyPosition(selected.skills.composite.signal ?? selected.gate.signal)
               : undefined
           }
         />
 
         <section className="arc-glass-card overflow-hidden rounded-2xl border border-white/10">
           <div className="space-y-4 p-5 sm:p-6">
-            <div className="flex items-start gap-3">
-              <ArcIcon3d icon={BarChart3} theme="nexus" size="md" />
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300/85">Historical proof</p>
-                <h2 className="text-lg font-semibold">90-day backtest · {symbol}</h2>
-                <p className="text-sm text-white/55">
-                  Honest replay — same rules, no look-ahead. Underperformance vs naive buy is shown when it happens.
-                </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <ArcIcon3d icon={BarChart3} theme="nexus" size="md" />
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300/85">Historical proof</p>
+                  <h2 className="text-lg font-semibold">90-day backtest · {symbol}</h2>
+                  <p className="text-sm text-white/55">
+                    On-demand replay — avoids hammering CMC on page load. Uses Binance bars if rate-limited.
+                  </p>
+                </div>
               </div>
+              <button
+                type="button"
+                disabled={btLoading}
+                onClick={() => void runBacktest(symbol)}
+                className="rounded-xl border border-cyan-400/35 bg-cyan-500/15 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/25 disabled:opacity-50"
+              >
+                {btLoading ? "Running…" : btRequested ? "Re-run backtest" : "Run backtest"}
+              </button>
             </div>
 
             {btLoading && (
@@ -256,8 +210,7 @@ export function GateConsole() {
                   <p className="rounded-lg border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
                     This window: constitution returned {backtest.backtest!.totalReturnPct}% vs naive{" "}
                     {backtest.compare.naiveAgent.totalReturnPct}% — strategy traded less (max DD{" "}
-                    {backtest.backtest!.maxDrawdownPct}% vs {backtest.compare.naiveAgent.maxDrawdownPct}%). Risk filter,
-                    not alpha guarantee.
+                    {backtest.backtest!.maxDrawdownPct}% vs {backtest.compare.naiveAgent.maxDrawdownPct}%).
                   </p>
                 )}
                 <GateEquityChart points={backtest.equityCurves} symbol={symbol} />
@@ -281,6 +234,10 @@ export function GateConsole() {
                 <p className="font-medium">{backtest.error}</p>
                 {backtest.hint && <p className="mt-1 text-xs text-amber-200/75">{backtest.hint}</p>}
               </div>
+            )}
+
+            {!btRequested && !btLoading && (
+              <p className="text-xs text-white/40">Click Run backtest when ready — saves CMC API credits.</p>
             )}
           </div>
         </section>
