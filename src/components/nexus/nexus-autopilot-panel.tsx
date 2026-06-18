@@ -42,6 +42,7 @@ import {
   Loader2,
   Percent,
   Play,
+  Route,
   Settings2,
   Shield,
   Sparkles,
@@ -54,9 +55,10 @@ import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
 import { usePancakeSwap } from "@/hooks/use-pancake-swap";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
-import { canSwapOnBscTestnet, fetchDeskTokenBalance } from "@/lib/testnet-onchain";
+import { canSwapOnBscTestnet, fetchDeskTokenBalance, BSC_TESTNET_CATALOG } from "@/lib/testnet-onchain";
 import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { pulseAdjustAgentAction, type MarketPulse } from "@/lib/market-pulse";
+import type { PositionRoute } from "@/lib/position-router";
 import { useConstitution } from "@/contexts/nexus-constitution-context";
 import { NexusAgentProvider, type NexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
 import { NexusExecutionPanel } from "@/components/nexus/nexus-execution-panel";
@@ -109,7 +111,7 @@ export function NexusAutopilotPanel({
   const { data: walletBalance } = useBalance({ address, chainId: BSC_CHAIN_ID });
   const walletTbnb = walletBalance ? Number(walletBalance.formatted) : 0;
   const bnbSpotUsd = useBnbSpotUsd();
-  const { swapNativeForToken, swapTokenForNative } = usePancakeSwap();
+  const { swapNativeForToken, swapTokenForNative, swapTokenForToken, isPending: swapPending } = usePancakeSwap();
   const { usdcBalance: agentUsdc, refreshBalance, syncDeposits } = useAgentWallet();
   const { payArcFee, ensureBscNetwork, isPending: arcPending, feeUsd } = useBnbSettlement();
   const [config, setConfig] = useState<AutopilotConfig>(() => loadAutopilot());
@@ -306,7 +308,7 @@ export function NexusAutopilotPanel({
       let agent: { action?: string; confidence?: number; whyAction?: string; reasoning?: string } | null =
         t.agent ?? null;
 
-      if (cfg.mode === "follow_agent") {
+      if (cfg.mode === "follow_agent" || cfg.mode === "follow_direction") {
         if (t.agent?.action) {
           agent = t.agent;
         } else {
@@ -373,6 +375,7 @@ export function NexusAutopilotPanel({
 
       let side: "buy" | "sell" | null = null;
       let userOverride = false;
+      let hedgeToStable = false;
       if (cfg.mode === "buy_only") {
         side = "buy";
         setLastReasoning(
@@ -383,6 +386,8 @@ export function NexusAutopilotPanel({
       } else if (cfg.mode === "sell_only") {
         side = "sell";
         setLastReasoning((prev) => prev ?? "Your schedule · sell only");
+      } else if (cfg.mode === "follow_direction") {
+        /* resolved after portfolio + /api/nexus/position-route */
       } else if (!signal) {
         pushLog("No signal — skipped", "error");
         return;
@@ -397,13 +402,13 @@ export function NexusAutopilotPanel({
         side = "sell";
         userOverride = true;
       }
-      if (!side) {
+      if (!side && cfg.mode !== "follow_direction") {
         const holdMsg = `AI ${signal?.action ?? "HOLD"} — no trade (open Trade rules → Buy anyway / Sell anyway on HOLD)`;
         pushLog(holdMsg, "info");
         toast({ type: "info", title: "No trade this cycle", message: holdMsg });
         return;
       }
-      if (userOverride && signal) {
+      if (userOverride && signal && side) {
         pushLog(`Your choice · AI ${signal.action} · ${side.toUpperCase()} anyway`, "info");
       }
 
@@ -459,6 +464,36 @@ export function NexusAutopilotPanel({
         } catch {
           /* keep ledger fallback */
         }
+      }
+
+      if (cfg.mode === "follow_direction") {
+        const agentQ = agent?.action ? `&agent=${encodeURIComponent(agent.action)}` : "";
+        const routeRes = await fetch(
+          `/api/nexus/position-route?symbol=${encodeURIComponent(t.symbol)}&hasPosition=${positionAmount > 0 ? 1 : 0}${agentQ}`,
+          { cache: "no-store", signal: AbortSignal.timeout(12_000) },
+        );
+        const dr = (await routeRes.json()) as PositionRoute & { error?: string };
+        if (!routeRes.ok || !dr.ok) {
+          pushLog(dr.error ?? "Direction route failed", "error");
+          return;
+        }
+        setLastReasoning(`${dr.direction} · ${dr.execution.path} · ${dr.confidence}%`);
+        pushLog(`Direction ${dr.direction} · ${dr.execution.path}`, "info");
+        if (dr.execution.kind === "long_tbnb") side = "buy";
+        else if (dr.execution.kind === "short_stable") {
+          side = "sell";
+          hedgeToStable = true;
+        } else if (dr.execution.kind === "exit_tbnb") side = "sell";
+        else {
+          pushLog(`Direction FLAT — ${dr.execution.path}`, "info");
+          toast({ type: "info", title: "Flat this cycle", message: dr.execution.path });
+          return;
+        }
+      }
+
+      if (!side) {
+        pushLog("No executable direction this cycle", "info");
+        return;
       }
 
       const { usdcAmount, tokenAmount } = resolveAmounts(
@@ -543,8 +578,28 @@ export function NexusAutopilotPanel({
           symbol: t.symbol,
           txHash: result.hash,
         });
+      } else if (hedgeToStable) {
+        const usdc = BSC_TESTNET_CATALOG.find((c) => c.symbol === "USDC")!;
+        pushLog(`Short hedge · ${tokenAmount?.toFixed(4) ?? "0"} ${t.symbol} → USDC…`, "info");
+        const result = await swapTokenForToken({
+          paySymbol: t.symbol,
+          payAddress: t.tokenAddress,
+          payChainId: t.chainId,
+          receiveSymbol: "USDC",
+          receiveAddress: usdc.tokenAddress,
+          receiveChainId: String(BSC_CHAIN_ID),
+          tokenAmount: String(tokenAmount),
+        });
+        pushLog(`Hedge confirmed · ${result.summary}`, "trade");
+        toast({ type: "success", title: "Autopilot short hedge", message: result.summary });
+        appendMeridianActivity({
+          kind: "trade",
+          level: "success",
+          message: `Autopilot SHORT hedge ${t.symbol} · ${result.summary}`,
+          symbol: t.symbol,
+          txHash: result.hash,
+        });
       } else {
-        pushLog(`Signing sell ${tokenAmount?.toFixed(4) ?? "0"} ${t.symbol}…`, "info");
         const result = await swapTokenForNative({
           symbol: t.symbol,
           tokenAddress: t.tokenAddress,
@@ -1112,17 +1167,20 @@ export function NexusAutopilotPanel({
           {advancedOpen && (
             <div className="space-y-3 rounded-xl border border-violet-400/20 bg-violet-500/5 p-3">
               <p className="text-[11px] leading-relaxed text-white/65">
-                You pick the token in the desk. Autopilot follows AI <strong className="text-emerald-300">BUY</strong> /{" "}
-                <strong className="text-rose-300">SELL</strong>, or your override below when the desk says{" "}
-                <strong className="text-white">HOLD</strong>.
+                You pick the token in the desk. Autopilot follows AI{" "}
+                <strong className="text-emerald-300">BUY</strong> /{" "}
+                <strong className="text-rose-300">SELL</strong>, pulse-adjusted{" "}
+                <strong className="text-cyan-300">LONG / FLAT / SHORT hedge</strong>, or your override when the desk
+                says <strong className="text-white">HOLD</strong>.
               </p>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
                 Trading style
               </p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {(
                   [
                     { id: "follow_agent" as const, label: "Follow AI", icon: Sparkles },
+                    { id: "follow_direction" as const, label: "Follow direction", icon: Route },
                     { id: "buy_only" as const, label: "Always buy", icon: TrendingUp },
                     { id: "sell_only" as const, label: "Always sell", icon: TrendingDown },
                   ] as const
@@ -1142,6 +1200,13 @@ export function NexusAutopilotPanel({
                   </button>
                 ))}
               </div>
+              {config.mode === "follow_direction" && (
+                <p className="rounded-lg border border-cyan-400/20 bg-cyan-500/8 px-2.5 py-2 text-[10px] leading-relaxed text-cyan-100/85">
+                  Routes each cycle from live pulse + gate + Binance funding/OI.{" "}
+                  <strong className="text-white">LONG</strong> = tBNB → asset;{" "}
+                  <strong className="text-white">SHORT</strong> = asset → USDC hedge (spot-native, not perp).
+                </p>
+              )}
               {config.mode === "follow_agent" && (
                 <>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">

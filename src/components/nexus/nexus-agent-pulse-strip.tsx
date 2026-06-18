@@ -107,6 +107,10 @@ export function NexusAgentPulseStrip({
             Cascade stress {pulse.cascadeLevel} — autopilot blocks new longs until tape stabilizes.
           </div>
         )}
+
+        <p className="font-mono text-[9px] leading-relaxed text-white/32">
+          Sources: {pulse.dataSources.join(" · ")} · {pulse.flushProxyLabel}
+        </p>
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import {
   strategyPosition,
   strategySignalLabel,
 } from "@/lib/gate-strategy-copy";
+import { GateDataProvenance } from "@/components/gate/gate-data-provenance";
 import { GateEquityChart } from "@/components/gate/gate-equity-chart";
 import { GateSignalMeter } from "@/components/gate/gate-signal-meter";
 import { GateVerdictBlock } from "@/components/gate/gate-verdict-block";
@@ -278,6 +279,8 @@ export function GateOutputPanel({
           )}
         </div>
 
+        <GateDataProvenance sources={selected.fieldSources} oracle={selected.oracle} />
+
         <GateSignalMeter rows={signalRows} verdict={verdictLabel} verdictConfidence={verdictConfidence} />
 
         <GateVerdictBlock
@@ -386,6 +389,15 @@ export function GateOutputPanel({
               )}
               {!backtestLoading && backtest?.ok && backtest.equityCurves && (
                 <>
+                  {backtest.dataSource && (
+                    <p className="rounded-lg border border-cyan-400/20 bg-cyan-500/8 px-2.5 py-2 font-mono text-[10px] text-cyan-100/90">
+                      Replay source: {backtest.dataSource}
+                      {backtest.bars ? ` · ${backtest.bars} bars` : ""}
+                      {backtest.dataSource.includes("binance")
+                        ? " — CMC historical unavailable on Basic tier; same rule engine on venue prices."
+                        : " — CMC historical daily bars."}
+                    </p>
+                  )}
                   {backtest.note && <p className="text-xs text-[var(--gate-muted)]">{backtest.note}</p>}
                   {underperformed && backtest.compare && backtest.backtest && (
                     <p className="text-xs text-[var(--gate-muted)]">

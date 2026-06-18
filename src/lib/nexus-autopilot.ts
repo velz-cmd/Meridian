@@ -51,7 +51,7 @@ export type AutopilotConfig = {
   customTokenSymbol: string;
   customTokenChain: string;
   customAmountUnit: "tokens" | "usdc";
-  mode: "follow_agent" | "buy_only" | "sell_only";
+  mode: "follow_agent" | "follow_direction" | "buy_only" | "sell_only";
   /** If AI says HOLD — skip, or user override to buy/sell anyway */
   holdAction: AutopilotHoldAction;
   tokenKey?: string;

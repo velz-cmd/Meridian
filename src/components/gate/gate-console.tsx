@@ -6,6 +6,8 @@ import { ArcBackground } from "@/components/layout/arc-background";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
 import { GateConfigPanel } from "@/components/gate/gate-config-panel";
 import { GateDeskHero } from "@/components/gate/gate-desk-hero";
+import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
+import { usePositionRoute } from "@/hooks/use-position-route";
 import { GateOutputPanel } from "@/components/gate/gate-output-panel";
 import { NexusAgentPulseStrip } from "@/components/nexus/nexus-agent-pulse-strip";
 import { useMarketPulse } from "@/hooks/use-market-pulse";
@@ -74,6 +76,7 @@ export function GateConsole() {
   const skills = selected?.skills as GateSkillsPayload | undefined;
   const cmcLive = benchmarks.some((b) => b.cmcLive);
   const { pulse: marketPulse, loading: pulseLoading } = useMarketPulse(symbol, 90_000);
+  const { route: positionRoute, loading: directionLoading } = usePositionRoute(symbol, { intervalMs: 90_000 });
   const leadSymbol =
     gateRoute?.allocation.primary && gateRoute.allocation.primary !== "FLAT"
       ? gateRoute.allocation.primary
@@ -143,6 +146,10 @@ export function GateConsole() {
         />
 
         <NexusAgentPulseStrip pulse={marketPulse} loading={pulseLoading} symbol={symbol} compact />
+
+        <div className="mb-4">
+          <NexusDirectionDesk route={positionRoute} loading={directionLoading} />
+        </div>
 
         {routeError && (
           <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">

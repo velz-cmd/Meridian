@@ -62,7 +62,8 @@ import { dedupeFeedTokens } from "@/lib/feed-curation";
 import { isGateSymbol } from "@/lib/gate-constants";
 import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { mergeFeedTokensStable } from "@/lib/token-security";
-import { markPricesFromFeed } from "@/hooks/use-testnet-holdings";
+import { markPricesFromFeed, useTestnetHoldings } from "@/hooks/use-testnet-holdings";
+import { NexusDirectionPanel } from "@/components/nexus/nexus-direction-panel";
 import type { NexusDecision } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import {
@@ -523,6 +524,14 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
   );
 
   const livePrices = useMemo(() => markPricesFromFeed(feedTokens), [feedTokens]);
+  const { holdings: walletHoldings } = useTestnetHoldings(livePrices, portfolioKey);
+  const hasRiskPosition = useMemo(() => {
+    if (!selectedToken) return false;
+    const sym = normalizeSym(selectedToken.symbol);
+    if (sym === "USDC" || sym === "BUSD" || sym === "TBNB" || sym === "BNB") return false;
+    const hit = walletHoldings.find((h) => normalizeSym(h.symbol) === sym);
+    return (hit?.tokenAmount ?? 0) > 0;
+  }, [walletHoldings, selectedToken]);
 
   const handleBirdeyeIntel = useCallback((summary: {
     holderCount?: number;
@@ -780,6 +789,14 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           symbol={pulseSymbol}
           compact
         />
+
+        {isGateSymbol(benchSym) && (
+          <NexusDirectionPanel
+            token={selectedToken}
+            hasRiskPosition={hasRiskPosition}
+            agentAction={permitAgent?.action}
+          />
+        )}
 
         <NexusConstitutionDesk
           symbol={selectedToken.symbol}
