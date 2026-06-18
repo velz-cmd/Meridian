@@ -89,8 +89,11 @@ export function GateAgentReasoning({
 
       {skills && (
         <p className="mt-3 text-[10px] leading-relaxed text-white/40">
-          Skill stack: momentum {skills.momentum.signal.replace(/_/g, " ")} · sentiment{" "}
-          {skills.sentiment.state.replace(/_/g, " ")} · regime {skills.regime.regime.replace(/-/g, " ")} · alignment{" "}
+          Skill stack (6): momentum {skills.momentum.signal.replace(/_/g, " ")} · sentiment{" "}
+          {skills.sentiment.state.replace(/_/g, " ")} · regime {skills.regime.regime.replace(/-/g, " ")}
+          {skills.trend ? ` · trend ${skills.trend.signal.replace(/_/g, " ")}` : ""}
+          {skills.liquidity ? ` · liquidity ${skills.liquidity.signal.replace(/_/g, " ")}` : ""}
+          {skills.structural ? ` · structure ${skills.structural.grade}` : ""} · alignment{" "}
           {skills.composite.alignmentScore}/100.
         </p>
       )}

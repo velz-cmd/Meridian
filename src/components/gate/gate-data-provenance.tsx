@@ -17,6 +17,7 @@ type OraclePayload = {
 const LABELS: Record<string, string> = {
   "coinmarketcap/quotes/latest": "CMC live quote",
   "coinmarketcap/fear-and-greed/latest": "CMC Fear & Greed",
+  "coinmarketcap/global-metrics/quotes/latest": "CMC global metrics",
   "computed-14d-from-cmc-historical-daily": "RSI from CMC daily bars",
   "derived-from-cmc-historical-daily": "MACD from CMC daily",
   "binance-spot-daily-14rsi": "RSI from Binance daily (venue)",
@@ -42,6 +43,8 @@ export function GateDataProvenance({
     { k: "Fear & Greed", v: sources?.fearGreed },
     { k: "RSI (14)", v: sources?.rsi },
     { k: "MACD", v: sources?.macd },
+    { k: "30d / vol trend", v: sources?.change30d ?? sources?.volumeChange24h },
+    { k: "CMC rank / FDV", v: sources?.cmcRank ?? sources?.fdv },
     ...(oracle
       ? [
           {

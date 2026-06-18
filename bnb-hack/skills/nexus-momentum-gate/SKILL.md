@@ -24,8 +24,9 @@ allowed-tools:
 ## What this Skill produces
 
 1. **Strategy rules** — entry, exit, position sizing (see `STRATEGY_SPEC.md`)
-2. **Structured signal** — LONG / FLAT / EXIT for today’s bar (`OUTPUT_SCHEMA.json`)
-3. **Backtest reference** — same rules in `bnb-hack/engine/nexus-gate.mjs`
+2. **Six CMC skills** — momentum, sentiment, regime, trend alignment, liquidity depth, structural quality
+3. **Structured signal** — LONG / FLAT / EXIT for today’s bar (`OUTPUT_SCHEMA.json`)
+4. **Backtest reference** — same rules in `bnb-hack/engine/nexus-gate.mjs`
 
 Default state: **FLAT**. Enter only when A/A+ tier conditions align.
 

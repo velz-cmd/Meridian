@@ -27,10 +27,10 @@ export function GateCmcSkillStrip({
               CMC strategy skill · judge path
             </p>
             <h3 className="mt-1 text-base font-semibold text-white">
-              {sym} — live CoinMarketCap → deterministic rules → backtest
+              {sym} — live CoinMarketCap → 6 deterministic skills → backtest
             </h3>
             <p className="mt-1 text-xs text-white/55">
-              Same logic in SKILL.md, CLI, this desk, and NEXUS feed. No LLM-generated signals.
+              Momentum · Sentiment · Regime · Trend · Liquidity · Structure — same engine in SKILL.md, CLI, desk, and NEXUS.
             </p>
           </div>
           <span

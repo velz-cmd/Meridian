@@ -4,6 +4,9 @@
  *  1. Momentum — RSI + MACD + Fear & Greed entry/exit
  *  2. Sentiment divergence — price attention vs volume flow (CMC proxies)
  *  3. Regime — macro positioning + strategy mode switch
+ *  4. Trend alignment — multi-timeframe CMC quote deltas (1h/24h/7d/30d)
+ *  5. Liquidity depth — turnover, volume USD, volume trend
+ *  6. Structural quality — cap tier, CMC rank, FDV dilution
  */
 
 /** @typedef {import("./nexus-gate.mjs").CmcTokenSnapshot} CmcTokenSnapshot */
@@ -216,7 +219,186 @@ export function evaluateRegimeSkill(t, macro = {}) {
 }
 
 /**
- * Compose three skills + base gate into one auditable verdict.
+ * Skill 4 — Multi-timeframe trend alignment (CMC quote deltas: 1h/24h/7d/30d).
+ * @param {CmcTokenSnapshot} t
+ */
+export function evaluateTrendAlignmentSkill(t) {
+  const ch1 = t.change1h ?? 0;
+  const ch24 = t.change24h ?? 0;
+  const ch7 = t.change7d ?? 0;
+  const ch30 = t.change30d ?? null;
+
+  const distribution = ch7 > 8 && ch24 < -4 && ch1 < -3;
+  const alignedUp = ch24 > 0 && ch7 > 0 && ch1 >= -6;
+  const alignedRecover = ch24 > -6 && ch7 > 3 && ch1 >= 0;
+
+  const checks = [
+    {
+      id: "tf_24_7",
+      label: "24h/7d not fighting",
+      pass: ch24 * ch7 >= 0 || Math.abs(ch7) < 2.5,
+    },
+    {
+      id: "tf_1h_hold",
+      label: "1h not crashing vs positive 24h",
+      pass: ch24 <= 0 || ch1 >= -8,
+    },
+    {
+      id: "tf_30d",
+      label: ch30 != null ? `30d ${ch30.toFixed(1)}% supports tape` : "30d n/a (CMC quote)",
+      pass: ch30 == null || ch30 * ch24 >= -1 || ch24 > 0,
+    },
+    {
+      id: "distribution",
+      label: "No 7d-up / 24h-down distribution",
+      pass: !distribution,
+    },
+  ];
+
+  const passed = checks.filter((c) => c.pass).length;
+  let signal = "HOLD";
+  if (distribution) signal = "EXIT";
+  else if (alignedUp || alignedRecover) signal = passed >= 3 ? "ENTER_LONG" : "HOLD";
+  else if (ch24 < -12 && ch7 < -8) signal = "AVOID";
+
+  return {
+    id: "trend-alignment",
+    name: "Trend alignment",
+    signal,
+    checks,
+    checksPassed: passed,
+    checksTotal: checks.length,
+    metrics: { change1h: ch1, change24h: ch24, change7d: ch7, change30d: ch30 },
+    thesis: distribution
+      ? "Higher timeframes up but intraday rolling over — distribution risk."
+      : alignedUp
+        ? "1h/24h/7d aligned bullish on CMC quotes."
+        : alignedRecover
+          ? "7d strength with 24h stabilizing — recovery alignment."
+          : "Mixed timeframe signals — wait for alignment.",
+    dataSource: "coinmarketcap/quotes/latest",
+  };
+}
+
+/**
+ * Skill 5 — Liquidity depth: volume, turnover, volume trend (CMC quotes).
+ * @param {CmcTokenSnapshot} t
+ */
+export function evaluateLiquidityDepthSkill(t) {
+  const mc = t.marketCap ?? 0;
+  const vol = t.volume24h ?? 0;
+  const volCh = t.volumeChange24h ?? null;
+  const turnover = mc > 0 ? vol / mc : 0;
+  const largeCap = mc >= 1_000_000_000;
+
+  const checks = [
+    {
+      id: "turnover_min",
+      label: `Turnover ${turnover.toFixed(3)} ≥ 0.02`,
+      pass: turnover >= 0.02 || largeCap,
+    },
+    {
+      id: "turnover_max",
+      label: "Turnover ≤ 0.45 (wash guard)",
+      pass: turnover <= 0.45,
+    },
+    {
+      id: "vol_usd",
+      label: `24h vol $${(vol / 1_000_000).toFixed(2)}M`,
+      pass: vol >= 500_000 || mc >= 500_000_000,
+    },
+    {
+      id: "vol_trend",
+      label: volCh != null ? `Volume Δ24h ${volCh.toFixed(0)}%` : "Volume trend n/a",
+      pass: volCh == null || volCh > -40,
+    },
+  ];
+
+  const passed = checks.filter((c) => c.pass).length;
+  let signal = "HOLD";
+  if (!checks[0].pass && !largeCap) signal = "AVOID";
+  else if (!checks[1].pass) signal = "AVOID";
+  else if (volCh != null && volCh <= -40) signal = "EXIT";
+  else if (passed >= 3) signal = "ENTER_LONG";
+
+  return {
+    id: "liquidity-depth",
+    name: "Liquidity depth",
+    signal,
+    checks,
+    checksPassed: passed,
+    checksTotal: checks.length,
+    turnover: Math.round(turnover * 1000) / 1000,
+    volume24h: vol,
+    volumeChange24h: volCh,
+    thesis:
+      signal === "AVOID"
+        ? "Thin or abnormal turnover — size down or skip on Chapel."
+        : signal === "EXIT"
+          ? "Volume collapsing vs prior day — liquidity stress."
+          : passed >= 3
+            ? "Volume and turnover support tactical sizing."
+            : "Liquidity acceptable but not ideal.",
+    dataSource: "coinmarketcap/quotes/latest",
+  };
+}
+
+/**
+ * Skill 6 — Structural quality: cap tier, CMC rank, FDV dilution (CMC quotes).
+ * @param {CmcTokenSnapshot} t
+ */
+export function evaluateStructuralQualitySkill(t) {
+  const mc = t.marketCap ?? 0;
+  const rank = t.cmcRank ?? null;
+  const fdv = t.fdv ?? null;
+  const dilution = fdv != null && mc > 0 ? fdv / mc : null;
+  const established = mc >= 80_000_000;
+
+  const checks = [
+    {
+      id: "cap_tier",
+      label: established ? "Large-cap benchmark (≥$80M)" : `Cap $${(mc / 1_000_000).toFixed(0)}M`,
+      pass: established || mc >= 20_000_000,
+    },
+    {
+      id: "rank",
+      label: rank != null ? `CMC rank #${rank}` : "Rank n/a",
+      pass: rank == null || rank <= 500,
+    },
+    {
+      id: "dilution",
+      label: dilution != null ? `FDV/mcap ${dilution.toFixed(2)}×` : "FDV n/a",
+      pass: dilution == null || dilution <= 1.35,
+    },
+  ];
+
+  const passed = checks.filter((c) => c.pass).length;
+  let signal = "HOLD";
+  if (!checks[0].pass) signal = "AVOID";
+  else if (dilution != null && dilution > 1.35) signal = "AVOID";
+  else if (established && passed >= 2) signal = "ENTER_LONG";
+  else if (passed >= 2) signal = "HOLD";
+
+  return {
+    id: "structural-quality",
+    name: "Structural quality",
+    signal,
+    grade: established ? "benchmark" : passed >= 2 ? "acceptable" : "weak",
+    checks,
+    checksPassed: passed,
+    checksTotal: checks.length,
+    metrics: { marketCap: mc, cmcRank: rank, fdvRatio: dilution },
+    thesis: established
+      ? "Established CMC benchmark — structural risk controlled."
+      : passed >= 2
+        ? "Acceptable structure for gate evaluation."
+        : "Weak cap/rank/dilution profile — eval only or size small.",
+    dataSource: "coinmarketcap/quotes/latest",
+  };
+}
+
+/**
+ * Compose skills + base gate into one auditable verdict.
  * @param {CmcTokenSnapshot} t
  * @param {ReturnType<typeof import("./nexus-gate.mjs").evaluateNexusGate>} gate
  * @param {object} [macro]
@@ -225,6 +407,9 @@ export function composeSkillVerdict(t, gate, macro = {}) {
   const momentum = evaluateMomentumSkill(t);
   const sentiment = evaluateSentimentDivergenceSkill(t);
   const regime = evaluateRegimeSkill(t, macro);
+  const trend = evaluateTrendAlignmentSkill(t);
+  const liquidity = evaluateLiquidityDepthSkill(t);
+  const structural = evaluateStructuralQualitySkill(t);
 
   const blockers = [];
   if (momentum.signal === "EXIT") blockers.push("momentum-exit");
@@ -237,6 +422,11 @@ export function composeSkillVerdict(t, gate, macro = {}) {
   if (regime.strategyMode === "defensive" && gate.signal === "ENTER_LONG") {
     blockers.push("regime-defensive");
   }
+  if (trend.signal === "EXIT") blockers.push("trend-distribution");
+  if (trend.signal === "AVOID") blockers.push("trend-break");
+  if (liquidity.signal === "AVOID") blockers.push("liquidity-thin");
+  if (liquidity.signal === "EXIT") blockers.push("volume-collapse");
+  if (structural.signal === "AVOID") blockers.push("structural-weak");
 
   const skillsAligned =
     momentum.signal === "ENTER_LONG" ||
@@ -249,13 +439,19 @@ export function composeSkillVerdict(t, gate, macro = {}) {
     compositeSignal = gate.signal === "ENTER_LONG" ? "ENTER_LONG" : gate.signal;
   }
 
+  const skillLayerScore =
+    (trend.checksPassed / trend.checksTotal) * 10 +
+    (liquidity.checksPassed / liquidity.checksTotal) * 10 +
+    (structural.checksPassed / structural.checksTotal) * 8;
+
   const alignmentScore = Math.round(
-    (momentum.checksPassed / momentum.checksTotal) * 22 +
-      (sentiment.flagged ? 0 : 18) +
-      (sentiment.state === "BULLISH_DIVERGE" ? 14 : sentiment.state === "BEARISH_DIVERGE" ? 0 : 10) +
-      (gate.checksPassed / Math.max(gate.checksTotal, 1)) * 24 +
-      Math.min(12, Math.abs(momentum.metrics.change24h ?? 0) * 0.8) +
-      (regime.regime === "risk-off" ? (t.change7d > 3 ? 8 : t.change24h > -2 ? 4 : 0) : 10),
+    (momentum.checksPassed / momentum.checksTotal) * 20 +
+      (sentiment.flagged ? 0 : 14) +
+      (sentiment.state === "BULLISH_DIVERGE" ? 12 : sentiment.state === "BEARISH_DIVERGE" ? 0 : 8) +
+      (gate.checksPassed / Math.max(gate.checksTotal, 1)) * 22 +
+      skillLayerScore +
+      Math.min(10, Math.abs(momentum.metrics.change24h ?? 0) * 0.6) +
+      (regime.regime === "risk-off" ? (t.change7d > 3 ? 6 : t.change24h > -2 ? 3 : 0) : 8),
   );
 
   const sym = (t.symbol ?? "TOKEN").toUpperCase();
@@ -266,6 +462,9 @@ export function composeSkillVerdict(t, gate, macro = {}) {
     momentum,
     sentiment,
     regime,
+    trend,
+    liquidity,
+    structural,
     composite: {
       signal: compositeSignal,
       alignmentScore,
@@ -275,8 +474,10 @@ export function composeSkillVerdict(t, gate, macro = {}) {
         blockers.length > 0
           ? `${sym}: blocked (${blockers.join(", ")}) — ${gate.gaps?.[0] ?? "constitution holds flat"}.`
           : compositeSignal === "ENTER_LONG"
-            ? `${sym}: ${rsi.toFixed(1)} RSI · ${sentiment.state.replace(/_/g, " ").toLowerCase()} · ${gate.checksPassed}/${gate.checksTotal} checks · edge +${gate.edge ?? 0} · ${alignLabel} (${alignmentScore}/100).`
-            : gate.thesis?.startsWith(sym) ? gate.thesis : `${sym}: ${gate.thesis}`,
+            ? `${sym}: ${rsi.toFixed(1)} RSI · ${trend.metrics.change24h?.toFixed?.(1) ?? "—"}% 24h · ${liquidity.turnover} turnover · ${structural.grade} · ${gate.checksPassed}/${gate.checksTotal} checks · ${alignLabel} (${alignmentScore}/100).`
+            : gate.thesis?.startsWith(sym)
+              ? gate.thesis
+              : `${sym}: ${gate.thesis}`,
     },
   };
 }

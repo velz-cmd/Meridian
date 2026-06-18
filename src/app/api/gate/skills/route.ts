@@ -49,6 +49,14 @@ export async function GET(req: NextRequest) {
         engine: {
           gate: "bnb-hack/engine/nexus-gate.mjs",
           skills: "bnb-hack/engine/meridian-skills.mjs",
+          skillLayers: [
+            "momentum",
+            "sentiment-divergence",
+            "regime-detection",
+            "trend-alignment",
+            "liquidity-depth",
+            "structural-quality",
+          ],
           skillDoc: `${GATE_SKILL_REPO}/SKILL.md`,
           backtest: "/api/gate/backtest?symbol=" + sym + "&days=90",
           reproduce: `npm run bnb:backtest -- --symbol ${sym} --days 90`,

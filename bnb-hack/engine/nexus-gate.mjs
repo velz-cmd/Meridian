@@ -17,6 +17,10 @@
  * @property {number} [change1h]
  * @property {number} [change24h]
  * @property {number} [change7d]
+ * @property {number} [change30d]
+ * @property {number} [volumeChange24h]
+ * @property {number} [cmcRank]
+ * @property {number} [fdv]
  * @property {number} [rsi]
  * @property {string} [macdSignal] bullish | bearish | neutral
  * @property {number} [fearGreed] 0-100

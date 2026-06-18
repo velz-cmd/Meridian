@@ -3,20 +3,20 @@
 import { cn } from "@/lib/utils";
 import { strategyPosition } from "@/lib/gate-strategy-copy";
 
-type SkillMomentum = {
+type SkillSignal = {
   id: string;
   name: string;
   signal: string;
+};
+
+type SkillMomentum = SkillSignal & {
   checksPassed: number;
   checksTotal: number;
   metrics?: { rsi?: number; macd?: string; fearGreed?: number };
 };
 
-type SkillSentiment = {
-  id: string;
-  name: string;
+type SkillSentiment = SkillSignal & {
   state: string;
-  signal: string;
   flagged: boolean;
   socialHeat: number;
   flowScore: number;
@@ -24,14 +24,34 @@ type SkillSentiment = {
   thesis: string;
 };
 
-type SkillRegime = {
-  id: string;
-  name: string;
+type SkillRegime = SkillSignal & {
   regime: string;
   positioning: string;
   strategyMode: string;
-  signal: string;
   switchRule: string;
+};
+
+type SkillTrend = SkillSignal & {
+  checksPassed: number;
+  checksTotal: number;
+  metrics?: { change1h?: number; change24h?: number; change7d?: number; change30d?: number | null };
+  thesis: string;
+};
+
+type SkillLiquidity = SkillSignal & {
+  checksPassed: number;
+  checksTotal: number;
+  turnover: number;
+  volumeChange24h?: number | null;
+  thesis: string;
+};
+
+type SkillStructural = SkillSignal & {
+  grade: string;
+  checksPassed: number;
+  checksTotal: number;
+  metrics?: { marketCap?: number; cmcRank?: number | null; fdvRatio?: number | null };
+  thesis: string;
 };
 
 type SkillComposite = {
@@ -46,6 +66,9 @@ export type GateSkillsPayload = {
   momentum: SkillMomentum;
   sentiment: SkillSentiment;
   regime: SkillRegime;
+  trend?: SkillTrend;
+  liquidity?: SkillLiquidity;
+  structural?: SkillStructural;
   composite: SkillComposite;
 };
 
@@ -60,15 +83,71 @@ export function GateSkillStack({ skills, constitutionSignal }: { skills: GateSki
   const rawPos = strategyPosition(constitutionSignal);
   const blocked = skills.composite.blockers.length > 0 && rawPos === "LONG" && compositePos === "FLAT";
 
+  const layers = [
+    {
+      title: "Momentum",
+      subtitle: `${skills.momentum.checksPassed}/${skills.momentum.checksTotal} checks`,
+      signal: skills.momentum.signal,
+      detail: skills.momentum.metrics
+        ? `RSI ${skills.momentum.metrics.rsi?.toFixed(1)} · MACD ${skills.momentum.metrics.macd} · F&G ${skills.momentum.metrics.fearGreed}`
+        : undefined,
+    },
+    {
+      title: "Sentiment divergence",
+      subtitle: skills.sentiment.state.replace(/_/g, " ").toLowerCase(),
+      signal: skills.sentiment.signal,
+      detail: `heat ${skills.sentiment.socialHeat} · flow ${skills.sentiment.flowScore} · turnover ${skills.sentiment.turnover}`,
+      flagged: skills.sentiment.flagged,
+    },
+    {
+      title: "Regime",
+      subtitle: `${skills.regime.regime} · ${skills.regime.positioning.replace(/-/g, " ")}`,
+      signal: skills.regime.signal,
+      detail: skills.regime.switchRule,
+    },
+    ...(skills.trend
+      ? [
+          {
+            title: "Trend alignment",
+            subtitle: `${skills.trend.checksPassed}/${skills.trend.checksTotal} TF checks`,
+            signal: skills.trend.signal,
+            detail: skills.trend.metrics
+              ? `1h ${skills.trend.metrics.change1h?.toFixed(1)}% · 24h ${skills.trend.metrics.change24h?.toFixed(1)}% · 7d ${skills.trend.metrics.change7d?.toFixed(1)}%`
+              : skills.trend.thesis,
+          },
+        ]
+      : []),
+    ...(skills.liquidity
+      ? [
+          {
+            title: "Liquidity depth",
+            subtitle: `turnover ${skills.liquidity.turnover}`,
+            signal: skills.liquidity.signal,
+            detail: skills.liquidity.thesis,
+          },
+        ]
+      : []),
+    ...(skills.structural
+      ? [
+          {
+            title: "Structural quality",
+            subtitle: skills.structural.grade,
+            signal: skills.structural.signal,
+            detail: skills.structural.thesis,
+          },
+        ]
+      : []),
+  ];
+
   return (
     <section className="rounded-2xl border border-cyan-400/15 bg-cyan-950/15">
       <div className="space-y-4 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/45">
-              Signal layers · live
+              CMC skill stack · {layers.length} layers · live
             </p>
-            <h2 className="mt-1 text-lg font-semibold text-white">Momentum · Sentiment · Regime</h2>
+            <h2 className="mt-1 text-lg font-semibold text-white">Six deterministic skills → constitution</h2>
             {blocked && (
               <p className="mt-1 text-xs text-amber-200/90">
                 Constitution says LONG but composite blocked: {skills.composite.blockers.join(", ")}
@@ -84,30 +163,17 @@ export function GateSkillStack({ skills, constitutionSignal }: { skills: GateSki
           </div>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-3">
-          <SkillCard
-            title="Momentum"
-            subtitle={`${skills.momentum.checksPassed}/${skills.momentum.checksTotal} checks`}
-            signal={skills.momentum.signal}
-            detail={
-              skills.momentum.metrics
-                ? `RSI ${skills.momentum.metrics.rsi?.toFixed(1)} · MACD ${skills.momentum.metrics.macd} · F&G ${skills.momentum.metrics.fearGreed}`
-                : undefined
-            }
-          />
-          <SkillCard
-            title="Sentiment divergence"
-            subtitle={skills.sentiment.state.replace(/_/g, " ").toLowerCase()}
-            signal={skills.sentiment.signal}
-            detail={`heat ${skills.sentiment.socialHeat} · flow ${skills.sentiment.flowScore} · turnover ${skills.sentiment.turnover}`}
-            flagged={skills.sentiment.flagged}
-          />
-          <SkillCard
-            title="Regime"
-            subtitle={`${skills.regime.regime} · ${skills.regime.positioning.replace(/-/g, " ")}`}
-            signal={skills.regime.signal}
-            detail={skills.regime.switchRule}
-          />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {layers.map((layer) => (
+            <SkillCard
+              key={layer.title}
+              title={layer.title}
+              subtitle={layer.subtitle}
+              signal={layer.signal}
+              detail={layer.detail}
+              flagged={"flagged" in layer ? layer.flagged : undefined}
+            />
+          ))}
         </div>
 
         <p className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/70">

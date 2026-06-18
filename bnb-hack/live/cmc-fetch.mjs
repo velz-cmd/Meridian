@@ -153,6 +153,10 @@ export async function fetchGateSnapshot(symbol) {
     change1h: "coinmarketcap/quotes/latest",
     change24h: "coinmarketcap/quotes/latest",
     change7d: "coinmarketcap/quotes/latest",
+    change30d: "coinmarketcap/quotes/latest",
+    volumeChange24h: "coinmarketcap/quotes/latest",
+    cmcRank: "coinmarketcap/quotes/latest",
+    fdv: "coinmarketcap/quotes/latest",
     fearGreed: "coinmarketcap/fear-and-greed/latest",
     rsi: "coinmarketcap/quotes-momentum-proxy",
     macd: "coinmarketcap/quotes-momentum-proxy",
@@ -219,6 +223,7 @@ function quoteRowToSnapshot(sym, row, fearGreed) {
   const ch1 = usd.percent_change_1h ?? 0;
   const ch24 = usd.percent_change_24h ?? 0;
   const ch7 = usd.percent_change_7d ?? 0;
+  const ch30 = usd.percent_change_30d ?? null;
   return {
     symbol: sym,
     price: usd.price ?? 0,
@@ -227,6 +232,10 @@ function quoteRowToSnapshot(sym, row, fearGreed) {
     change1h: ch1,
     change24h: ch24,
     change7d: ch7,
+    change30d: ch30 != null ? Number(ch30) : null,
+    volumeChange24h: usd.volume_change_24h != null ? Number(usd.volume_change_24h) : null,
+    cmcRank: row.cmc_rank ?? null,
+    fdv: usd.fully_diluted_market_cap ?? null,
     rsi: rsiProxy(ch24, ch7),
     macdSignal: macdProxy(ch1, ch24),
     fearGreed,
@@ -267,6 +276,10 @@ export async function fetchGateSnapshotsBatch(symbols) {
         change1h: "coinmarketcap/quotes/latest",
         change24h: "coinmarketcap/quotes/latest",
         change7d: "coinmarketcap/quotes/latest",
+        change30d: "coinmarketcap/quotes/latest",
+        volumeChange24h: "coinmarketcap/quotes/latest",
+        cmcRank: "coinmarketcap/quotes/latest",
+        fdv: "coinmarketcap/quotes/latest",
         fearGreed: "coinmarketcap/fear-and-greed/latest",
         rsi: "binance-spot-daily-14rsi",
         macd: "binance-spot-daily-derived",
