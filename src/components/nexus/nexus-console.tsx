@@ -64,6 +64,42 @@ import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { mergeFeedTokensStable } from "@/lib/token-security";
 import type { NexusDecision } from "@/lib/storage";
 import { cn } from "@/lib/utils";
+import { hydrateTokenFromMarket } from "@/lib/hackathon-demo";
+
+function normalizeSym(symbol: string): string {
+  return symbol.replace(/^\$/, "").trim().toUpperCase();
+}
+
+function findFeedTokenBySymbol(tokens: TrendingMarketToken[], symbol: string): TrendingMarketToken | undefined {
+  const sym = normalizeSym(symbol);
+  return tokens.find((t) => normalizeSym(t.symbol) === sym);
+}
+
+/** Mainnet feed row for a symbol — survives testnet desk → feed refresh. */
+function resolveFeedSelection(
+  prev: TrendingMarketToken | null,
+  tradable: TrendingMarketToken[],
+  pendingHandoffSym: string | null,
+): TrendingMarketToken | null {
+  if (pendingHandoffSym) {
+    const handoffHit = findFeedTokenBySymbol(tradable, pendingHandoffSym);
+    if (handoffHit) return handoffHit;
+  }
+  if (!prev) return tradable[0] ?? null;
+  if (isGateSymbol(prev.symbol)) {
+    const symHit = findFeedTokenBySymbol(tradable, prev.symbol);
+    if (symHit) return { ...symHit, intel: { ...(prev.intel ?? {}), ...(symHit.intel ?? {}) } };
+  }
+  const addrHit = tradable.find(
+    (t) =>
+      t.tokenAddress.toLowerCase() === prev.tokenAddress.toLowerCase() &&
+      t.chainId === prev.chainId,
+  );
+  if (addrHit) return { ...addrHit, intel: { ...(prev.intel ?? {}), ...(addrHit.intel ?? {}) } };
+  const symFallback = findFeedTokenBySymbol(tradable, prev.symbol);
+  if (symFallback) return { ...symFallback, intel: { ...(prev.intel ?? {}), ...(symFallback.intel ?? {}) } };
+  return prev;
+}
 
 function tokenToDecision(token: TrendingMarketToken): NexusDecision | null {
   if (!token.agent) return null;
@@ -118,8 +154,9 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
   } | null>(null);
   const [feedTokens, setFeedTokens] = useState<TrendingMarketToken[]>([]);
   const [communityPulse, setCommunityPulse] = useState<CommunityPulse | null>(null);
-  const [gateHandoff, setGateHandoff] = useState<GateHandoff | null>(null);
-  const gateHandoffApplied = useRef(false);
+  const [gateHandoff, setGateHandoff] = useState<GateHandoff | null>(initialGateHandoff ?? null);
+  const pendingHandoffSym = useRef<string | null>(initialGateHandoff?.symbol ?? null);
+  const handoffToastShown = useRef(false);
   const isMobile = useIsMobile();
   const { route: gateRoute, loading: gateRouteLoading } = useGateRoute(45_000);
 
@@ -149,10 +186,10 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
   }, [selectedToken, tradeDeskToken, testnetDeskTokens, bnbSpotUsd]);
 
   useEffect(() => {
-    if (selectedToken || testnetDeskTokens.length === 0) return;
+    if (selectedToken || testnetDeskTokens.length === 0 || initialGateHandoff?.symbol) return;
     const cake = testnetDeskTokens.find((t) => t.symbol === "CAKE") ?? testnetDeskTokens[0];
     setSelectedToken(cake);
-  }, [selectedToken, testnetDeskTokens]);
+  }, [selectedToken, testnetDeskTokens, initialGateHandoff?.symbol]);
 
   const handleDeskSelect = useCallback((token: TrendingMarketToken) => {
     setTradeDeskToken(token);
@@ -268,15 +305,17 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
   }, [scrollToMobileContent]);
 
   const applyGateHandoff = useCallback(
-    (handoff: GateHandoff, tokens: TrendingMarketToken[]) => {
-      const sym = handoff.symbol.replace(/^\$/, "").trim().toUpperCase();
-      const feedHit = tokens.find((t) => t.symbol.replace(/^\$/, "").trim().toUpperCase() === sym);
+    (handoff: GateHandoff, tokens: TrendingMarketToken[], opts?: { silent?: boolean }) => {
+      const sym = normalizeSym(handoff.symbol);
+      const feedHit = findFeedTokenBySymbol(tokens, sym);
       const tradable = gateSymbolTradableOnTestnet(sym);
 
       setGateHandoff(handoff);
       setRightTab("trade");
+      pendingHandoffSym.current = sym;
 
       if (feedHit) {
+        pendingHandoffSym.current = null;
         setIntelTier("feed");
         setAlphaThesis(undefined);
         setSelectedToken(feedHit);
@@ -292,43 +331,48 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           });
         }
         openChartView();
-      } else if (tradable) {
-        const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
-        if (desk) {
-          setTradeDeskToken(desk);
-          setSelectedToken(desk);
-          setTradeTab(handoff.permit === "GRANT" ? "buy" : "agent");
-          if (isMobile) setMobilePanel("trade");
-        }
+      } else if (isGateSymbol(sym)) {
+        void hydrateTokenFromMarket(sym).then((partial) => {
+          if (!partial?.tokenAddress) return;
+          pendingHandoffSym.current = null;
+          const row = { ...partial, symbol: sym, agent: undefined } as TrendingMarketToken;
+          setSelectedToken(row);
+          if (tradable) {
+            const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
+            if (desk) setTradeDeskToken(desk);
+            setTradeTab(handoff.permit === "GRANT" ? "buy" : "agent");
+            if (isMobile) setMobilePanel("trade");
+          }
+          openChartView();
+        });
       }
 
-      toast({
-        title: `${sym} from router`,
-        message: tradable
-          ? handoff.permit === "GRANT"
-            ? "Rules cleared — wallet swap on BSC Testnet."
-            : "Opened trade desk — buy may stay blocked."
-          : "Analysis view — swap BNB or CAKE on testnet for on-chain execution.",
-        type: handoff.permit === "GRANT" && tradable ? "success" : "info",
-      });
-      return Boolean(feedHit || tradable);
+      if (!opts?.silent && !handoffToastShown.current) {
+        handoffToastShown.current = true;
+        toast({
+          title: `${sym} from router`,
+          message: tradable
+            ? handoff.permit === "GRANT"
+              ? "Rules cleared — wallet swap on BSC Testnet."
+              : "Opened trade desk — buy may stay blocked."
+            : "Analysis view — swap BNB or CAKE on testnet for on-chain execution.",
+          type: handoff.permit === "GRANT" && tradable ? "success" : "info",
+        });
+      }
+
+      return Boolean(feedHit);
     },
     [bnbSpotUsd, isMobile, openChartView, toast],
   );
 
   useEffect(() => {
-    if (!initialGateHandoff || gateHandoffApplied.current) return;
-    if (applyGateHandoff(initialGateHandoff, feedTokens)) {
-      gateHandoffApplied.current = true;
-    }
-  }, [initialGateHandoff, feedTokens, applyGateHandoff]);
-
-  useEffect(() => {
-    if (!gateHandoff || gateHandoffApplied.current || initialGateHandoff) return;
-    if (applyGateHandoff(gateHandoff, feedTokens)) {
-      gateHandoffApplied.current = true;
-    }
-  }, [gateHandoff, feedTokens, applyGateHandoff, initialGateHandoff]);
+    const handoff = initialGateHandoff;
+    if (!handoff) return;
+    const sym = normalizeSym(handoff.symbol);
+    const feedHit = findFeedTokenBySymbol(feedTokens, sym);
+    if (normalizeSym(selectedToken?.symbol ?? "") === sym && feedHit) return;
+    applyGateHandoff(handoff, feedTokens, { silent: handoffToastShown.current });
+  }, [initialGateHandoff, feedTokens, selectedToken?.symbol, applyGateHandoff]);
 
   const openTradePanel = useCallback(
     (tab: "buy" | "sell" | "agent") => {
@@ -363,8 +407,9 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
             }
           : token;
       setSelectedToken(merged);
+      pendingHandoffSym.current = null;
 
-      const sym = merged.symbol.replace(/^\$/, "").trim().toUpperCase();
+      const sym = normalizeSym(merged.symbol);
       if (isGateSymbol(sym) && merged.agent?.action) {
         const action = merged.agent.action;
         if (action === "BUY") setTradeTab("buy");
@@ -425,40 +470,53 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
     [scrollToMobileContent],
   );
 
-  const handleFeedRefresh = useCallback((tokens: TrendingMarketToken[]) => {
-    const tradable = filterTradableTokens(tokens);
-    const feedExcluded = (t: TrendingMarketToken) =>
-      isStablecoin(t.symbol, t.name, {
-        tokenAddress: t.tokenAddress,
-        chainId: t.chainId,
-        priceUsd: t.priceUsd,
-        change24h: t.change24h,
-      });
-    setFeedTokens((prev) =>
-      dedupeFeedTokens(mergeFeedTokensStable(prev, tradable, STABLE_FEED_LIMIT, feedExcluded)),
-    );
-    setSelectedToken((prev) => {
-      if (!prev) return tradable[0] ?? null;
-      if (
-        isStablecoin(prev.symbol, prev.name, {
-          tokenAddress: prev.tokenAddress,
-          chainId: prev.chainId,
-          priceUsd: prev.priceUsd,
-          change24h: prev.change24h,
-        })
-      ) {
-        return tradable[0] ?? null;
-      }
-      const match = tradable.find(
-        (t) =>
-          t.tokenAddress.toLowerCase() === prev.tokenAddress.toLowerCase() &&
-          t.chainId === prev.chainId,
+  const handleFeedRefresh = useCallback(
+    (tokens: TrendingMarketToken[]) => {
+      const tradable = filterTradableTokens(tokens);
+      const feedExcluded = (t: TrendingMarketToken) =>
+        isStablecoin(t.symbol, t.name, {
+          tokenAddress: t.tokenAddress,
+          chainId: t.chainId,
+          priceUsd: t.priceUsd,
+          change24h: t.change24h,
+        });
+      const merged = dedupeFeedTokens(
+        mergeFeedTokensStable([], tradable, STABLE_FEED_LIMIT, feedExcluded),
       );
-      if (!match) return tradable[0] ?? prev;
-      return { ...match, intel: { ...prev.intel, ...match.intel } };
-    });
-    setPortfolioKey((k) => k + 1);
-  }, []);
+      setFeedTokens((prev) =>
+        dedupeFeedTokens(mergeFeedTokensStable(prev, tradable, STABLE_FEED_LIMIT, feedExcluded)),
+      );
+
+      const pending = pendingHandoffSym.current;
+      setSelectedToken((prev) => {
+        const next = resolveFeedSelection(prev, merged.length ? merged : tradable, pending);
+        if (pending && findFeedTokenBySymbol(merged.length ? merged : tradable, pending)) {
+          pendingHandoffSym.current = null;
+          const desk = matchTestnetDeskBySymbol(pending, bnbSpotUsd);
+          if (desk) setTradeDeskToken(desk);
+        }
+        if (
+          prev &&
+          isStablecoin(prev.symbol, prev.name, {
+            tokenAddress: prev.tokenAddress,
+            chainId: prev.chainId,
+            priceUsd: prev.priceUsd,
+            change24h: prev.change24h,
+          })
+        ) {
+          return tradable[0] ?? null;
+        }
+        return next;
+      });
+      setPortfolioKey((k) => k + 1);
+    },
+    [bnbSpotUsd],
+  );
+
+  const rankingSelectedSymbol =
+    selectedToken?.symbol ??
+    gateHandoff?.symbol ??
+    initialGateHandoff?.symbol;
 
   const livePrices = useMemo(() => {
     const map: Record<string, number> = {};
@@ -883,7 +941,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           <GateCapitalRouter
             route={gateRoute}
             loading={gateRouteLoading}
-            selectedSymbol={selectedToken?.symbol}
+            selectedSymbol={rankingSelectedSymbol}
             onSelectSymbol={selectBenchmarkBySymbol}
             onDeploy={deployBenchmark}
             compact={isMobile}
