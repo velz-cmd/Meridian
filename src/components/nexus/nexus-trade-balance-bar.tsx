@@ -13,12 +13,14 @@ export function NexusTradeBalanceBar({
   symbol,
   position,
   onChainBalance,
+  markPriceUsd,
   showAgentVault = false,
 }: {
   symbol?: string;
   position?: DemoPosition | null;
   /** Live ERC-20 balance on BSC Testnet (replaces demo ledger) */
   onChainBalance?: number;
+  markPriceUsd?: number;
   showAgentVault?: boolean;
 }) {
   const { address, isConnected } = useAccount();
@@ -66,6 +68,11 @@ export function NexusTradeBalanceBar({
           </p>
           <p className="text-sm font-semibold text-white">
             {(onChainBalance ?? position?.tokenAmount ?? 0).toFixed(4)} {symbol}
+            {onChainBalance != null && onChainBalance > 0 && markPriceUsd != null && markPriceUsd > 0 && (
+              <span className="ml-1 text-xs font-normal text-white/50">
+                · {formatUsd(onChainBalance * markPriceUsd)}
+              </span>
+            )}
           </p>
         </div>
       ) : null}

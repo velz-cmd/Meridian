@@ -260,12 +260,12 @@ export function NexusConstitutionDesk({
 
               {!isBenchmark && (
                 <p className="text-xs text-white/45">
-                  Meme tickers use live Dex desk data — BNB, CAKE, FLOKI, XVS run the CMC gate skill only.
+                  BNB, CAKE, FLOKI, and XVS use the momentum router — same live row in feed and desk.
                 </p>
               )}
               {isBenchmark && payload?.gateDegraded && (
                 <p className="text-xs text-amber-200/80">
-                  CMC rate limit — serving last cached gate evaluation. Counts still match /gate.
+                  CMC rate limit — serving last cached router evaluation. Counts still match /gate.
                 </p>
               )}
             </motion.div>

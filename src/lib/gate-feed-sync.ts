@@ -79,8 +79,8 @@ export function gateBenchmarkToFeedAnalysis<T extends TrendingToken>(
     marketCap: (ev.snapshot.marketCap as number | undefined) ?? token.marketCap,
     volume24h: (ev.snapshot.volume24h as number | undefined) ?? token.volume24h,
     agent,
-    discoveryTag: "BSC benchmark · CMC gate",
-    sourceTags: [...new Set([...(token.sourceTags ?? []), "CMC Gate", "Strategy Skill"])],
+    discoveryTag: "BSC benchmark · momentum router",
+    sourceTags: [...new Set([...(token.sourceTags ?? []), "BSC", "Router", "Live market"])],
     intel,
   } as T;
 

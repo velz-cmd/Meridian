@@ -85,8 +85,8 @@ export function mergeGateBenchmarkRow(
     tokenAddress: token.tokenAddress || anchor.tokenAddress,
     chainId: token.chainId || BSC_MARKET_CHAIN_SLUG,
     icon: token.icon ?? anchor.icon,
-    discoveryTag: token.discoveryTag ?? "BSC benchmark · CMC gate",
-    sourceTags: [...new Set([...(token.sourceTags ?? []), "BSC", "CMC Gate", "Strategy Skill"])],
+    discoveryTag: token.discoveryTag ?? "BSC benchmark · momentum router",
+    sourceTags: [...new Set([...(token.sourceTags ?? []), "BSC", "Router", "Live market"])],
     demoTradeable: true,
     suggestedNetwork: "bsc",
   };

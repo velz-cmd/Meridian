@@ -79,7 +79,7 @@ function buildFeedPayload(
     filterLiveFeedTokens(
     analyzed.map(({ token, intel, signal, security }) => {
       const scam = assessTokenScam(token, intel as TokenIntel, security ?? undefined);
-      const gateRow = token.discoveryTag?.includes("CMC gate");
+      const gateRow = token.discoveryTag?.includes("momentum router");
       return {
       ...trendingToDemoToken(token),
       discoveryTag: gateRow

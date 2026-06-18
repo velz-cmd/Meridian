@@ -23,6 +23,7 @@ import { ArcGlassPreview } from "@/components/landing/arc-glass-preview";
 import { ArcLivePulseCard } from "@/components/landing/arc-live-pulse-card";
 import { ArcPortalHero } from "@/components/landing/arc-portal-hero";
 import { ArcDeployedBadge } from "@/components/landing/arc-deployed-badge";
+import { MeridianHowItWorks } from "@/components/shared/meridian-how-it-works";
 
 const metrics = [
   { icon: ScanLine, label: "Narrative layers", value: "06", sub: "Acceleration · flow · risk" },
@@ -55,39 +56,44 @@ export function ArcEcosystemHero() {
           </div>
 
           <h1 className="arc-display text-left text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.45)] max-lg:text-[2rem] max-lg:leading-[1.08]">
-            <span className="block">Autonomous</span>
-            <span className="arc-gradient-text block">market intelligence</span>
+            <span className="block">Don&apos;t deploy</span>
+            <span className="arc-gradient-text block">until cleared.</span>
           </h1>
 
           <p className="mt-4 max-w-xl text-left text-[15px] leading-relaxed text-[var(--arc-text-muted)] sm:mt-5 sm:text-lg">
-            One constitution engine: live CMC data → 3 composable skills → capital router → permit-gated NEXUS desk.
-            Judges get SKILL.md + reproducible backtest; you get a terminal built for daily use.
+            Agents chase momentum without a rule book. MERIDIAN watches live BSC benchmarks, scores
+            conviction, routes capital to one name, and blocks the wallet until the constitution
+            passes.
           </p>
 
           <ArcDeployedBadge />
 
           <ul className="arc-hero-bullets mt-5 max-w-lg space-y-2.5 text-left text-sm leading-relaxed text-white/55 sm:mt-6">
-            <li>4 BSC benchmarks ranked live — conviction router picks where capital deploys</li>
-            <li>9-check constitution + Momentum · Sentiment · Regime skills in action on every scan</li>
-            <li>90-day honest backtest + CLI replay — no synthetic fixtures on judge APIs</li>
+            <li>Four BSC leaders ranked every refresh — not the same BUY on every ticker</li>
+            <li>Nine rule checks + three skills before any testnet swap is allowed</li>
+            <li>One market row from router → feed → constitution desk → trade panel</li>
           </ul>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link href="/gate" className="w-full sm:w-auto">
               <Button variant="default" size="lg" className="arc-btn-pill min-h-[54px] w-full gap-2 px-8 sm:w-auto">
                 <LineChart className="h-5 w-5" strokeWidth={1.5} />
-                Strategy desk
+                Open momentum router
                 <ArrowUpRight className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/nexus" className="w-full sm:w-auto">
               <Button variant="outline" size="lg" className="arc-btn-pill min-h-[54px] w-full gap-2 border-white/15 px-8 sm:w-auto">
                 <Zap className="h-5 w-5" strokeWidth={1.5} />
-                NEXUS terminal
+                Constitution desk
               </Button>
             </Link>
           </div>
         </motion.div>
+      </div>
+
+      <div className="relative z-10 mx-auto mt-10 max-w-[1680px] px-0 sm:px-0">
+        <MeridianHowItWorks />
       </div>
 
       <ArcLivePulseCard />
@@ -180,34 +186,34 @@ export function ArcSystemsShowcase() {
           <div className="relative mt-5 flex items-start gap-4">
             <ArcIcon3d icon={Zap} theme="nexus" size="lg" />
             <div>
-              <h2 className="text-2xl font-semibold text-white">Financial command terminal</h2>
+              <h2 className="text-2xl font-semibold text-white">Constitution desk</h2>
               <p className="mt-3 text-sm leading-relaxed text-white/58">
-                Alpha scan, memory archive, smart-money signals, AI thesis, Arc-native demo execution.
+                Live feed, chart, agent reasoning, and permit-gated buy/sell on BSC Testnet.
               </p>
             </div>
           </div>
           <Link href="/nexus" className="relative mt-8 inline-block">
             <Button variant="nexus" className="arc-btn-pill gap-2">
-              Enter terminal <ArrowUpRight className="h-4 w-4" />
+              Open desk <ArrowUpRight className="h-4 w-4" />
             </Button>
           </Link>
         </motion.div>
 
         <motion.div whileHover={{ y: -4 }} className="arc-panel relative overflow-hidden p-5 sm:p-6 lg:p-8">
-          <div className="arc-panel-stripe arc-panel-stripe-prism absolute inset-x-0 top-0" />
-          <Badge variant="prism">PRISM</Badge>
+          <div className="arc-panel-stripe arc-panel-stripe-home absolute inset-x-0 top-0 opacity-80" />
+          <Badge className="border-white/20 bg-white/10 text-white">GATE</Badge>
           <div className="relative mt-5 flex items-start gap-4">
-            <ArcIcon3d icon={Globe2} theme="prism" size="lg" />
+            <ArcIcon3d icon={LineChart} theme="home" size="lg" />
             <div>
-              <h2 className="text-2xl font-semibold text-white">Strategic macro oracle</h2>
+              <h2 className="text-2xl font-semibold text-white">Momentum router</h2>
               <p className="mt-3 text-sm leading-relaxed text-white/58">
-                Fed, oil, sanctions, custom events — calibrated probabilities with live intelligence overlays.
+                Rank BNB · CAKE · FLOKI · XVS by rule checks — hand off to execution when cleared.
               </p>
             </div>
           </div>
-          <Link href="/prism" className="relative mt-8 inline-block">
-            <Button variant="prism" className="arc-btn-pill gap-2">
-              Enter oracle <ArrowUpRight className="h-4 w-4" />
+          <Link href="/gate" className="relative mt-8 inline-block">
+            <Button variant="default" className="arc-btn-pill gap-2">
+              Open router <ArrowUpRight className="h-4 w-4" />
             </Button>
           </Link>
         </motion.div>

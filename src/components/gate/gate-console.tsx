@@ -15,6 +15,8 @@ import { GateSkillStack, type GateSkillsPayload } from "@/components/gate/gate-s
 import { GateDataProvenance } from "@/components/gate/gate-data-provenance";
 import { GateEquityChart } from "@/components/gate/gate-equity-chart";
 import { GateBenchmarkDesk } from "@/components/gate/gate-benchmark-desk";
+import { GateLiveStats } from "@/components/gate/gate-live-stats";
+import { MeridianHowItWorks } from "@/components/shared/meridian-how-it-works";
 import { useGateRoute } from "@/hooks/use-gate-route";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
 
@@ -128,6 +130,14 @@ export function GateConsole() {
             {GATE_PRODUCT.openExecution}
           </Link>
         </header>
+
+        <GateLiveStats
+          route={gateRoute}
+          loading={gateRouteLoading}
+          cmcLive={benchmarks.some((b) => b.cmcLive)}
+        />
+
+        <MeridianHowItWorks compact />
 
         {routeError && (
           <div className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">

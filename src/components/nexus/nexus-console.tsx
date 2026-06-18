@@ -62,6 +62,7 @@ import { dedupeFeedTokens } from "@/lib/feed-curation";
 import { isGateSymbol } from "@/lib/gate-constants";
 import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { mergeFeedTokensStable } from "@/lib/token-security";
+import { markPricesFromFeed } from "@/hooks/use-testnet-holdings";
 import type { NexusDecision } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import {
@@ -569,16 +570,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
     gateHandoff?.symbol ??
     initialGateHandoff?.symbol;
 
-  const livePrices = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const t of feedTokens) {
-      if (t.tokenAddress && t.priceUsd > 0) map[t.tokenAddress.toLowerCase()] = t.priceUsd;
-    }
-    if (selectedToken?.tokenAddress && selectedToken.priceUsd > 0) {
-      map[selectedToken.tokenAddress.toLowerCase()] = selectedToken.priceUsd;
-    }
-    return map;
-  }, [feedTokens, selectedToken?.tokenAddress, selectedToken?.priceUsd]);
+  const livePrices = useMemo(() => markPricesFromFeed(feedTokens), [feedTokens]);
 
   const handleBirdeyeIntel = useCallback((summary: {
     holderCount?: number;

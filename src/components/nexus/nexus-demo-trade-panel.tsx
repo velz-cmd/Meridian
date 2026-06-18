@@ -18,6 +18,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
 import { usePancakeSwap } from "@/hooks/use-pancake-swap";
+import { usePancakeQuote } from "@/hooks/use-pancake-quote";
 import { useOnChainTokenBalance } from "@/hooks/use-onchain-token-balance";
 import { buySizingFromTbnb, formatTokenAmount } from "@/lib/demo-tbnb-math";
 import { canSwapOnBscTestnet, testnetSwapHint } from "@/lib/testnet-onchain";
@@ -113,46 +114,67 @@ export function NexusTradeHub({
   }, [side, trade?.tokenAddress]);
 
   const livePrice = trade?.priceUsd ?? 0;
-
   const amountNum = Math.max(0, Number(amount) || 0);
 
+  const spendTbnb = useMemo(() => {
+    if (!trade || amountNum <= 0) return 0;
+    if (side === "buy") {
+      if (amountMode === "usdc") return amountNum;
+      if (livePrice > 0) return (amountNum * livePrice) / bnbSpotUsd;
+    }
+    return 0;
+  }, [trade, side, amountNum, amountMode, livePrice, bnbSpotUsd]);
+
+  const pancakeQuote = usePancakeQuote({
+    side: side === "sell" ? "sell" : "buy",
+    symbol: trade?.symbol ?? "",
+    tokenAddress: trade?.tokenAddress ?? "",
+    chainId: trade?.chainId ?? "",
+    amount: side === "sell" ? amount : String(spendTbnb || amountNum),
+    enabled: Boolean(trade && tradeOnChain && amountNum > 0),
+  });
+
   const resolved = useMemo(() => {
-    if (!trade || amountNum <= 0 || livePrice <= 0) {
+    if (!trade || amountNum <= 0) {
       return { usdcAmount: 0, tokenAmount: 0, tbnbSpent: 0 };
     }
     if (side === "buy") {
-      if (amountMode === "usdc") {
-        const sizing = buySizingFromTbnb({
-          tbnbAmount: amountNum,
-          bnbSpotUsd,
-          tokenPriceUsd: livePrice,
-        });
-        return {
-          usdcAmount: sizing.usdNotional,
-          tokenAmount: sizing.tokenAmount,
-          tbnbSpent: sizing.tbnb,
-        };
-      }
-      return {
-        usdcAmount: amountNum * livePrice,
-        tokenAmount: amountNum,
-        tbnbSpent: (amountNum * livePrice) / bnbSpotUsd,
-      };
+      const tbnb = spendTbnb;
+      const tokenAmount =
+        pancakeQuote.available && pancakeQuote.tokenAmount > 0
+          ? pancakeQuote.tokenAmount
+          : livePrice > 0
+            ? buySizingFromTbnb({ tbnbAmount: tbnb, bnbSpotUsd, tokenPriceUsd: livePrice }).tokenAmount
+            : 0;
+      const usdcAmount = tbnb * bnbSpotUsd;
+      return { usdcAmount, tokenAmount, tbnbSpent: tbnb };
     }
     if (amountMode === "token") {
-      return { usdcAmount: amountNum * livePrice, tokenAmount: amountNum, tbnbSpent: 0 };
+      const usdcAmount = amountNum * livePrice;
+      const tbnbOut =
+        pancakeQuote.available && pancakeQuote.tbnbAmount > 0
+          ? pancakeQuote.tbnbAmount
+          : livePrice > 0
+            ? usdcAmount / bnbSpotUsd
+            : 0;
+      return { usdcAmount, tokenAmount: amountNum, tbnbSpent: tbnbOut };
     }
     const usd = amountNum * bnbSpotUsd;
-    return { usdcAmount: usd, tokenAmount: usd / livePrice, tbnbSpent: 0 };
-  }, [trade, side, amountNum, livePrice, amountMode, bnbSpotUsd]);
+    return {
+      usdcAmount: usd,
+      tokenAmount: livePrice > 0 ? usd / livePrice : 0,
+      tbnbSpent: amountNum,
+    };
+  }, [trade, side, amountNum, livePrice, amountMode, bnbSpotUsd, spendTbnb, pancakeQuote]);
 
   const quoteLabel = useMemo(() => {
     if (!trade || amountNum <= 0) return null;
+    if (pancakeQuote.loading) return "Fetching PancakeSwap quote…";
     if (side === "buy") {
       return `Sign buy ~${formatTokenAmount(resolved.tokenAmount)} ${trade.symbol} for ${resolved.tbnbSpent.toFixed(4)} tBNB (~$${resolved.usdcAmount.toFixed(2)}) via PancakeSwap`;
     }
-    return `Sign sell ${resolved.tokenAmount.toFixed(4)} ${trade.symbol} for ~${(resolved.usdcAmount / bnbSpotUsd).toFixed(4)} tBNB via PancakeSwap`;
-  }, [trade, side, amountNum, resolved, bnbSpotUsd]);
+    return `Sign sell ${resolved.tokenAmount.toFixed(4)} ${trade.symbol} for ~${resolved.tbnbSpent.toFixed(4)} tBNB via PancakeSwap`;
+  }, [trade, side, amountNum, resolved, pancakeQuote.loading]);
 
   function applyPct(pct: number) {
     if (side === "buy") {
@@ -222,6 +244,32 @@ export function NexusTradeHub({
 
       setLastTx({ hash: result.hash });
       void onChainBal.refetch();
+
+      const outAmt = parseFloat(result.amountOutFormatted) || resolved.tokenAmount;
+      try {
+        await fetch("/api/nexus/demo/trade", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            wallet: address,
+            side,
+            symbol: trade.symbol,
+            tokenAddress: trade.tokenAddress,
+            sourceChain: trade.chainId,
+            tradeNetwork: "bsc",
+            usdcAmount:
+              side === "buy"
+                ? resolved.tbnbSpent * bnbSpotUsd
+                : outAmt * bnbSpotUsd,
+            tokenAmount: side === "buy" ? outAmt : resolved.tokenAmount,
+            priceUsd: livePrice,
+            arcFeeTxHash: result.hash,
+          }),
+        });
+      } catch {
+        /* portfolio history optional */
+      }
+
       toast({
         type: "success",
         title: side === "buy" ? "Buy confirmed on-chain" : "Sell confirmed on-chain",
@@ -392,7 +440,11 @@ export function NexusTradeHub({
               </div>
               {marketToken && <NexusTokenChatButton token={marketToken} onOpenTrade={setTab} />}
             </div>
-            <NexusTradeBalanceBar symbol={trade.symbol} onChainBalance={tokenBalance} />
+            <NexusTradeBalanceBar
+              symbol={trade.symbol}
+              onChainBalance={tokenBalance}
+              markPriceUsd={livePrice}
+            />
 
               {tokenBalance > 0 && livePrice > 0 && (
                 <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2.5 text-sm text-cyan-100">

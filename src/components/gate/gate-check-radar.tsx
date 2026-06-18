@@ -80,7 +80,7 @@ export function GateCheckRadar({
         </div>
 
         <p className="text-xs text-white/40">
-          Same checks run in CLI backtest and SKILL.md — no LLM in the signal path.
+          Same checks run in CLI backtest — deterministic, no LLM in the signal path.
         </p>
       </div>
     </section>
