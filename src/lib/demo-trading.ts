@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import type { TrendingToken } from "./dexscreener";
+import { applyHonestTradeFlags } from "./honest-trade-flags";
 import { mirrorTestnetForSource, type DemoTradeNetworkId } from "./testnet-chains";
 
 export type DemoTradeSide = "buy" | "sell" | "swap_to_usdc";
@@ -156,12 +157,10 @@ export function applyDemoTrade(
 }
 
 export function trendingToDemoToken(token: TrendingToken) {
-  return {
+  return applyHonestTradeFlags({
     ...token,
-    demoTradeable: true,
     suggestedNetwork: mirrorTestnetForSource(token.chainId),
-    settlement: "BSC Testnet tBNB",
-  };
+  });
 }
 
 export type MarkedPosition = DemoPosition & {

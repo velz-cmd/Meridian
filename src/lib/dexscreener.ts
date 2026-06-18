@@ -10,6 +10,7 @@ import {
 import type { TokenIntel } from "./storage";
 import { isStablecoin } from "./token-filters";
 import { isBlueChip } from "./feed-curation";
+import { applyHonestTradeFlags } from "./honest-trade-flags";
 
 export type TrendingToken = {
   symbol: string;
@@ -222,7 +223,7 @@ export async function fetchTrendingMarketTokens(
     const key = `${token.chainId}:${token.tokenAddress}`;
     if (seen.has(key)) return;
     seen.add(key);
-    tokens.push({ ...token, demoTradeable: true, suggestedNetwork: "bsc" });
+    tokens.push(applyHonestTradeFlags(token));
   }
 
   const fetches = [

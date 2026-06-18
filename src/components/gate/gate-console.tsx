@@ -8,6 +8,8 @@ import { GateConfigPanel } from "@/components/gate/gate-config-panel";
 import { GateDeskHero } from "@/components/gate/gate-desk-hero";
 import { GateDeskTabs, type GateDeskTab } from "@/components/gate/gate-desk-tabs";
 import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
+import { GateCmcSkillStrip } from "@/components/gate/gate-cmc-skill-strip";
+import { GateSkillStack } from "@/components/gate/gate-skill-stack";
 import { GateTechnicalPanel } from "@/components/gate/gate-technical-panel";
 import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
 import { usePositionRoute } from "@/hooks/use-position-route";
@@ -187,6 +189,12 @@ export function GateConsole() {
                   }
                 />
                 <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact />
+                {selected && (
+                  <>
+                    <GateCmcSkillStrip selected={selected} cmcLive={selected.cmcLive} />
+                    {skills && <GateSkillStack skills={skills} constitutionSignal={selected.gate.signal} />}
+                  </>
+                )}
                 <GateOutputPanel
                   selected={selected}
                   route={gateRoute}

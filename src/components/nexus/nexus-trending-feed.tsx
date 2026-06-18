@@ -20,14 +20,14 @@ import { NexusTokenAvatar } from "@/components/nexus/nexus-token-avatar";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatCompact, formatPct, formatTokenPrice } from "@/lib/utils";
+import { chapelDeskLabel } from "@/lib/honest-trade-flags";
 import { dedupeFeedTokens } from "@/lib/feed-curation";
-import { mergeFeedTokensStable } from "@/lib/token-security";
-import { filterTradableTokens, isStablecoin } from "@/lib/token-filters";
 import { STABLE_FEED_LIMIT } from "@/lib/feed-config";
 import { agentVerdictLine } from "@/lib/nexus-copy";
 import { filterReasoningFactorsForDisplay } from "@/lib/reasoning-factors";
-import { cn } from "@/lib/utils";
+import { mergeFeedTokensStable } from "@/lib/token-security";
+import { filterTradableTokens, isStablecoin } from "@/lib/token-filters";
+import { cn, formatCompact, formatPct, formatTokenPrice } from "@/lib/utils";
 import type { TokenIntel } from "@/lib/storage";
 import type { AgentSignal } from "@/lib/storage";
 import type { TokenSecurityReport } from "@/lib/token-security";
@@ -48,6 +48,8 @@ export type TrendingMarketToken = {
   url: string;
   intel?: TokenIntel;
   demoTradeable?: boolean;
+  chapelDesk?: boolean;
+  gateEvalOnly?: boolean;
   suggestedNetwork?: string;
   txns24h?: { buys: number; sells: number };
   agent?: AgentSignal;
@@ -371,6 +373,18 @@ export function NexusTrendingFeed({
                     )}
                   >
                     {token.discoveryTag}
+                  </span>
+                )}
+                {chapelDeskLabel(token) && (
+                  <span
+                    className={cn(
+                      "rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+                      token.chapelDesk || token.demoTradeable
+                        ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100"
+                        : "border-amber-400/30 bg-amber-500/10 text-amber-100",
+                    )}
+                  >
+                    {chapelDeskLabel(token)}
                   </span>
                 )}
                 <NexusTokenChatButton

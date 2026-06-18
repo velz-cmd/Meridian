@@ -6,7 +6,7 @@ import { ExternalLink, Loader2 } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { formatTokenPrice, formatUsd } from "@/lib/utils";
-import { bscExplorerTx } from "@/lib/bsc-chain";
+import { bscExplorerTxIfValid } from "@/lib/bsc-chain";
 import { NexusTokenAvatar } from "@/components/nexus/nexus-token-avatar";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 import type { DemoTradeRecord } from "@/lib/storage";
@@ -145,7 +145,7 @@ export function NexusPortfolio({
       {showTxHistory && trades.length > 0 && (
         <div className="border-t border-white/8 pt-3">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-white/40">
-            On-chain history
+            Trade journal · verified Chapel txs only
           </p>
           <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
             {trades.slice(0, 20).map((t) => {
@@ -184,9 +184,9 @@ export function NexusPortfolio({
                       <p className="text-white/35">{ts}</p>
                     </div>
                   </div>
-                  {t.arcFeeTxHash && (
+                  {t.arcFeeTxHash && bscExplorerTxIfValid(t.arcFeeTxHash) && (
                     <a
-                      href={bscExplorerTx(t.arcFeeTxHash)}
+                      href={bscExplorerTxIfValid(t.arcFeeTxHash)!}
                       target="_blank"
                       rel="noreferrer"
                       className="shrink-0 inline-flex items-center gap-0.5 text-cyan-300 hover:underline"

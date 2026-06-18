@@ -4,6 +4,7 @@
 import { isGateSymbol } from "@/lib/gate-constants";
 import type { AgentSignal } from "@/lib/storage";
 import type { TrendingToken } from "@/lib/dexscreener";
+import { applyHonestTradeFlags } from "@/lib/honest-trade-flags";
 import {
   evaluateAllGateBenchmarks,
   type GateBenchmarkEval,
@@ -72,17 +73,17 @@ export function gateBenchmarkToFeedAnalysis<T extends TrendingToken>(
       macdSignal: ev.snapshot.macdSignal as string | undefined,
     },
   };
-  const enriched = {
+  const enriched = applyHonestTradeFlags({
     ...token,
     priceUsd: (ev.snapshot.price as number | undefined) ?? token.priceUsd,
     change24h: (ev.snapshot.change24h as number | undefined) ?? token.change24h,
     marketCap: (ev.snapshot.marketCap as number | undefined) ?? token.marketCap,
     volume24h: (ev.snapshot.volume24h as number | undefined) ?? token.volume24h,
     agent,
-    discoveryTag: "BSC benchmark · momentum router",
-    sourceTags: [...new Set([...(token.sourceTags ?? []), "BSC", "Router", "Live market"])],
+    discoveryTag: "BSC benchmark · CMC gate",
+    sourceTags: [...new Set([...(token.sourceTags ?? []), "BSC", "CMC", "Gate skill"])],
     intel,
-  } as T;
+  }) as T;
 
   return { token: enriched, intel, signal: agent, security: null };
 }

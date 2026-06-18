@@ -11,7 +11,7 @@ import {
   Shield,
 } from "lucide-react";
 import { useMeridianActivityLog } from "@/hooks/use-meridian-activity-log";
-import { bscExplorerTx } from "@/lib/bsc-chain";
+import { bscExplorerTxIfValid } from "@/lib/bsc-chain";
 import { cn } from "@/lib/utils";
 import type { ActivityKind, ActivityLevel } from "@/lib/meridian-activity-log";
 
@@ -79,9 +79,9 @@ export function MeridianActivityLogPanel({
                 <div className="min-w-0 flex-1">
                   <span className="text-white/35">{time}</span>{" "}
                   <span className={LEVEL_STYLE[e.level]}>{e.message}</span>
-                  {e.txHash && (
+                  {e.txHash && bscExplorerTxIfValid(e.txHash) && (
                     <a
-                      href={bscExplorerTx(e.txHash)}
+                      href={bscExplorerTxIfValid(e.txHash)!}
                       target="_blank"
                       rel="noreferrer"
                       className="ml-1 inline-flex items-center gap-0.5 text-emerald-300/90 hover:underline"

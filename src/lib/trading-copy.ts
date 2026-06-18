@@ -10,7 +10,7 @@ export const TRADING_SETTLEMENT = {
 } as const;
 
 export const TRADING_TAGLINE =
-  "Charts use live BSC market data · every swap settles in wallet tBNB on BSC Testnet.";
+  "Gate benchmarks use live CMC skills · Chapel swaps (BNB/CAKE/BUSD/USDC) sign in your wallet on BSC Testnet.";
 
 export const TRADING_WALLET_HINT = `Connect on ${BSC_CHAIN_LABEL} · fund tBNB · wallet signs each PancakeSwap tx.`;
 

@@ -71,7 +71,7 @@ export function NexusDecisionCard({
               </Badge>
               {decision.swappable !== false && (
                 <Badge variant="nexus" className="normal-case tracking-normal">
-                  Demo trade
+                  Chapel desk
                 </Badge>
               )}
             </div>

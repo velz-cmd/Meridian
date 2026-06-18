@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { applyDemoTrade, buildDemoQuote, type DemoTradeSide } from "@/lib/demo-trading";
 import { demoNetworkById, type DemoTradeNetworkId } from "@/lib/testnet-chains";
 import { debitAgentVault, getAgentVaultLedger, getDemoPositions, saveDemoTrade } from "@/lib/storage";
+import { getBscPublicClient, isBscTxHash } from "@/lib/bsc-chain";
 
 export async function POST(request: Request) {
   try {
@@ -24,6 +25,24 @@ export async function POST(request: Request) {
 
     if (!body.wallet || !body.arcFeeTxHash) {
       return NextResponse.json({ error: "wallet and arcFeeTxHash required" }, { status: 400 });
+    }
+
+    if (!isBscTxHash(body.arcFeeTxHash)) {
+      return NextResponse.json(
+        { error: "arcFeeTxHash must be a valid BSC Testnet transaction hash (not a wallet signature)" },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const receipt = await getBscPublicClient().getTransactionReceipt({
+        hash: body.arcFeeTxHash as `0x${string}`,
+      });
+      if (!receipt || receipt.status !== "success") {
+        return NextResponse.json({ error: "Transaction not found or failed on BSC Testnet" }, { status: 400 });
+      }
+    } catch {
+      return NextResponse.json({ error: "Could not verify transaction on BSC Testnet Chapel" }, { status: 400 });
     }
 
     demoNetworkById(body.tradeNetwork);

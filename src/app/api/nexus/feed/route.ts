@@ -21,6 +21,7 @@ import {
   splitFeedByGateBenchmarks,
 } from "@/lib/gate-feed-sync";
 import { trendingToDemoToken } from "@/lib/demo-trading";
+import { applyHonestTradeFlags } from "@/lib/honest-trade-flags";
 import { enrichTokensWithIcons } from "@/lib/token-icons";
 import { mapWithConcurrency } from "@/lib/async-pool";
 import { sanitizeAgentReasoningFactors } from "@/lib/reasoning-factors";
@@ -43,7 +44,7 @@ async function enrichMissingPairs(tokens: TrendingToken[], cap: number) {
     missing,
     async (t) => {
       const pair = await fetchTokenByAddress(t.chainId, t.tokenAddress);
-      return pair ? { ...pair, intel: t.intel, demoTradeable: true, suggestedNetwork: "bsc" } : t;
+      return pair ? applyHonestTradeFlags({ ...pair, intel: t.intel }) : t;
     },
     6,
   );

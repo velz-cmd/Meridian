@@ -45,6 +45,16 @@ export function bscExplorerTx(hash: string) {
   return `${BSC_EXPLORER}/tx/${hash}`;
 }
 
+/** Wallet signatures are not BscScan transactions. */
+export function isBscTxHash(hash: string): boolean {
+  return /^0x[a-fA-F0-9]{64}$/.test(hash.trim());
+}
+
+export function bscExplorerTxIfValid(hash: string | undefined | null): string | null {
+  if (!hash || !isBscTxHash(hash)) return null;
+  return bscExplorerTx(hash);
+}
+
 export function bscExplorerAddress(address: string) {
   return `${BSC_EXPLORER}/address/${address}`;
 }
