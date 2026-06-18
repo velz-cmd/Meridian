@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useBalance } from "wagmi";
 import { useAgentWallet } from "@/hooks/use-agent-wallet";
 import {
   AutopilotAmountMode,
@@ -51,7 +51,11 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
-import { BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
+import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
+import { usePancakeSwap } from "@/hooks/use-pancake-swap";
+import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
+import { canSwapOnBscTestnet, fetchDeskTokenBalance } from "@/lib/testnet-onchain";
+import { useConstitution } from "@/contexts/nexus-constitution-context";
 import { NexusAgentProvider, type NexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
 import { NexusCircleAgentCard } from "@/components/nexus/nexus-circle-agent-card";
 import { NexusExecutionPanel } from "@/components/nexus/nexus-execution-panel";
@@ -99,9 +103,14 @@ export function NexusAutopilotPanel({
   onAgentLiveChange?: (live: boolean) => void;
 }) {
   const toast = useToast();
+  const { canExecuteBuy } = useConstitution();
   const { address, isConnected } = useAccount();
+  const { data: walletBalance } = useBalance({ address, chainId: BSC_CHAIN_ID });
+  const walletTbnb = walletBalance ? Number(walletBalance.formatted) : 0;
+  const bnbSpotUsd = useBnbSpotUsd();
+  const { swapNativeForToken, swapTokenForNative } = usePancakeSwap();
   const { usdcBalance: agentUsdc, refreshBalance, syncDeposits } = useAgentWallet();
-  const { payArcFee, ensureArcNetwork, isPending: arcPending, feeUsd } = useBnbSettlement();
+  const { payArcFee, ensureBscNetwork, isPending: arcPending, feeUsd } = useBnbSettlement();
   const [config, setConfig] = useState<AutopilotConfig>(() => loadAutopilot());
   const [logs, setLogs] = useState<AutopilotLog[]>([]);
   const [lastReasoning, setLastReasoning] = useState<string | null>(null);
@@ -120,6 +129,7 @@ export function NexusAutopilotPanel({
   const resolvedRef = useRef(resolvedToken);
   const runCycleRef = useRef<(trigger?: "recurring" | "once") => Promise<void>>(async () => {});
   const agentUsdcRef = useRef(agentUsdc);
+  const walletTbnbRef = useRef(walletTbnb);
   const sessionRef = useRef<AutopilotSessionGrant | null>(null);
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [permissionIntent, setPermissionIntent] = useState<"recurring" | "once">("recurring");
@@ -147,11 +157,15 @@ export function NexusAutopilotPanel({
     agentUsdcRef.current = agentUsdc;
   }, [agentUsdc]);
   useEffect(() => {
+    walletTbnbRef.current = walletTbnb;
+  }, [walletTbnb]);
+  useEffect(() => {
     sessionRef.current = loadAutopilotSession();
   }, [address]);
 
-  const requiredUsdc = minVaultUsdcForAutopilot(config, agentUsdc);
-  const hasDeposit = config.mode === "sell_only" || agentUsdc >= requiredUsdc;
+  const walletUsd = walletTbnb * bnbSpotUsd;
+  const requiredUsdc = minVaultUsdcForAutopilot(config, walletUsd);
+  const hasDeposit = config.mode === "sell_only" || walletUsd >= requiredUsdc;
 
   const persist = useCallback((next: AutopilotConfig) => {
     configRef.current = next;
@@ -243,7 +257,7 @@ export function NexusAutopilotPanel({
         if (cfg.amountMode === "custom_token" && cfg.customAmountUnit === "usdc") {
           return { usdcAmount: Math.max(0, Number(cfg.customToken) || 0) };
         }
-        const avail = Math.max(0, (buyBalanceUsdc ?? agentUsdcRef.current) - 0.01);
+        const avail = Math.max(0, (buyBalanceUsdc ?? walletTbnbRef.current * bnbSpotUsd) - 0.01);
         return { usdcAmount: Math.max(0.05, (avail * cfg.percent) / 100) };
       }
       if (cfg.amountMode === "custom_token") {
@@ -255,7 +269,7 @@ export function NexusAutopilotPanel({
       }
       return { tokenAmount: (positionAmount * cfg.percent) / 100 };
     },
-    [agentUsdc],
+    [bnbSpotUsd],
   );
 
   const runCycle = useCallback(async (trigger: "recurring" | "once" = "recurring") => {
@@ -361,35 +375,19 @@ export function NexusAutopilotPanel({
         pushLog(`Your choice · AI ${signal.action} · ${side.toUpperCase()} anyway`, "info");
       }
 
-      let vaultBal = agentUsdcRef.current;
-      const refreshed = await refreshBalance();
-      if (refreshed) {
-        vaultBal = refreshed.balanceUsdc;
-        agentUsdcRef.current = vaultBal;
-      }
-      const need = minVaultUsdcForAutopilot(cfg, vaultBal);
-      if (side === "buy" && vaultBal < need) {
-        try {
-          await syncDeposits();
-          const again = await refreshBalance();
-          vaultBal = again?.balanceUsdc ?? vaultBal;
-          agentUsdcRef.current = vaultBal;
-        } catch {
-          /* user can sync manually */
-        }
-      }
-      const useAgentVault = side === "buy";
-      const buyFundingUsdc = vaultBal;
-      if (side === "buy" && vaultBal < need) {
-        const msg = `Vault $${vaultBal.toFixed(2)} — need $${need.toFixed(2)}. Deposit USDC to vault and Sync, or Stop the agent.`;
+      let walletBal = walletTbnbRef.current;
+      const buyFundingUsd = walletBal * bnbSpotUsd;
+      const need = minVaultUsdcForAutopilot(cfg, buyFundingUsd);
+      if (side === "buy" && buyFundingUsd < need) {
+        const msg = `Wallet ${walletBal.toFixed(4)} tBNB (~$${buyFundingUsd.toFixed(2)}) — need ~$${need.toFixed(2)} for this cycle. Fund BSC Testnet wallet or lower size.`;
         pushLog(msg, "error");
         if (trigger === "once") {
-          toast({ type: "error", title: "Vault balance low", message: msg });
+          toast({ type: "error", title: "Insufficient tBNB", message: msg });
         } else {
           persist({ ...configRef.current, recurringEnabled: false });
           startedRef.current = false;
           if (recurringTimerRef.current) clearTimeout(recurringTimerRef.current);
-          pushLog("Recurring stopped — vault balance too low", "error");
+          pushLog("Recurring stopped — wallet balance too low", "error");
           toast({ type: "error", title: "Recurring paused", message: msg });
         }
         return;
@@ -415,18 +413,28 @@ export function NexusAutopilotPanel({
         positions?: Array<{ tokenAddress: string; tokenAmount?: number }>;
         error?: string;
       }>(portRes);
-      if (!portOk) throw new Error(portData.error ?? portErr ?? "Portfolio load failed");
-      const position = (portData.positions ?? []).find(
-        (p: { tokenAddress: string; tokenAmount?: number }) =>
-          p.tokenAddress.toLowerCase() === t.tokenAddress.toLowerCase(),
-      );
+      let positionAmount = 0;
+      if (portOk) {
+        const position = (portData.positions ?? []).find(
+          (p: { tokenAddress: string; tokenAmount?: number }) =>
+            p.tokenAddress.toLowerCase() === t.tokenAddress.toLowerCase(),
+        );
+        positionAmount = position?.tokenAmount ?? 0;
+      }
+      if (side === "sell" && address) {
+        try {
+          positionAmount = await fetchDeskTokenBalance(address, t);
+        } catch {
+          /* keep ledger fallback */
+        }
+      }
 
       const { usdcAmount, tokenAmount } = resolveAmounts(
         cfg,
         side,
-        position?.tokenAmount ?? 0,
+        positionAmount,
         t.priceUsd,
-        buyFundingUsdc,
+        buyFundingUsd,
       );
 
       if (side === "buy" && (!usdcAmount || usdcAmount < 0.05)) {
@@ -442,20 +450,94 @@ export function NexusAutopilotPanel({
         return;
       }
 
-      pushLog(
-        "Autopilot cannot sign swaps for you — use Buy/Sell tab for wallet-signed PancakeSwap trades on BSC Testnet.",
-        "error",
-      );
-      toast({
-        type: "info",
-        title: "On-chain only",
-        message: "Confirm each buy/sell in the Trade tab — your wallet must sign PancakeSwap txs.",
-      });
-      if (trigger === "recurring") {
-        persist({ ...configRef.current, recurringEnabled: false });
-        startedRef.current = false;
+      if (!canSwapOnBscTestnet(t)) {
+        const msg = `${t.symbol} is not on the BSC Testnet desk — pick BNB, CAKE, BUSD, or USDC.`;
+        pushLog(msg, "error");
+        toast({ type: "error", title: "Not swappable", message: msg });
+        return;
       }
-      return;
+
+      if (side === "buy" && !canExecuteBuy) {
+        const msg = "Constitution blocked buy — permit not granted for this symbol.";
+        pushLog(msg, "error");
+        toast({ type: "error", title: "Permit blocked", message: msg });
+        return;
+      }
+
+      await ensureBscNetwork();
+
+      if (side === "buy") {
+        const tbnbSpend = (usdcAmount ?? 0) / bnbSpotUsd;
+        if (tbnbSpend > walletTbnbRef.current - 0.0005) {
+          const msg = `Need ${tbnbSpend.toFixed(4)} tBNB — wallet has ${walletTbnbRef.current.toFixed(4)}`;
+          pushLog(msg, "error");
+          toast({ type: "error", title: "Insufficient tBNB", message: msg });
+          return;
+        }
+        pushLog(`Signing buy ~${tbnbSpend.toFixed(4)} tBNB → ${t.symbol}…`, "info");
+        const result = await swapNativeForToken({
+          symbol: t.symbol,
+          tokenAddress: t.tokenAddress,
+          chainId: t.chainId,
+          tbnbAmount: String(tbnbSpend),
+        });
+        const outAmt = parseFloat(result.amountOutFormatted) || 0;
+        try {
+          await fetch("/api/nexus/demo/trade", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              wallet: address,
+              side: "buy",
+              symbol: t.symbol,
+              tokenAddress: t.tokenAddress,
+              sourceChain: t.chainId,
+              tradeNetwork: "bsc",
+              usdcAmount: tbnbSpend * bnbSpotUsd,
+              tokenAmount: outAmt,
+              priceUsd: t.priceUsd,
+              arcFeeTxHash: result.hash,
+            }),
+          });
+        } catch {
+          /* optional ledger */
+        }
+        pushLog(`Buy confirmed · ${result.summary}`, "trade");
+        toast({ type: "success", title: "Autopilot buy", message: result.summary });
+      } else {
+        pushLog(`Signing sell ${tokenAmount?.toFixed(4) ?? "0"} ${t.symbol}…`, "info");
+        const result = await swapTokenForNative({
+          symbol: t.symbol,
+          tokenAddress: t.tokenAddress,
+          chainId: t.chainId,
+          tokenAmount: String(tokenAmount),
+        });
+        const outAmt = parseFloat(result.amountOutFormatted) || 0;
+        try {
+          await fetch("/api/nexus/demo/trade", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              wallet: address,
+              side: "sell",
+              symbol: t.symbol,
+              tokenAddress: t.tokenAddress,
+              sourceChain: t.chainId,
+              tradeNetwork: "bsc",
+              usdcAmount: outAmt * bnbSpotUsd,
+              tokenAmount: tokenAmount ?? 0,
+              priceUsd: t.priceUsd,
+              arcFeeTxHash: result.hash,
+            }),
+          });
+        } catch {
+          /* optional ledger */
+        }
+        pushLog(`Sell confirmed · ${result.summary}`, "trade");
+        toast({ type: "success", title: "Autopilot sell", message: result.summary });
+      }
+
+      onTradeComplete?.();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Autopilot failed";
       pushLog(msg, "error");
@@ -482,8 +564,11 @@ export function NexusAutopilotPanel({
     pushLog,
     resolveAmounts,
     toast,
-    refreshBalance,
-    syncDeposits,
+    bnbSpotUsd,
+    canExecuteBuy,
+    ensureBscNetwork,
+    swapNativeForToken,
+    swapTokenForNative,
   ]);
 
   runCycleRef.current = runCycle;
@@ -522,32 +607,17 @@ export function NexusAutopilotPanel({
     setGranting(true);
     try {
       const cfgNow = configRef.current;
-      let vaultBal = agentUsdcRef.current;
-      const need = minVaultUsdcForAutopilot(cfgNow, vaultBal);
+      const walletBal = walletTbnbRef.current;
+      const walletUsdNow = walletBal * bnbSpotUsd;
+      const need = minVaultUsdcForAutopilot(cfgNow, walletUsdNow);
 
-      if (cfgNow.mode !== "sell_only" && vaultBal < need) {
-        try {
-          const w = await Promise.race([
-            refreshBalance(),
-            new Promise<null>((_, reject) =>
-              setTimeout(() => reject(new Error("balance_timeout")), 5_000),
-            ),
-          ]);
-          if (w) {
-            vaultBal = w.balanceUsdc;
-            agentUsdcRef.current = vaultBal;
-          }
-        } catch {
-          /* use cached balance */
-        }
-        if (vaultBal < need) {
-          toast({
-            type: "error",
-            title: "Fund agent vault first",
-            message: `Need ~$${need.toFixed(2)} in vault for buys. Balance $${vaultBal.toFixed(2)} — deposit, Sync, then try again.`,
-          });
-          return;
-        }
+      if (cfgNow.mode !== "sell_only" && walletUsdNow < need) {
+        toast({
+          type: "error",
+          title: "Fund wallet first",
+          message: `Need ~$${need.toFixed(2)} tBNB on ${BSC_CHAIN_LABEL} for buys. Balance ~$${walletUsdNow.toFixed(2)} (${walletBal.toFixed(4)} tBNB).`,
+        });
+        return;
       }
 
       void syncDeposits().catch(() => {});
@@ -558,7 +628,7 @@ export function NexusAutopilotPanel({
       if (!sessionTx) {
         setAwaitingWallet(true);
         setGranting(false);
-        await ensureArcNetwork();
+        await ensureBscNetwork();
         toast({
           type: "info",
           title: "Check your wallet",
@@ -587,13 +657,13 @@ export function NexusAutopilotPanel({
         startedRef.current = true;
         if (recurringTimerRef.current) clearTimeout(recurringTimerRef.current);
         pushLog(
-          `Recurring authorized · every ${sessionIntervalLabel(cfg)} · vault $${vaultBal.toFixed(2)}`,
+          `Recurring authorized · every ${sessionIntervalLabel(cfg)} · wallet ${walletBal.toFixed(4)} tBNB`,
           "info",
         );
         toast({
           type: "success",
           title: "Recurring agent live",
-          message: `Trades every ${sessionIntervalLabel(cfg)} from vault — no more wallet prompts.`,
+          message: `Cycles every ${sessionIntervalLabel(cfg)} — confirm each PancakeSwap tx in your wallet.`,
         });
         await runCycleRef.current("recurring");
         return;
@@ -601,7 +671,7 @@ export function NexusAutopilotPanel({
 
       const delay = autopilotOnceDelayMs(cfg);
       pushLog(
-        `One-time scheduled ${onceScheduleLabel(cfg)} · vault $${vaultBal.toFixed(2)}${cfg.recurringEnabled ? " · recurring still active" : ""}`,
+        `One-time scheduled ${onceScheduleLabel(cfg)} · wallet ${walletBal.toFixed(4)} tBNB${cfg.recurringEnabled ? " · recurring still active" : ""}`,
         "info",
       );
       toast({
@@ -637,13 +707,12 @@ export function NexusAutopilotPanel({
   }, [
     address,
     activeToken,
-    ensureArcNetwork,
-    feeUsd,
+    bnbSpotUsd,
+    ensureBscNetwork,
     getValidSessionHash,
     payArcFee,
     persist,
     pushLog,
-    refreshBalance,
     syncDeposits,
     toast,
   ]);
@@ -746,9 +815,9 @@ export function NexusAutopilotPanel({
                 </>
               ) : (
                 <>
-                  <strong className="text-amber-50">Deposit to agent vault first.</strong> Send ~
-                  {requiredUsdc.toFixed(4)} tBNB on {BSC_CHAIN_LABEL} to the vault below, then Sync. Balance: $
-                  {agentUsdc.toFixed(2)} (USD notional). Then one wallet signature to start.
+                  <strong className="text-amber-50">Fund wallet on BSC Testnet.</strong> Need ~
+                  {(requiredUsdc / Math.max(bnbSpotUsd, 1)).toFixed(4)} tBNB (~${requiredUsdc.toFixed(2)}) for
+                  buys. Balance: {walletTbnb.toFixed(4)} tBNB (~${walletUsd.toFixed(2)}).
                 </>
               )}
             </div>
@@ -1079,18 +1148,17 @@ export function NexusAutopilotPanel({
                   Start NEXUS Autopilot?
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-white/70">
-                  You will <strong className="text-white">sign once</strong> on {BSC_CHAIN_LABEL}. After
-                  that, trades use your <strong className="text-cyan-200">agent vault</strong> automatically
+                  You will <strong className="text-white">sign once</strong> on {BSC_CHAIN_LABEL} to unlock the
+                  session, then <strong className="text-cyan-200">confirm each cycle</strong> in your wallet via
+                  PancakeSwap
                   {permissionIntent === "recurring"
-                    ? ` every ${sessionIntervalLabel(config)} from your vault`
+                    ? ` every ${sessionIntervalLabel(config)}`
                     : ` — one trade ${onceScheduleLabel(config)}`}
-                  . {permissionIntent === "recurring"
-                    ? "No more wallet prompts until you tap Stop recurring."
-                    : "Does not stop a recurring agent if one is already running."}
+                  .
                 </p>
                 <ul className="mt-3 space-y-1 text-xs text-white/55">
-                  <li>· Deposit tBNB to the vault above on BSC Testnet, then Sync</li>
-                  <li>· Trades execute via PancakeSwap — you sign each buy/sell in the Trade tab</li>
+                  <li>· Keep tBNB on BSC Testnet for buy cycles</li>
+                  <li>· Constitution permit must clear before autopilot buys</li>
                   <li>· Recurring and one-time runs are independent</li>
                 </ul>
                 <div className="mt-4 flex gap-2">
@@ -1175,7 +1243,7 @@ export function NexusAutopilotPanel({
           </button>
           <p className="text-center text-[10px] text-white/45">
             {config.scheduleMode === "recurring"
-              ? `Recurring uses vault every ${sessionIntervalLabel(config)} after one signature. Stop only pauses recurring.`
+              ? `Recurring runs every ${sessionIntervalLabel(config)} — wallet signs each PancakeSwap tx.`
               : `One-time: ${onceScheduleLabel(config)}. Won't stop recurring if it's already running.`}
           </p>
         </>

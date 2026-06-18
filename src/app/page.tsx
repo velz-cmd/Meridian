@@ -5,6 +5,7 @@ import {
   ArcIntelligenceGrid,
   ArcSystemsShowcase,
 } from "@/components/landing/arc-home-sections";
+import { MeridianProblemSection } from "@/components/shared/meridian-problem-section";
 
 export default function HomePage() {
   return (
@@ -13,6 +14,7 @@ export default function HomePage() {
       <div className="relative">
         <ArcEcosystemHero />
         <ArcIntelligenceGrid />
+        <MeridianProblemSection />
         <ArcSystemsShowcase />
         <ArcHomeFooter />
       </div>

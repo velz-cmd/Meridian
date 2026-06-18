@@ -8,7 +8,9 @@ import {
   BSC_TESTNET_WBNB,
 } from "@/lib/bsc-chain";
 import { createBscNativeBnbSwapToken, isBscNativeBnb } from "@/lib/arc-usdc-swap";
-import { getAddress, isAddress } from "viem";
+import { getBscPublicClient } from "@/lib/bsc-chain";
+import { ERC20_ABI } from "@/lib/pancake-v2";
+import { formatUnits, getAddress, isAddress, type Address } from "viem";
 
 /** BSC Testnet (Chapel) contracts — PancakeSwap V2 desk */
 export const TESTNET_KNOWN_TOKENS: Record<string, `0x${string}`> = {
@@ -164,4 +166,28 @@ export function matchTestnetDeskBySymbol(
 
 export function testnetMarketChainForQuote(symbol: string): string {
   return BSC_MARKET_CHAIN_SLUG;
+}
+
+/** On-chain ERC-20 balance for BSC Testnet desk tokens. */
+export async function fetchDeskTokenBalance(
+  wallet: Address,
+  input: { symbol: string; tokenAddress: string; chainId: string },
+): Promise<number> {
+  const token = resolveTestnetSwapAddress(input);
+  if (!token) return 0;
+  const client = getBscPublicClient();
+  const [raw, decimals] = await Promise.all([
+    client.readContract({
+      address: token,
+      abi: ERC20_ABI,
+      functionName: "balanceOf",
+      args: [wallet],
+    }),
+    client.readContract({
+      address: token,
+      abi: ERC20_ABI,
+      functionName: "decimals",
+    }),
+  ]);
+  return Number(formatUnits(raw as bigint, Number(decimals)));
 }

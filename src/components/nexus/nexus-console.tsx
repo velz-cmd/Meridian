@@ -48,6 +48,7 @@ import { NexusMobileContextBar } from "@/components/nexus/nexus-mobile-context-b
 import { NexusMobileTokenActions } from "@/components/nexus/nexus-mobile-token-actions";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
+import { MeridianPipelineBar } from "@/components/shared/meridian-pipeline-bar";
 import { meridianClientHeaders } from "@/lib/circle-agents";
 import { buildBscTestnetTradeTokens, isTestnetDeskToken, matchTestnetDeskBySymbol } from "@/lib/testnet-onchain";
 import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
@@ -978,6 +979,20 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         />
         <div className="mb-4 hidden lg:block">
           <NexusPremiumHero stableCount={STABLE_FEED_LIMIT} />
+        </div>
+
+        <div className="mb-4">
+          <MeridianPipelineBar
+            route={gateRoute}
+            routeLoading={gateRouteLoading}
+            selectedSymbol={selectedToken?.symbol ?? rankingSelectedSymbol}
+            permitStatus={
+              constitution.loading
+                ? "PENDING"
+                : constitution.payload?.permit?.status ?? null
+            }
+            feedLive={constitution.payload?.cmcLive ?? gateRoute != null}
+          />
         </div>
 
         <div className="mb-4">

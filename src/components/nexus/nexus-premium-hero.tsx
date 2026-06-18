@@ -21,13 +21,13 @@ export function NexusPremiumHero({ stableCount }: { stableCount: number }) {
         <div className="flex min-w-0 items-start gap-3">
           <ArcIcon3d icon={Zap} theme="nexus" size="md" delay={0} />
           <div className="min-w-0">
-            <p className="arc-caption text-violet-300/85">MERIDIAN · Strategy → Execution</p>
+            <p className="arc-caption text-violet-300/85">MERIDIAN · Constitution desk</p>
             <h2 className="nexus-workspace-title mt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">
-              Constitution <span className="arc-gradient-text">command terminal</span>
+              Trade when the <span className="arc-gradient-text">rules clear</span>
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--arc-text-muted)]">
-              Live CMC benchmarks (BNB · CAKE · FLOKI · XVS) feed the capital router above — permit-gated trades on
-              BSC testnet. {stableCount} movers in scan; strategy symbols always sync with the gate engine.
+              Same live row as the momentum router — chart, agent, permit gate, and PancakeSwap on BSC
+              Testnet. {stableCount} movers in discovery; benchmarks always sync with the router.
             </p>
           </div>
         </div>
