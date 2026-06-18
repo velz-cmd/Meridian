@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   BarChart3,
   Bot,
-  ChevronDown,
   Loader2,
   RefreshCw,
   Shield,
@@ -177,7 +176,6 @@ export function NexusTrendingFeed({
   const [secondsLeft, setSecondsLeft] = useState(REFRESH_MS / 1000);
   const [counts, setCounts] = useState(() => sessionSeed?.counts ?? { buy: 0, sell: 0, hold: 0 });
   const [feedCycle, setFeedCycle] = useState(() => sessionSeed?.feedCycle ?? 0);
-  const [feedExpanded, setFeedExpanded] = useState(false);
 
   const onSelectRef = useRef(onSelect);
   const onRefreshRef = useRef(onTokensRefresh);
@@ -323,10 +321,6 @@ export function NexusTrendingFeed({
     userPickedRef.current = true;
     onSelect(token, { openChart: true });
   }
-
-  const hiddenCount = Math.max(0, tokens.length - FEED_PREVIEW);
-  const showFeedToggle = hiddenCount > 0;
-  const visibleTokens = feedExpanded ? tokens : tokens.slice(0, FEED_PREVIEW);
 
   function renderTokenRow(token: TrendingMarketToken) {
     const selected = selectedAddress?.toLowerCase() === token.tokenAddress.toLowerCase();
@@ -567,31 +561,16 @@ export function NexusTrendingFeed({
         {refreshing && <span className="ml-1 text-cyan-300"> Updating…</span>}
       </p>
 
-      <div
-        className={cn(
-          "nexus-feed-scroll min-h-0 flex-1 space-y-1.5 pr-1",
-          compactDesktop || feedExpanded
-            ? "overflow-y-auto overscroll-contain pb-2 max-lg:overflow-visible max-lg:flex-none"
-            : "overflow-hidden pb-1 max-lg:overflow-visible max-lg:flex-none",
-        )}
-      >
-        {visibleTokens.map((token) => renderTokenRow(token))}
-      </div>
-
-      {showFeedToggle && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="min-h-[44px] w-full gap-2 border-white/15 bg-white/[0.03] text-sm text-white/80 hover:bg-white/[0.06]"
-          onClick={() => setFeedExpanded((prev) => !prev)}
+      <div className="nexus-feed-scroll-mask flex min-h-0 flex-1 flex-col">
+        <div
+          className={cn(
+            "nexus-feed-scroll min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain pr-1 pb-2 pt-0.5",
+            compactDesktop ? "max-lg:overflow-visible max-lg:flex-none" : "",
+          )}
         >
-          <ChevronDown
-            className={cn("h-4 w-4 shrink-0 transition-transform duration-200", feedExpanded && "rotate-180")}
-          />
-          {feedExpanded ? "Show less" : `Show ${hiddenCount} more`}
-        </Button>
-      )}
+          {tokens.map((token) => renderTokenRow(token))}
+        </div>
+      </div>
     </div>
   );
 }

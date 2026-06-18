@@ -45,18 +45,12 @@ function asTradeToken(token: TradeToken) {
 type AmountMode = "tbnb" | "token";
 
 const TRADE_NETWORK = "bsc" as const;
-const BUY_PRESETS = [0.01, 0.025, 0.05, 0.1] as const;
-const SELL_RECEIVE_PRESETS = [0.01, 0.025, 0.05, 0.1] as const;
 const PCT_OPTIONS = [25, 50, 75] as const;
 
 function formatAmount(n: number) {
   if (n >= 1000) return n.toFixed(0);
   if (n >= 1) return n.toFixed(2);
   return n.toFixed(6);
-}
-
-function formatTbnbPreset(n: number) {
-  return n.toFixed(3).replace(/0$/, "");
 }
 
 type TradeTab = "buy" | "sell" | "agent";
@@ -97,8 +91,8 @@ export function NexusTradeHub({
 
   const trade = asTradeToken(token);
   const side = tradeTab === "sell" ? "sell" : "buy";
+  const amountMode: AmountMode = side === "buy" ? "tbnb" : "token";
   const [amount, setAmount] = useState("0.01");
-  const [amountMode, setAmountMode] = useState<AmountMode>("tbnb");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastTx, setLastTx] = useState<{ hash: string; block?: number } | null>(null);
@@ -115,7 +109,6 @@ export function NexusTradeHub({
   const tradeOnChainHint = trade ? testnetSwapHint(trade) : null;
 
   useEffect(() => {
-    setAmountMode(side === "buy" ? "tbnb" : "token");
     setAmount(side === "buy" ? "0.01" : "0");
   }, [side, trade?.tokenAddress]);
 
@@ -184,31 +177,11 @@ export function NexusTradeHub({
 
   function applyPct(pct: number) {
     if (side === "buy") {
-      if (amountMode === "tbnb") {
-        const spend = (walletTbnb * pct) / 100;
-        setAmount(formatAmount(Math.max(0, spend)));
-      } else if (livePrice > 0) {
-        const maxTokens = (walletTbnb * bnbSpotUsd) / livePrice;
-        setAmount(formatAmount((maxTokens * pct) / 100));
-      }
+      const spend = (walletTbnb * pct) / 100;
+      setAmount(formatAmount(Math.max(0, spend)));
       return;
     }
-    if (amountMode === "token") {
-      setAmount(formatAmount((tokenBalance * pct) / 100));
-    } else if (livePrice > 0) {
-      setAmount(formatAmount(((tokenBalance * livePrice * pct) / 100 / bnbSpotUsd)));
-    }
-  }
-
-  function applyBuyPreset(tbnb: number) {
-    setTab("buy");
-    setAmountMode("tbnb");
-    setAmount(tbnb.toFixed(4));
-  }
-
-  function applySellTbnbReceive(tbnb: number) {
-    setAmountMode("tbnb");
-    setAmount(tbnb.toFixed(4));
+    setAmount(formatAmount((tokenBalance * pct) / 100));
   }
 
   async function executeOnChainTrade() {
@@ -470,105 +443,29 @@ export function NexusTradeHub({
                 </p>
               )}
 
-              {side === "buy" && (
-                <div>
-                  <p className="nexus-caption mb-2 flex items-center gap-1.5">
-                    <Coins className="h-3.5 w-3.5 text-emerald-300" />
-                    Quick spend (tBNB)
-                  </p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {BUY_PRESETS.map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => applyBuyPreset(v)}
-                        className="flex min-h-[44px] flex-col items-center justify-center rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-1 py-2 transition hover:border-emerald-400/40 hover:bg-emerald-500/15 active:scale-[0.98]"
-                      >
-                        <span className="font-mono text-sm tabular-nums text-emerald-50">
-                          {formatTbnbPreset(v)}
-                        </span>
-                        <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-200/70">
-                          tBNB
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {side === "sell" && (
-                <div>
-                  <p className="nexus-caption mb-2 flex items-center gap-1.5">
-                    <Coins className="h-3.5 w-3.5 text-rose-300" />
-                    Quick receive (tBNB)
-                  </p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {SELL_RECEIVE_PRESETS.map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => applySellTbnbReceive(v)}
-                        className="flex min-h-[44px] flex-col items-center justify-center rounded-xl border border-rose-400/25 bg-rose-500/10 px-1 py-2 transition hover:border-rose-400/40 hover:bg-rose-500/15 active:scale-[0.98]"
-                      >
-                        <span className="font-mono text-sm tabular-nums text-rose-50">
-                          {formatTbnbPreset(v)}
-                        </span>
-                        <span className="text-[9px] font-semibold uppercase tracking-wider text-rose-200/70">
-                          tBNB
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="nexus-caption flex items-center gap-1.5">
+              <div>
+                <p className="nexus-caption mb-2 flex items-center gap-1.5">
                   <Coins className="h-3.5 w-3.5 text-cyan-300" />
-                  {side === "buy" ? "Buy amount" : "Sell amount"}
+                  {side === "buy" ? "Spend (tBNB)" : `Sell (${trade.symbol})`}
                 </p>
-                <div className="inline-flex rounded-lg border border-white/15 p-0.5 text-[10px] font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setAmountMode("token")}
-                    className={`rounded-md px-2.5 py-1 transition ${
-                      amountMode === "token" ? "bg-cyan-500/25 text-cyan-100" : "text-white/50"
-                    }`}
-                  >
-                    {trade.symbol}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAmountMode("tbnb")}
-                    className={`rounded-md px-2.5 py-1 transition ${
-                      amountMode === "tbnb" ? "bg-emerald-500/25 text-emerald-100" : "text-white/50"
-                    }`}
-                  >
-                    tBNB
-                  </button>
-                </div>
               </div>
 
               <input
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="arc-input-glass w-full min-h-[48px] px-4 text-lg font-medium text-white"
-                placeholder={amountMode === "tbnb" ? "tBNB amount" : `${trade.symbol} amount`}
+                className="arc-input-glass w-full min-h-[48px] px-4 text-lg font-medium tabular-nums text-white"
+                placeholder={side === "buy" ? "tBNB amount" : `${trade.symbol} amount`}
               />
               <p className="text-[11px] text-white/45">
                 Wallet: {walletTbnb.toFixed(4)} tBNB on {BSC_CHAIN_LABEL}
               </p>
 
               {amountNum > 0 && livePrice > 0 && (
-                <p className="text-[11px] text-white/50">
-                  {amountMode === "tbnb"
-                    ? side === "buy"
-                      ? `≈ ${formatTokenAmount(resolved.tokenAmount)} ${trade.symbol}`
-                      : `≈ ${(resolved.usdcAmount / bnbSpotUsd).toFixed(4)} tBNB receive`
-                    : side === "buy"
-                      ? `${resolved.tbnbSpent.toFixed(4)} tBNB`
-                      : `${(resolved.usdcAmount / bnbSpotUsd).toFixed(4)} tBNB receive`}
+                <p className="text-[11px] text-white/50 tabular-nums">
+                  {side === "buy"
+                    ? `≈ ${formatTokenAmount(resolved.tokenAmount)} ${trade.symbol}`
+                    : `≈ ${resolved.tbnbSpent.toFixed(4)} tBNB receive`}
                 </p>
               )}
               <div className="grid grid-cols-4 gap-2">

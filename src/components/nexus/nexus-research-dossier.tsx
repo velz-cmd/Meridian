@@ -58,6 +58,10 @@ export function NexusResearchDossierLive({
   /** Only holder/trader tables (intel panels live under chart) */
   holdersOnly?: boolean;
 }) {
+  const hasHolderRows =
+    (payload?.topHolders?.length ?? 0) > 0 || (payload?.topTraders?.length ?? 0) > 0;
+  if (holdersOnly && !loading && !hasHolderRows) return null;
+
   return (
     <div className="nexus-research-dossier-live space-y-3">
       {!holdersOnly && error && !loading && (
@@ -71,7 +75,7 @@ export function NexusResearchDossierLive({
         loading={loading}
         symbol={token.symbol}
       />
-      {!payload?.dossier && loading && (
+      {!holdersOnly && !payload?.dossier && loading && (
         <div className="flex items-center justify-center gap-2 py-4 text-xs text-white/50">
           <Loader2 className="h-4 w-4 animate-spin" />
           Scanning holders, TA, and news…

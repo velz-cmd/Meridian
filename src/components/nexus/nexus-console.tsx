@@ -777,41 +777,45 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           loading={constitution.loading}
           error={constitution.error}
         />
-        <NexusAgentReasoningStrip
-          token={selectedToken}
-          payload={tokenDossier.payload}
-          loading={tokenDossier.loading}
-          tier={intelTier}
-          alphaThesis={alphaThesis}
-        />
-        {tokenDossier.error && !tokenDossier.loading && (
-          <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
-            {tokenDossier.error}
-          </p>
+        {!isGateSymbol(selectedToken.symbol) && (
+          <>
+            <NexusAgentReasoningStrip
+              token={selectedToken}
+              payload={tokenDossier.payload}
+              loading={tokenDossier.loading}
+              tier={intelTier}
+              alphaThesis={alphaThesis}
+            />
+            {tokenDossier.error && !tokenDossier.loading && (
+              <p className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                {tokenDossier.error}
+              </p>
+            )}
+            <NexusIntelCollapsibles
+              token={selectedToken}
+              payload={tokenDossier.payload}
+              loading={tokenDossier.loading}
+              reasoningInStrip
+            />
+            <NexusResearchDossierLive
+              token={selectedToken}
+              payload={tokenDossier.payload}
+              loading={tokenDossier.loading}
+              error={tokenDossier.error}
+              holdersOnly
+            />
+            <NexusResearchDossierDeep dossier={tokenDossier.payload?.dossier} loading={tokenDossier.loading} />
+            <NexusTokenDetectPanel
+              chainId={selectedToken.chainId}
+              tokenAddress={selectedToken.tokenAddress}
+              symbol={selectedToken.symbol}
+              txns24h={selectedToken.txns24h}
+              volume24h={selectedToken.volume24h}
+              agentAction={displayDecision?.action}
+              onIntelUpdate={handleBirdeyeIntel}
+            />
+          </>
         )}
-        <NexusIntelCollapsibles
-          token={selectedToken}
-          payload={tokenDossier.payload}
-          loading={tokenDossier.loading}
-          reasoningInStrip
-        />
-        <NexusResearchDossierLive
-          token={selectedToken}
-          payload={tokenDossier.payload}
-          loading={tokenDossier.loading}
-          error={tokenDossier.error}
-          holdersOnly
-        />
-        <NexusResearchDossierDeep dossier={tokenDossier.payload?.dossier} loading={tokenDossier.loading} />
-        <NexusTokenDetectPanel
-          chainId={selectedToken.chainId}
-          tokenAddress={selectedToken.tokenAddress}
-          symbol={selectedToken.symbol}
-          txns24h={selectedToken.txns24h}
-          volume24h={selectedToken.volume24h}
-          agentAction={displayDecision?.action}
-          onIntelUpdate={handleBirdeyeIntel}
-        />
         {communityPulse && communityPulse.items.length > 0 && (
           <NexusCollapsible
             label={`Community · ${communityPulse.topic}`}

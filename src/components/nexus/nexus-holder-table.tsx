@@ -71,6 +71,10 @@ export function NexusHolderTables({
   loading?: boolean;
   symbol?: string;
 }) {
+  if (!loading && topHolders.length === 0 && topTraders.length === 0) {
+    return null;
+  }
+
   const holderHint = loading
     ? "Loading holders…"
     : topHolders.length === 0

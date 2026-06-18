@@ -111,7 +111,12 @@ export function useTokenDossier(token: TrendingMarketToken | null, tier: "feed" 
         })();
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load dossier");
+          const raw = err instanceof Error ? err.message : "Failed to load dossier";
+          const friendly =
+            /timed out|abort|timeout/i.test(raw)
+              ? "Extended intel still loading — gate checks and chart use live CMC feed."
+              : raw;
+          setError(friendly);
           setLoading(false);
         }
       }

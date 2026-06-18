@@ -2190,6 +2190,53 @@ html[data-arc-theme="nexus"] .nexus-column-head {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%);
 }
 
+html[data-arc-theme="nexus"] .nexus-feed-scroll-mask {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+html[data-arc-theme="nexus"] .nexus-feed-scroll-mask::before,
+html[data-arc-theme="nexus"] .nexus-feed-scroll-mask::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 6px;
+  height: 16px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+html[data-arc-theme="nexus"] .nexus-feed-scroll-mask::before {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(7, 10, 16, 0.92), transparent);
+}
+
+html[data-arc-theme="nexus"] .nexus-feed-scroll-mask::after {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(7, 10, 16, 0.92), transparent);
+}
+
+html[data-arc-theme="nexus"] .nexus-feed-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 85, 247, 0.4) transparent;
+}
+
+html[data-arc-theme="nexus"] .nexus-feed-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+html[data-arc-theme="nexus"] .nexus-feed-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(168, 85, 247, 0.35);
+}
+
+html[data-arc-theme="nexus"] .nexus-feed-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* PRISM workspace — glass hero, CTAs, perf-friendly scroll */
 .prism-premium-hero-glow {
   background: radial-gradient(ellipse 80% 60% at 20% 0%, rgba(245, 158, 11, 0.12), transparent 55%),
