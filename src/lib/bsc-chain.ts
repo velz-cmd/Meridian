@@ -11,8 +11,15 @@ export const BSC_MARKET_CHAIN_SLUG = "bsc";
 /** Wrapped BNB on BSC Testnet (Chapel) */
 export const BSC_TESTNET_WBNB = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
 
-/** PancakeSwap test token on Chapel — demo CAKE stand-in for NEXUS desk */
-export const BSC_TESTNET_CAKE = "0xFa60D973F7642B746046991C42532267D238F491";
+/** BSC Testnet BUSD — WBNB pair on official PancakeSwap V2 router */
+export const BSC_TESTNET_BUSD = "0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee" as const;
+
+/**
+ * PancakeSwap CAKE on Chapel (on-chain symbol Cake97) — WBNB pair on official V2 router.
+ * Display as CAKE in UI; mainnet CMC price overlays for sizing.
+ */
+export const BSC_TESTNET_CAKE = (process.env.NEXT_PUBLIC_BSC_TESTNET_CAKE ??
+  "0x0C255a24CFA59d4733A32e619dfD089d5c134EAF") as `0x${string}`;
 
 const BSC_TESTNET_RPC =
   process.env.NEXT_PUBLIC_BSC_RPC_URL ?? "https://data-seed-prebsc-1-s1.binance.org:8545";

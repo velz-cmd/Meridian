@@ -26,5 +26,5 @@ export const GATE_PRODUCT = {
 
 export function gateSymbolTradableOnTestnet(symbol: string): boolean {
   const s = symbol.replace(/^\$/, "").trim().toUpperCase();
-  return s === "BNB" || s === "CAKE" || s === "BUSD" || s === "USDT";
+  return s === "BNB" || s === "CAKE" || s === "BUSD" || s === "USDC";
 }

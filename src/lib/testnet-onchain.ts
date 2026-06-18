@@ -3,6 +3,7 @@ import {
   BSC_CHAIN_ID,
   BSC_EXPLORER,
   BSC_MARKET_CHAIN_SLUG,
+  BSC_TESTNET_BUSD,
   BSC_TESTNET_CAKE,
   BSC_TESTNET_WBNB,
 } from "@/lib/bsc-chain";
@@ -14,15 +15,15 @@ export const TESTNET_KNOWN_TOKENS: Record<string, `0x${string}`> = {
   WBNB: BSC_TESTNET_WBNB,
   BNB: BSC_TESTNET_WBNB,
   CAKE: BSC_TESTNET_CAKE,
-  BUSD: "0x78867BbEeF44f2329bF6aD2354edf4F47cE9a17B",
-  USDT: "0x337610d27c682E197C859484421e841Ce3626aBa",
+  BUSD: BSC_TESTNET_BUSD,
+  USDC: "0x64544969ed7EBf5f083679233325356EbE738930",
 };
 
 /** Mainnet BSC symbols used to hydrate USD prices for the testnet desk */
 export const TESTNET_PRICE_SYMBOL: Record<string, string> = {
   CAKE: "CAKE",
   BUSD: "BUSD",
-  USDT: "USDT",
+  USDC: "USDC",
 };
 
 export type TestnetCatalogRow = {
@@ -37,7 +38,7 @@ export type TestnetCatalogRow = {
 const BNB_ICON = "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png";
 const CAKE_ICON = "https://assets.coingecko.com/coins/images/12632/small/pancakeswap-cake-logo_%281%29.png";
 const BUSD_ICON = "https://assets.coingecko.com/coins/images/9576/small/BUSD.png";
-const USDT_ICON = "https://assets.coingecko.com/coins/images/325/small/Tether.png";
+const USDC_ICON = "https://assets.coingecko.com/coins/images/6319/small/usdc.png";
 
 /** Canonical BSC Testnet trade desk — on-chain addresses on chain 97 */
 export const BSC_TESTNET_CATALOG: TestnetCatalogRow[] = [
@@ -56,11 +57,11 @@ export const BSC_TESTNET_CATALOG: TestnetCatalogRow[] = [
     marketSymbol: "BUSD",
   },
   {
-    symbol: "USDT",
-    name: "Tether USD (test)",
-    tokenAddress: TESTNET_KNOWN_TOKENS.USDT,
-    icon: USDT_ICON,
-    marketSymbol: "USDT",
+    symbol: "USDC",
+    name: "USD Coin (test)",
+    tokenAddress: TESTNET_KNOWN_TOKENS.USDC,
+    icon: USDC_ICON,
+    marketSymbol: "USDC",
   },
 ];
 
@@ -76,7 +77,7 @@ export function buildBscTestnetTradeTokens(bnbSpotUsd = 0): TrendingMarketToken[
     tokenAddress: row.tokenAddress,
     chainId: String(BSC_CHAIN_ID),
     pairAddress: "",
-    priceUsd: row.symbol === "BUSD" || row.symbol === "USDT" ? 1 : 0,
+    priceUsd: row.symbol === "BUSD" || row.symbol === "USDC" ? 1 : 0,
     change24h: 0,
     volume24h: 0,
     liquidityUsd: 0,
@@ -146,7 +147,7 @@ export function testnetSwapHint(input: {
   chainId: string;
 }): string | null {
   if (canSwapOnBscTestnet(input)) return null;
-  return `${input.symbol} is not on the BSC Testnet desk — select BNB, CAKE, BUSD, or USDT to trade on-chain.`;
+  return `${input.symbol} is not on the BSC Testnet desk — select BNB, CAKE, BUSD, or USDC to trade on-chain.`;
 }
 
 /** Match selected feed row to testnet desk token by symbol (for chart + trade alignment). */

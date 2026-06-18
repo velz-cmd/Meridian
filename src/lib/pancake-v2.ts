@@ -8,10 +8,13 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import { BSC_TESTNET_WBNB, getBscPublicClient } from "@/lib/bsc-chain";
+import { BSC_TESTNET_BUSD, BSC_TESTNET_WBNB, getBscPublicClient } from "@/lib/bsc-chain";
 
-/** PancakeSwap V2 router — BSC Testnet (Chapel) */
-export const PANCAKE_V2_ROUTER = "0xD99D1c33F9fC3444f810f4bE41A671E363a0826" as const;
+/** PancakeSwap V2 router — BSC Testnet (Chapel), official periphery */
+export const PANCAKE_V2_ROUTER = "0xD99D1c33F9fC3444f8101754aBC46c52416550D1" as const;
+
+/** PancakeSwap V2 factory — BSC Testnet */
+export const PANCAKE_V2_FACTORY = "0x6725F303b657a9451d8BA641348b6761A6CC7a17" as const;
 
 export const PANCAKE_V2_ROUTER_ABI = [
   {
@@ -149,15 +152,34 @@ export async function quoteSwapAmountsOut(path: Address[], amountIn: bigint): Pr
   }
 }
 
+async function quoteBestPath(
+  amountIn: bigint,
+  paths: Address[][],
+): Promise<{ amountOut: bigint; path: Address[] } | null> {
+  let best: { amountOut: bigint; path: Address[] } | null = null;
+  for (const path of paths) {
+    const amounts = await quoteSwapAmountsOut(path, amountIn);
+    const out = amounts?.[amounts.length - 1];
+    if (!out || out <= BigInt(0)) continue;
+    if (!best || out > best.amountOut) best = { amountOut: out, path };
+  }
+  return best;
+}
+
 export async function quoteNativeForToken(
   tokenOut: Address,
   tbnbIn: string,
 ): Promise<{ amountIn: bigint; amountOut: bigint; path: Address[] } | null> {
   const amountIn = parseEther(tbnbIn);
-  const path = [getAddress(BSC_TESTNET_WBNB), tokenOut] as Address[];
-  const amounts = await quoteSwapAmountsOut(path, amountIn);
-  if (!amounts || amounts.length < 2 || amounts[1] <= BigInt(0)) return null;
-  return { amountIn, amountOut: amounts[1], path };
+  const wbnb = getAddress(BSC_TESTNET_WBNB);
+  const busd = getAddress(BSC_TESTNET_BUSD);
+  const out = getAddress(tokenOut);
+  const best = await quoteBestPath(amountIn, [
+    [wbnb, out],
+    [wbnb, busd, out],
+  ]);
+  if (!best) return null;
+  return { amountIn, amountOut: best.amountOut, path: best.path };
 }
 
 export async function quoteTokenForNative(
@@ -166,10 +188,14 @@ export async function quoteTokenForNative(
   decimals = 18,
 ): Promise<{ amountIn: bigint; amountOut: bigint; path: Address[] } | null> {
   const amountIn = parseUnits(tokenAmountIn, decimals);
-  const path = [tokenIn, getAddress(BSC_TESTNET_WBNB)] as Address[];
-  const amounts = await quoteSwapAmountsOut(path, amountIn);
-  if (!amounts || amounts.length < 2 || amounts[1] <= BigInt(0)) return null;
-  return { amountIn, amountOut: amounts[1], path };
+  const wbnb = getAddress(BSC_TESTNET_WBNB);
+  const busd = getAddress(BSC_TESTNET_BUSD);
+  const best = await quoteBestPath(amountIn, [
+    [tokenIn, wbnb],
+    [tokenIn, busd, wbnb],
+  ]);
+  if (!best) return null;
+  return { amountIn, amountOut: best.amountOut, path: best.path };
 }
 
 export async function quoteTokenForToken(
