@@ -65,8 +65,8 @@ export function GateSkillStack({ skills, constitutionSignal }: { skills: GateSki
       <div className="space-y-4 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-300/90">
-              3 skills running · live
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/45">
+              Signal layers · live
             </p>
             <h2 className="mt-1 text-lg font-semibold text-white">Momentum · Sentiment · Regime</h2>
             {blocked && (
@@ -76,7 +76,7 @@ export function GateSkillStack({ skills, constitutionSignal }: { skills: GateSki
             )}
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase text-white/40">Composite verdict</p>
+            <p className="text-[10px] uppercase text-white/40">Combined read</p>
             <p className={cn("text-xl font-bold", compositePos === "LONG" ? "text-emerald-300" : "text-white/65")}>
               {compositePos}
             </p>

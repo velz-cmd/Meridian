@@ -1,12 +1,13 @@
 "use client";
 
-import { Loader2, TrendingUp } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { GATE_SYMBOLS, type GateSymbol } from "@/lib/gate-constants";
+import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { strategyPosition } from "@/lib/gate-strategy-copy";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
 import { cn } from "@/lib/utils";
 
-/** Single live scan panel — rank, conviction, per-coin metrics (no duplicate token grids). */
+/** Ranked BSC benchmarks — selection drives every action below. */
 export function GateBenchmarkDesk({
   route,
   benchmarks,
@@ -24,8 +25,8 @@ export function GateBenchmarkDesk({
 }) {
   if (loading) {
     return (
-      <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-4 py-6 text-sm text-white/50">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading live CMC scan (1 batched request)…
+      <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/40 px-4 py-6 text-sm text-white/50">
+        <Loader2 className="h-4 w-4 animate-spin" /> Refreshing market scan…
       </div>
     );
   }
@@ -34,41 +35,36 @@ export function GateBenchmarkDesk({
   const rankBySym = Object.fromEntries(ranked.map((r) => [r.symbol, r]));
   const deploying = route && route.allocation.primary !== "FLAT";
   const primarySym = route?.allocation.primary;
-
   const longCount = benchmarks.filter((b) => strategyPosition(b.gate.signal) === "LONG").length;
 
+  const selectedBench = benchmarks.find((b) => b.symbol === selected);
+  const selectedRank = rankBySym[selected];
+  const selectedPos = selectedBench ? strategyPosition(selectedBench.gate.signal) : "FLAT";
+  const selectedChecks = selectedBench
+    ? `${selectedBench.gate.checksPassed}/${selectedBench.gate.checksTotal} rules`
+    : "—";
+
   return (
-    <section className="overflow-hidden rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-950/35 via-black/50 to-black/60">
+    <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/45">
       <div className="space-y-4 p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/15">
-              <TrendingUp className="h-5 w-5 text-emerald-300" />
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-300/90">
-                Live benchmark scan · per-coin engine
-              </p>
-              <h2 className="text-lg font-semibold text-white">
-                {deploying && route
-                  ? `Deploy ${route.allocation.splitPrimaryPct}% ${primarySym}${route.allocation.secondary ? ` + ${route.allocation.splitSecondaryPct}% ${route.allocation.secondary}` : ""}`
-                  : "Stay flat — no benchmark clears"}
-              </h2>
-              <p className="mt-1 text-xs text-white/50">
-                {longCount} LONG · {benchmarks.length - longCount} FLAT
-                {route ? ` · ${route.regime.replace("-", " ")} · F&G ${route.fearGreed}` : ""}
-                · each coin: own RSI, turnover, checks, conviction
-              </p>
-            </div>
-          </div>
-          {deploying && primarySym && onDeploy && (
-            <button
-              type="button"
-              onClick={() => onDeploy(primarySym)}
-              className="rounded-xl border border-emerald-400/45 bg-emerald-500/20 px-4 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-500/30"
-            >
-              Trade {primarySym}
-            </button>
+        <div className="border-b border-white/10 pb-4">
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/45">
+            {GATE_PRODUCT.rankingTitle}
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-white sm:text-xl">
+            {deploying && route && primarySym
+              ? GATE_PRODUCT.rankingActive(
+                  primarySym,
+                  route.allocation.splitPrimaryPct,
+                  route.allocation.secondary ?? undefined,
+                  route.allocation.splitSecondaryPct ?? undefined,
+                )
+              : GATE_PRODUCT.rankingFlat}
+          </h2>
+          {route && (
+            <p className="mt-1 text-xs text-white/45">
+              {GATE_PRODUCT.rankingMeta(longCount, benchmarks.length - longCount, route.regime, route.fearGreed)}
+            </p>
           )}
         </div>
 
@@ -79,7 +75,6 @@ export function GateBenchmarkDesk({
             const active = selected === sym;
             const long = bench ? strategyPosition(bench.gate.signal) === "LONG" : false;
             const rsi = bench?.market.rsi;
-            const align = bench?.skills?.composite?.alignmentScore;
 
             return (
               <button
@@ -89,59 +84,53 @@ export function GateBenchmarkDesk({
                 className={cn(
                   "rounded-xl border px-3 py-3 text-left transition",
                   active
-                    ? "border-emerald-400/50 bg-emerald-500/15 ring-1 ring-emerald-400/25"
-                    : "border-white/10 bg-black/35 hover:border-white/20",
+                    ? "border-white/40 bg-white/10 ring-1 ring-white/20"
+                    : "border-white/10 bg-black/30 hover:border-white/20 hover:bg-black/40",
                 )}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-bold text-white">
-                      {rank ? `#${rank.rank} ` : ""}
-                      {sym}
-                    </p>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-baseline gap-2">
                     {rank && (
-                      <p className="text-[10px] text-emerald-300/80">{rank.conviction} conviction</p>
+                      <span className="text-[10px] font-medium text-white/35">#{rank.rank}</span>
                     )}
+                    <span className="text-sm font-bold text-white">{sym}</span>
                   </div>
                   {bench ? (
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-[9px] font-bold uppercase",
-                        long ? "bg-emerald-500/25 text-emerald-200" : "bg-white/10 text-white/55",
+                        "rounded-md px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+                        long ? "bg-emerald-500/20 text-emerald-200" : "bg-white/10 text-white/50",
                       )}
                     >
                       {strategyPosition(bench.gate.signal)}
                     </span>
                   ) : (
-                    <span className="text-[10px] text-white/35">…</span>
+                    <span className="text-[10px] text-white/30">…</span>
                   )}
                 </div>
 
                 {bench && (
                   <>
-                    <p className="mt-1.5 text-sm font-medium text-white/90">
-                      ${bench.market.price.toLocaleString(undefined, {
+                    <p className="mt-2 text-base font-semibold text-white">
+                      $
+                      {bench.market.price.toLocaleString(undefined, {
                         maximumFractionDigits: bench.market.price < 1 ? 6 : 2,
                       })}
+                      <span
+                        className={cn(
+                          "ml-2 text-xs font-normal",
+                          bench.market.change24h >= 0 ? "text-emerald-300/90" : "text-rose-300/90",
+                        )}
+                      >
+                        {bench.market.change24h >= 0 ? "+" : ""}
+                        {bench.market.change24h.toFixed(2)}%
+                      </span>
                     </p>
-                    <p className={cn("text-xs", bench.market.change24h >= 0 ? "text-emerald-300" : "text-rose-300")}>
-                      {bench.market.change24h >= 0 ? "+" : ""}
-                      {bench.market.change24h.toFixed(2)}% 24h
-                      {rsi != null ? ` · RSI ${rsi.toFixed(1)}` : ""}
+                    <p className="mt-1.5 text-[11px] text-white/45">
+                      {bench.gate.checksPassed}/{bench.gate.checksTotal} rules pass
+                      {rsi != null ? ` · RSI ${rsi.toFixed(0)}` : ""}
+                      {rank ? ` · score ${rank.conviction}` : ""}
                     </p>
-                    <p className="mt-2 text-[10px] text-white/45">
-                      {bench.gate.checksPassed}/{bench.gate.checksTotal} · {bench.gate.tier.toUpperCase()} · edge +
-                      {bench.gate.edge ?? 0}
-                      {align != null ? ` · ${align}/100 align` : ""}
-                    </p>
-                    {bench.gate.gaps && bench.gate.gaps.length > 0 && (
-                      <p className="mt-1 truncate text-[9px] text-amber-300/85" title={bench.gate.gaps.join("; ")}>
-                        gap: {bench.gate.gaps[0]}
-                      </p>
-                    )}
-                    {rank?.rationale && (
-                      <p className="mt-1 line-clamp-2 text-[9px] leading-snug text-white/40">{rank.rationale}</p>
-                    )}
                   </>
                 )}
               </button>
@@ -149,8 +138,33 @@ export function GateBenchmarkDesk({
           })}
         </div>
 
+        {selectedBench && onDeploy && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-white/40">
+                {GATE_PRODUCT.viewing(selected)}
+              </p>
+              <p className="mt-0.5 text-sm font-semibold text-white">
+                {GATE_PRODUCT.selectedHeadline(selected, selectedPos, selectedChecks)}
+              </p>
+              {selectedRank?.rationale && (
+                <p className="mt-1 line-clamp-2 text-xs text-white/50">{selectedRank.rationale}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => onDeploy(selected)}
+              className="shrink-0 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90"
+            >
+              {gateSymbolTradableOnTestnet(selected)
+                ? GATE_PRODUCT.continueTradable(selected)
+                : GATE_PRODUCT.continueResearch(selected)}
+            </button>
+          </div>
+        )}
+
         {route?.directive && (
-          <p className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/75">{route.directive}</p>
+          <p className="text-sm leading-relaxed text-white/55">{route.directive}</p>
         )}
       </div>
     </section>

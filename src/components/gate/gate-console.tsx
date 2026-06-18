@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BarChart3, ExternalLink, FileText, Loader2 } from "lucide-react";
+import { BarChart3, ExternalLink, Loader2 } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
-import { GATE_SKILL_REPO, type GateSymbol } from "@/lib/gate-constants";
+import { type GateSymbol } from "@/lib/gate-constants";
 import { GITHUB_SKILL, strategyPosition } from "@/lib/gate-strategy-copy";
+import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
+import { buildGateExecutionUrl } from "@/lib/gate-nexus-bridge";
 import { GateStrategyLive } from "@/components/gate/gate-strategy-live";
 import { GateCheckRadar } from "@/components/gate/gate-check-radar";
 import { GateSkillStack, type GateSkillsPayload } from "@/components/gate/gate-skill-stack";
@@ -71,44 +73,64 @@ export function GateConsole() {
     backtest.backtest &&
     backtest.backtest.totalReturnPct < backtest.compare.naiveAgent.totalReturnPct;
 
-  const deployToNexus = useCallback(
+  const openInNexus = useCallback(
     (sym: string) => {
-      const row = gateRoute?.ranked.find((r) => r.symbol === sym);
-      const permit = row?.permit === "GRANT" ? "GRANT" : "DENY";
-      router.push(`/nexus?from=gate&symbol=${sym}&tab=trade&permit=${permit}`);
+      const upper = sym.toUpperCase();
+      const ranked = gateRoute?.ranked.find((r) => r.symbol === upper);
+      const bench = benchmarks.find((b) => b.symbol === upper);
+      const permit =
+        ranked?.permit === "GRANT" || ranked?.permit === "DENY"
+          ? ranked.permit
+          : bench?.gate.signal === "ENTER_LONG"
+            ? "GRANT"
+            : "DENY";
+      const params = new URLSearchParams(
+        buildGateExecutionUrl({ symbol: upper, permit: permit as "GRANT" | "DENY", tab: "trade" }).split("?")[1],
+      );
+      if (!gateSymbolTradableOnTestnet(upper)) {
+        params.set("scroll", "constitution");
+      }
+      router.push(`/nexus?${params.toString()}`);
     },
-    [gateRoute, router],
+    [gateRoute, benchmarks, router],
   );
 
+  const handleSelectSymbol = useCallback((sym: GateSymbol) => {
+    setSymbol(sym);
+    requestAnimationFrame(() => {
+      document.getElementById("gate-symbol-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
+
+  useEffect(() => {
+    setBacktest(null);
+    setBtRequested(false);
+    btReq.current += 1;
+  }, [symbol]);
+
   return (
-    <div className="relative min-h-screen text-white" data-gate-page>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.12),_transparent_50%)]" />
+    <div className="relative min-h-screen bg-[#070809] text-white" data-gate-page>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.04),_transparent_55%)]" />
 
       <div className="relative mx-auto max-w-5xl space-y-5 px-4 py-8 sm:px-6 sm:py-10">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/85">
-              CMC Strategy Skill · Track 2
+            <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-white/40">
+              {GATE_PRODUCT.kicker}
             </p>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Strategy desk</h1>
-            <p className="max-w-xl text-sm text-white/55">
-              One batched CMC scan → per-coin skills & checks → capital rank → drill into any symbol below.
-            </p>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{GATE_PRODUCT.title}</h1>
+            <p className="max-w-xl text-sm leading-relaxed text-white/55">{GATE_PRODUCT.subtitle}</p>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs">
-            <SpecChip href={`${GITHUB_SKILL}/SKILL.md`} label="SKILL.md" />
-            <SpecChip href={`${GITHUB_SKILL}/STRATEGY_SPEC.md`} label="STRATEGY_SPEC" />
-            <Link
-              href="/nexus"
-              className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-1.5 text-emerald-100 hover:bg-emerald-500/25"
-            >
-              NEXUS desk →
-            </Link>
-          </div>
+          <Link
+            href="/nexus"
+            className="inline-flex items-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90"
+          >
+            {GATE_PRODUCT.openExecution}
+          </Link>
         </header>
 
         {routeError && (
-          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <div className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
             <p className="font-medium">{routeError}</p>
             <button type="button" className="mt-2 text-xs underline" onClick={() => void reload()}>
               Retry scan
@@ -121,10 +143,11 @@ export function GateConsole() {
           benchmarks={benchmarks}
           loading={gateRouteLoading}
           selected={symbol}
-          onSelect={setSymbol}
-          onDeploy={deployToNexus}
+          onSelect={handleSelectSymbol}
+          onDeploy={openInNexus}
         />
 
+        <div id="gate-symbol-detail" className="space-y-5 scroll-mt-6">
         {selected?.skills && selected.gate && (
           <GateSkillStack
             skills={selected.skills as GateSkillsPayload}
@@ -168,34 +191,34 @@ export function GateConsole() {
               ? strategyPosition(selected.skills.composite.signal ?? selected.gate.signal)
               : undefined
           }
+          onOpenNexus={() => openInNexus(symbol)}
         />
 
-        <section className="arc-glass-card overflow-hidden rounded-2xl border border-white/10">
+        </div>
+
+        <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
           <div className="space-y-4 p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <ArcIcon3d icon={BarChart3} theme="nexus" size="md" />
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300/85">Historical proof</p>
-                  <h2 className="text-lg font-semibold">90-day backtest · {symbol}</h2>
-                  <p className="text-sm text-white/55">
-                    On-demand replay — avoids hammering CMC on page load. Uses Binance bars if rate-limited.
-                  </p>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">{GATE_PRODUCT.backtestTitle}</p>
+                  <h2 className="text-lg font-semibold">{GATE_PRODUCT.backtestSubtitle(symbol)}</h2>
                 </div>
               </div>
               <button
                 type="button"
                 disabled={btLoading}
                 onClick={() => void runBacktest(symbol)}
-                className="rounded-xl border border-cyan-400/35 bg-cyan-500/15 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/25 disabled:opacity-50"
+                className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 disabled:opacity-50"
               >
-                {btLoading ? "Running…" : btRequested ? "Re-run backtest" : "Run backtest"}
+                {btLoading ? "Running…" : btRequested ? "Re-run" : "Run replay"}
               </button>
             </div>
 
             {btLoading && (
               <div className="flex items-center gap-2 text-sm text-white/50">
-                <Loader2 className="h-4 w-4 animate-spin" /> Running backtest…
+                <Loader2 className="h-4 w-4 animate-spin" /> Running replay…
               </div>
             )}
 
@@ -207,9 +230,9 @@ export function GateConsole() {
                   </p>
                 )}
                 {underperformed && (
-                  <p className="rounded-lg border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                    This window: constitution returned {backtest.backtest!.totalReturnPct}% vs naive{" "}
-                    {backtest.compare.naiveAgent.totalReturnPct}% — strategy traded less (max DD{" "}
+                  <p className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white/65">
+                    This window: rules returned {backtest.backtest!.totalReturnPct}% vs naive{" "}
+                    {backtest.compare.naiveAgent.totalReturnPct}% — lower turnover (max DD{" "}
                     {backtest.backtest!.maxDrawdownPct}% vs {backtest.compare.naiveAgent.maxDrawdownPct}%).
                   </p>
                 )}
@@ -237,16 +260,21 @@ export function GateConsole() {
             )}
 
             {!btRequested && !btLoading && (
-              <p className="text-xs text-white/40">Click Run backtest when ready — saves CMC API credits.</p>
+              <p className="text-xs text-white/35">Optional — validates the rule set on historical bars.</p>
             )}
           </div>
         </section>
 
-        <footer className="flex flex-wrap gap-4 text-xs text-white/45">
-          <Link href={GATE_SKILL_REPO.replace("/skills/nexus-momentum-gate", "")} className="hover:text-white">
-            Engine on GitHub →
-          </Link>
-          <span>CLI: npm run bnb:backtest -- --symbol {symbol} --days 90</span>
+        <footer className="flex flex-wrap items-center gap-4 text-xs text-white/40">
+          <a
+            href={`${GITHUB_SKILL}/STRATEGY_SPEC.md`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 hover:text-white/70"
+          >
+            {GATE_PRODUCT.docs}
+            <ExternalLink className="h-3 w-3" />
+          </a>
         </footer>
       </div>
     </div>
@@ -260,20 +288,5 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
       <p className="text-lg font-bold text-white">{value}</p>
       {sub && <p className="truncate text-[9px] text-white/35">{sub}</p>}
     </div>
-  );
-}
-
-function SpecChip({ href, label }: { href: string; label: string }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 text-white/55 hover:text-white"
-    >
-      <FileText className="h-3 w-3" />
-      {label}
-      <ExternalLink className="h-3 w-3" />
-    </a>
   );
 }

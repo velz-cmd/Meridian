@@ -16,9 +16,9 @@ import {
 } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { cn } from "@/lib/utils";
+import { GATE_SYMBOLS } from "@/lib/gate-constants";
 import type { ConstitutionPermitPayload } from "@/hooks/use-constitution-permit";
 import type { AgentSignal } from "@/lib/storage";
-import { HACKATHON_DEMO_SYMBOLS } from "@/lib/hackathon-demo";
 
 function verdictHeadline(
   permit: NonNullable<ConstitutionPermitPayload["permit"]>,
@@ -60,7 +60,8 @@ export function NexusConstitutionDesk({
   const permit = payload?.permit;
   const [statusProbe, setStatusProbe] = useState<{ live?: boolean } | null>(null);
   const sym = symbol.toUpperCase();
-  const isBenchmark = (HACKATHON_DEMO_SYMBOLS as readonly string[]).includes(sym);
+  const isBenchmark = (GATE_SYMBOLS as readonly string[]).includes(sym);
+  const composite = payload?.skills?.composite;
 
   useEffect(() => {
     void fetch("/api/constitution/status")
@@ -168,8 +169,15 @@ export function NexusConstitutionDesk({
               <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center">
                 <ArbitrationCell
                   label="Strategy"
-                  value={agent?.action ?? permit.agentRequested ?? "—"}
-                  sub={`${agent?.confidence ?? permit.confidence}% · gate-aligned`}
+                  value={
+                    agent?.action ??
+                    (composite?.signal ? composite.signal.replace(/_/g, " ") : permit.agentRequested ?? "—")
+                  }
+                  sub={
+                    isBenchmark
+                      ? `${agent?.confidence ?? permit.confidence}% · CMC skills composite`
+                      : `${agent?.confidence ?? permit.confidence}% · gate-aligned`
+                  }
                   tone="violet"
                   dimmed={vetoed}
                 />
@@ -252,7 +260,12 @@ export function NexusConstitutionDesk({
 
               {!isBenchmark && (
                 <p className="text-xs text-white/45">
-                  Benchmark demos use BNB or CAKE from the start screen — meme tickers use live desk data only.
+                  Meme tickers use live Dex desk data — BNB, CAKE, FLOKI, XVS run the CMC gate skill only.
+                </p>
+              )}
+              {isBenchmark && payload?.gateDegraded && (
+                <p className="text-xs text-amber-200/80">
+                  CMC rate limit — serving last cached gate evaluation. Counts still match /gate.
                 </p>
               )}
             </motion.div>

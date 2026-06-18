@@ -60,6 +60,8 @@ export type ConstitutionPermitPayload = {
     regime: { name: string; regime: string; positioning: string; signal: string };
     composite: { signal: string; alignmentScore: number; blockers: string[]; thesis: string };
   };
+  gateDegraded?: boolean;
+  gateCacheNote?: string;
 };
 
 function overlayFromToken(token: TrendingMarketToken) {
@@ -103,19 +105,22 @@ export function useConstitutionPermit(
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError(null);
+      const sym = token.symbol.replace(/^\$/, "").trim().toUpperCase();
+      const gateBench = isGateSymbol(sym);
       void fetch("/api/constitution/permit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           symbol: token.symbol,
-          overlay: overlayFromToken(token),
+          cmcOnly: gateBench,
+          ...(gateBench ? {} : { overlay: overlayFromToken(token) }),
           agent: agent
             ? {
                 action: agent.action,
                 confidence: agent.confidence,
                 reasoning: agent.whyAction ?? agent.reasoning,
               }
-            : isGateSymbol(token.symbol.replace(/^\$/, "").trim().toUpperCase())
+            : gateBench
               ? undefined
               : { action: "BUY" as const, confidence: 70, reasoning: "Desk default probe" },
         }),

@@ -54,14 +54,13 @@ export function NexusConstitutionStartPicks({
         </p>
         <h3 className="text-lg font-semibold text-white">Agents propose — the gate decides GO or STOP</h3>
         <p className="text-sm leading-relaxed text-white/55">
-          Start with BNB or CAKE here for live trading + buy enforcement. For the BNB Hack submission (CMC-only,
-          real backtest), use the standalone Gate product.
+          Start with BNB or CAKE for testnet swaps. For ranked BSC setups and rule checks, open the momentum router.
         </p>
         <Link
           href="/gate"
-          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300/90 hover:text-emerald-200"
+          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-white/70 hover:text-white"
         >
-          Open MERIDIAN Gate (Track 2 demo)
+          Open momentum router
           <ExternalLink className="h-3 w-3" />
         </Link>
       </div>

@@ -3,10 +3,8 @@
  * Synthetic counterfactual removed — use /api/gate/backtest for real historical proof.
  */
 import { issueConstitutionPermit } from "../../bnb-hack/engine/nexus-gate.mjs";
-import { composeSkillVerdict } from "../../bnb-hack/engine/meridian-skills.mjs";
-import { evaluateNexusGate } from "../../bnb-hack/engine/nexus-gate.mjs";
 import { fetchLiveSnapshot, cmcCacheStats } from "../../bnb-hack/live/cmc-fetch.mjs";
-import { fetchGateSnapshot, fetchGlobalMacro } from "../../bnb-hack/live/cmc-fetch.mjs";
+import { evaluateAllGateBenchmarks } from "@/lib/gate-benchmark-cache";
 import { gateSignalToAgentAction } from "@/lib/gate-feed-sync";
 import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
 import { isGateSymbol } from "@/lib/gate-constants";
@@ -112,16 +110,18 @@ export async function buildConstitutionResponse(input: {
   const gateBenchmark = input.cmcOnly || isGateSymbol(symbol);
 
   if (gateBenchmark && hasCmc) {
-    const macro = await fetchGlobalMacro();
-    const { snapshot, sources, cmcLive } = await fetchGateSnapshot(symbol);
-    const gateRaw = evaluateNexusGate(snapshot);
-    const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {});
+    const batch = await evaluateAllGateBenchmarks();
+    const ev = batch.bySym.get(symbol);
+    if (!ev) {
+      throw new Error(batch.error ?? `No gate evaluation for ${symbol}`);
+    }
+    const snapshot = ev.snapshot as Parameters<typeof issueConstitutionPermit>[0];
     const alignedAgent =
       input.agent ??
       ({
-        action: gateSignalToAgentAction(skills.composite.signal),
-        confidence: gateRaw.confidence ?? 60,
-        reasoning: skills.composite.thesis,
+        action: gateSignalToAgentAction(ev.skills.composite.signal),
+        confidence: ev.gateRaw.confidence ?? 60,
+        reasoning: ev.skills.composite.thesis,
       } as AgentInput);
     const permitCore = issueConstitutionPermit(snapshot, alignedAgent);
     const permit = { ...permitCore, skill: CONSTITUTION_SKILL };
@@ -133,9 +133,11 @@ export async function buildConstitutionResponse(input: {
       skillMeta: CONSTITUTION_SKILL,
       dataSource: "cmc-only",
       dataIntegrity: "cmc-only-no-synthetic",
-      fieldSources: sources,
-      cmcLive,
-      skills,
+      fieldSources: ev.sources,
+      cmcLive: ev.cmcLive,
+      gateDegraded: batch.degraded ?? false,
+      gateCacheNote: batch.error,
+      skills: ev.skills,
       bnb: {
         chainId: BSC_CHAIN_ID,
         chain: BSC_CHAIN_LABEL,

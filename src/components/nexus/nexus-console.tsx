@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { LineChart, Radio, Sparkles } from "lucide-react";
 import { BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
@@ -60,6 +60,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { dedupeFeedTokens } from "@/lib/feed-curation";
 import { isGateSymbol } from "@/lib/gate-constants";
+import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { mergeFeedTokensStable } from "@/lib/token-security";
 import type { NexusDecision } from "@/lib/storage";
 import { cn } from "@/lib/utils";
@@ -87,7 +88,7 @@ function tokenToDecision(token: TrendingMarketToken): NexusDecision | null {
   };
 }
 
-export function NexusConsole() {
+export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: GateHandoff | null } = {}) {
   const toast = useToast();
   const { isConnected } = useAccount();
   const walletChainId = useChainId();
@@ -118,6 +119,7 @@ export function NexusConsole() {
   const [feedTokens, setFeedTokens] = useState<TrendingMarketToken[]>([]);
   const [communityPulse, setCommunityPulse] = useState<CommunityPulse | null>(null);
   const [gateHandoff, setGateHandoff] = useState<GateHandoff | null>(null);
+  const gateHandoffApplied = useRef(false);
   const isMobile = useIsMobile();
   const { route: gateRoute, loading: gateRouteLoading } = useGateRoute(45_000);
 
@@ -125,28 +127,16 @@ export function NexusConsole() {
     const onHandoff = (e: Event) => {
       const detail = (e as CustomEvent<{
         handoff: GateHandoff;
-        deskToken: TrendingMarketToken;
+        deskToken?: TrendingMarketToken | null;
+        feedSymbol?: string;
         tab?: string;
       }>).detail;
-      if (!detail?.deskToken) return;
+      if (!detail?.handoff) return;
       setGateHandoff(detail.handoff);
-      setTradeDeskToken(detail.deskToken);
-      setSelectedToken(detail.deskToken);
-      setRightTab("trade");
-      setTradeTab("buy");
-      if (isMobile) setMobilePanel("trade");
-      toast({
-        title: `Gate → ${detail.handoff.symbol}`,
-        message:
-          detail.handoff.permit === "GRANT"
-            ? "Permit GRANT — wallet-signed swap ready on BSC Testnet."
-            : "Opened from Gate — constitution may block BUY.",
-        type: detail.handoff.permit === "GRANT" ? "success" : "info",
-      });
     };
     window.addEventListener("meridian-gate-handoff", onHandoff);
     return () => window.removeEventListener("meridian-gate-handoff", onHandoff);
-  }, [isMobile, toast]);
+  }, []);
 
   const activeTradeToken = useMemo(() => {
     if (selectedToken && isTestnetDeskToken(selectedToken)) return selectedToken;
@@ -193,7 +183,15 @@ export function NexusConsole() {
     if (isGateSymbol(benchSym)) return selectedToken.agent;
     return tokenDossier.payload?.agent ?? selectedToken.agent;
   }, [selectedToken, tokenDossier.payload?.agent, benchSym]);
-  const constitution = useConstitutionPermit(selectedToken, deskAgent);
+
+  const permitAgent = useMemo(() => {
+    if (!deskAgent || !isGateSymbol(benchSym)) return deskAgent;
+    if (tradeTab === "buy") return { ...deskAgent, action: "BUY" as const };
+    if (tradeTab === "sell") return { ...deskAgent, action: "SELL" as const };
+    return deskAgent;
+  }, [deskAgent, benchSym, tradeTab]);
+
+  const constitution = useConstitutionPermit(selectedToken, permitAgent);
 
   const scrollToConstitutionDesk = useCallback(() => {
     document.getElementById("nexus-constitution-desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -269,6 +267,69 @@ export function NexusConsole() {
     });
   }, [scrollToMobileContent]);
 
+  const applyGateHandoff = useCallback(
+    (handoff: GateHandoff, tokens: TrendingMarketToken[]) => {
+      const sym = handoff.symbol.replace(/^\$/, "").trim().toUpperCase();
+      const feedHit = tokens.find((t) => t.symbol.replace(/^\$/, "").trim().toUpperCase() === sym);
+      const tradable = gateSymbolTradableOnTestnet(sym);
+
+      setGateHandoff(handoff);
+      setRightTab("trade");
+
+      if (feedHit) {
+        setIntelTier("feed");
+        setAlphaThesis(undefined);
+        setSelectedToken(feedHit);
+        if (tradable) {
+          const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
+          if (desk) setTradeDeskToken(desk);
+          setTradeTab(handoff.permit === "GRANT" ? "buy" : "agent");
+          if (isMobile) setMobilePanel("trade");
+        } else {
+          setTradeTab("agent");
+          requestAnimationFrame(() => {
+            document.getElementById("nexus-constitution-desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+        }
+        openChartView();
+      } else if (tradable) {
+        const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
+        if (desk) {
+          setTradeDeskToken(desk);
+          setSelectedToken(desk);
+          setTradeTab(handoff.permit === "GRANT" ? "buy" : "agent");
+          if (isMobile) setMobilePanel("trade");
+        }
+      }
+
+      toast({
+        title: `${sym} from router`,
+        message: tradable
+          ? handoff.permit === "GRANT"
+            ? "Rules cleared — wallet swap on BSC Testnet."
+            : "Opened trade desk — buy may stay blocked."
+          : "Analysis view — swap BNB or CAKE on testnet for on-chain execution.",
+        type: handoff.permit === "GRANT" && tradable ? "success" : "info",
+      });
+      return Boolean(feedHit || tradable);
+    },
+    [bnbSpotUsd, isMobile, openChartView, toast],
+  );
+
+  useEffect(() => {
+    if (!initialGateHandoff || gateHandoffApplied.current) return;
+    if (applyGateHandoff(initialGateHandoff, feedTokens)) {
+      gateHandoffApplied.current = true;
+    }
+  }, [initialGateHandoff, feedTokens, applyGateHandoff]);
+
+  useEffect(() => {
+    if (!gateHandoff || gateHandoffApplied.current || initialGateHandoff) return;
+    if (applyGateHandoff(gateHandoff, feedTokens)) {
+      gateHandoffApplied.current = true;
+    }
+  }, [gateHandoff, feedTokens, applyGateHandoff, initialGateHandoff]);
+
   const openTradePanel = useCallback(
     (tab: "buy" | "sell" | "agent") => {
       setTradeTab(tab);
@@ -319,20 +380,38 @@ export function NexusConsole() {
 
   const selectBenchmarkBySymbol = useCallback(
     (sym: string) => {
-      const hit =
-        feedTokens.find((t) => t.symbol.replace(/^\$/, "").toUpperCase() === sym.toUpperCase()) ??
-        feedTokens[0];
-      if (hit) handleTokenSelect(hit, true);
+      const upper = sym.replace(/^\$/, "").trim().toUpperCase();
+      const fromFeed = feedTokens.find(
+        (t) => t.symbol.replace(/^\$/, "").trim().toUpperCase() === upper,
+      );
+      if (fromFeed) {
+        handleTokenSelect(fromFeed, true);
+        return;
+      }
+      const desk = matchTestnetDeskBySymbol(upper, bnbSpotUsd);
+      if (desk) {
+        setTradeDeskToken(desk);
+        setSelectedToken(desk);
+        setIntelTier("feed");
+        openChartView();
+      }
     },
-    [feedTokens, handleTokenSelect],
+    [feedTokens, handleTokenSelect, bnbSpotUsd, openChartView],
   );
 
   const deployBenchmark = useCallback(
     (sym: string) => {
       selectBenchmarkBySymbol(sym);
       setRightTab("trade");
-      setTradeTab("buy");
-      if (isMobile) setMobilePanel("trade");
+      if (gateSymbolTradableOnTestnet(sym)) {
+        setTradeTab("buy");
+        if (isMobile) setMobilePanel("trade");
+      } else {
+        setTradeTab("agent");
+        requestAnimationFrame(() => {
+          document.getElementById("nexus-constitution-desk")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
       scrollToMobileContent();
     },
     [selectBenchmarkBySymbol, isMobile, scrollToMobileContent],
@@ -644,7 +723,7 @@ export function NexusConsole() {
 
         <NexusConstitutionDesk
           symbol={selectedToken.symbol}
-          agent={deskAgent}
+          agent={permitAgent}
           payload={constitution.payload}
           loading={constitution.loading}
           error={constitution.error}

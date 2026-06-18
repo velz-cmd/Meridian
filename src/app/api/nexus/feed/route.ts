@@ -12,7 +12,14 @@ import {
 } from "@/lib/feed-cache";
 import { filterLiveFeedTokens } from "@/lib/token-filters";
 import { analyzeTrendingFeed, analyzeTrendingFeedQuick } from "@/lib/nexus-agent";
-import { enrichTokensWithGateSignals } from "@/lib/gate-feed-sync";
+import {
+  evaluateAllGateBenchmarks,
+  type GateBenchmarkEval,
+} from "@/lib/gate-benchmark-cache";
+import {
+  gateBenchmarkToFeedAnalysis,
+  splitFeedByGateBenchmarks,
+} from "@/lib/gate-feed-sync";
 import { trendingToDemoToken } from "@/lib/demo-trading";
 import { enrichTokensWithIcons } from "@/lib/token-icons";
 import { mapWithConcurrency } from "@/lib/async-pool";
@@ -45,8 +52,19 @@ async function enrichMissingPairs(tokens: TrendingToken[], cap: number) {
   return tokens.map((t) => byKey.get(`${t.chainId}:${t.tokenAddress.toLowerCase()}`) ?? t);
 }
 
+import type { AgentSignal } from "@/lib/storage";
+import type { TokenIntel } from "@/lib/storage";
+import type { TokenSecurityReport } from "@/lib/token-security";
+
+type FeedAnalysisRow = {
+  token: TrendingToken;
+  intel: TokenIntel | Record<string, unknown>;
+  signal: AgentSignal | null;
+  security?: TokenSecurityReport | null;
+};
+
 function buildFeedPayload(
-  analyzed: Awaited<ReturnType<typeof analyzeTrendingFeed>>,
+  analyzed: FeedAnalysisRow[],
   mode: string,
   meta?: {
     profile?: string;
@@ -60,10 +78,13 @@ function buildFeedPayload(
   const feed = dedupeFeedTokens(
     filterLiveFeedTokens(
     analyzed.map(({ token, intel, signal, security }) => {
-      const scam = assessTokenScam(token, intel, security);
+      const scam = assessTokenScam(token, intel as TokenIntel, security ?? undefined);
+      const gateRow = token.discoveryTag?.includes("CMC gate");
       return {
       ...trendingToDemoToken(token),
-      discoveryTag: discoveryHunterLabel(token, { security, scam }),
+      discoveryTag: gateRow
+        ? token.discoveryTag
+        : discoveryHunterLabel(token, { security: security ?? undefined, scam }),
       sourceTags: token.sourceTags,
       intel,
       agent: signal
@@ -141,26 +162,62 @@ async function buildFeed(
   if (!quick) tokens = await enrichMissingPairs(tokens, 6);
   tokens = filterLiveFeedTokens(tokens);
 
-  const analyzed = quick
-    ? await analyzeTrendingFeedQuick(tokens, {
-        birdeyeCap: opts?.birdeyeCap ?? 0,
-        skipGmgnSecurity: true,
-        dexOnly: opts?.birdeyeCap === 0,
-      })
-    : await analyzeTrendingFeed(tokens);
+  const { benchmarks, discovery: huntTokens } = splitFeedByGateBenchmarks(tokens);
+
+  let gateBatch: Awaited<ReturnType<typeof evaluateAllGateBenchmarks>> | null = null;
+  if (benchmarks.length > 0) {
+    try {
+      gateBatch = await evaluateAllGateBenchmarks();
+    } catch {
+      gateBatch = null;
+    }
+  }
+
+  const gateAnalyzed = benchmarks.map((t) => {
+    const sym = t.symbol.replace(/^\$/, "").trim().toUpperCase();
+    const ev = gateBatch?.bySym.get(sym) as GateBenchmarkEval | undefined;
+    if (ev) return gateBenchmarkToFeedAnalysis(t, ev);
+    return { token: t, intel: t.intel ?? {}, signal: null, security: null };
+  });
+
+  const discoveryAnalyzed =
+    huntTokens.length > 0
+      ? quick
+        ? await analyzeTrendingFeedQuick(huntTokens, {
+            birdeyeCap: opts?.birdeyeCap ?? 0,
+            skipGmgnSecurity: true,
+            dexOnly: opts?.birdeyeCap === 0,
+          })
+        : await analyzeTrendingFeed(huntTokens)
+      : [];
+
+  const benchKeys = new Set(
+    gateAnalyzed.map(({ token }) => `${token.chainId}:${token.tokenAddress.toLowerCase()}`),
+  );
+  const mergedAnalyzed = [
+    ...gateAnalyzed,
+    ...discoveryAnalyzed.filter(
+      ({ token }) => !benchKeys.has(`${token.chainId}:${token.tokenAddress.toLowerCase()}`),
+    ),
+  ];
 
   const payload = buildFeedPayload(
-    analyzed,
+    mergedAnalyzed,
     quick ? "live-discovery-feed-quick" : "live-discovery-feed",
-    feedMeta,
+    {
+      ...feedMeta,
+      profile: benchmarks.length > 0 ? "gate-benchmarks+curation" : feedMeta.profile,
+      dataPolicy: benchmarks.length > 0 ? "cmc-gate-benchmarks+dex-discovery" : feedMeta.dataPolicy,
+    },
   );
-  const enriched = await enrichTokensWithGateSignals(payload.tokens);
-  const counts = {
-    buy: enriched.filter((t) => t.agent?.action === "BUY").length,
-    sell: enriched.filter((t) => t.agent?.action === "SELL").length,
-    hold: enriched.filter((t) => t.agent?.action === "HOLD").length,
-  };
-  return { ...payload, tokens: enriched, counts };
+  if (gateBatch?.degraded) {
+    return {
+      ...payload,
+      gateDegraded: true,
+      gateCacheNote: gateBatch.error,
+    };
+  }
+  return payload;
 }
 
 export async function GET(request: Request) {

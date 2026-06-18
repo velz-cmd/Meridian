@@ -1,12 +1,13 @@
 /**
  * Single source of truth: Gate engine → NEXUS feed + constitution desk.
  */
-import { evaluateNexusGate, toStructuredOutput } from "../../bnb-hack/engine/nexus-gate.mjs";
-import { composeSkillVerdict } from "../../bnb-hack/engine/meridian-skills.mjs";
-import { fetchGateSnapshot, fetchGlobalMacro } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { isGateSymbol } from "@/lib/gate-constants";
 import type { AgentSignal } from "@/lib/storage";
 import type { TrendingToken } from "@/lib/dexscreener";
+import {
+  evaluateAllGateBenchmarks,
+  type GateBenchmarkEval,
+} from "@/lib/gate-benchmark-cache";
 
 export function gateSignalToAgentAction(signal: string): "BUY" | "SELL" | "HOLD" {
   if (signal === "ENTER_LONG") return "BUY";
@@ -14,15 +15,11 @@ export function gateSignalToAgentAction(signal: string): "BUY" | "SELL" | "HOLD"
   return "HOLD";
 }
 
-export async function evaluateGateForSymbol(symbol: string) {
+export async function evaluateGateForSymbol(symbol: string): Promise<GateBenchmarkEval | null> {
   const sym = symbol.replace(/^\$/, "").trim().toUpperCase();
-  const macro = await fetchGlobalMacro();
-  const { snapshot, sources, cmcLive } = await fetchGateSnapshot(sym);
-  const gateRaw = evaluateNexusGate(snapshot);
-  const gate = toStructuredOutput(snapshot, gateRaw);
-  const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {});
-  const signal = skills.composite.signal;
-  return { sym, snapshot, gate, gateRaw, skills, sources, cmcLive, macro, signal };
+  if (!isGateSymbol(sym)) return null;
+  const { bySym } = await evaluateAllGateBenchmarks();
+  return bySym.get(sym) ?? null;
 }
 
 export function gateToAgentSignal(
@@ -38,56 +35,88 @@ export function gateToAgentSignal(
 ): AgentSignal {
   const raw = composite?.signal ?? gate.signal;
   const action = gateSignalToAgentAction(raw);
+  const alignment = composite?.alignmentScore;
+  const confBase = gate.confidence ?? 55;
+  const confidence =
+    alignment != null
+      ? Math.round(Math.min(92, Math.max(38, confBase * 0.55 + alignment * 0.45)))
+      : confBase;
+
   return {
     action,
-    confidence: gate.confidence ?? 55,
-    riskScore: 40,
+    confidence,
+    riskScore: raw === "ENTER_LONG" ? 35 : raw === "AVOID" ? 72 : 48,
     reasoning: composite?.thesis ?? gate.thesis,
-    whyAction: `${symbol}: ${gate.checksPassed}/${gate.checksTotal} checks · ${raw.replace("_", " ")}`,
+    whyAction: `${symbol}: ${gate.checksPassed}/${gate.checksTotal} checks · ${raw.replace(/_/g, " ")}`,
     ...(action === "SELL" ? { deskVerdict: "EXIT" as const } : {}),
     reasoningFactors: [],
   };
 }
 
-export async function enrichTokensWithGateSignals<T extends TrendingToken>(tokens: T[]): Promise<T[]> {
-  const benchSyms = new Set(
-    tokens
-      .map((t) => t.symbol.replace(/^\$/, "").trim().toUpperCase())
-      .filter((s) => isGateSymbol(s)),
-  );
-  if (benchSyms.size === 0) return tokens;
+/** Gate-only feed row — no Dex security / hunter heuristics. */
+export function gateBenchmarkToFeedAnalysis<T extends TrendingToken>(
+  token: T,
+  ev: GateBenchmarkEval,
+): {
+  token: T;
+  intel: Record<string, unknown>;
+  signal: AgentSignal;
+  security: null;
+} {
+  const agent = gateToAgentSignal(ev.sym, ev.gate, ev.skills.composite);
+  const intel = {
+    gateSkills: ev.skills,
+    gateFieldSources: ev.sources,
+    technical: {
+      rsi: ev.snapshot.rsi as number | undefined,
+      macdSignal: ev.snapshot.macdSignal as string | undefined,
+    },
+  };
+  const enriched = {
+    ...token,
+    priceUsd: (ev.snapshot.price as number | undefined) ?? token.priceUsd,
+    change24h: (ev.snapshot.change24h as number | undefined) ?? token.change24h,
+    marketCap: (ev.snapshot.marketCap as number | undefined) ?? token.marketCap,
+    volume24h: (ev.snapshot.volume24h as number | undefined) ?? token.volume24h,
+    agent,
+    discoveryTag: "BSC benchmark · CMC gate",
+    sourceTags: [...new Set([...(token.sourceTags ?? []), "CMC Gate", "Strategy Skill"])],
+    intel,
+  } as T;
 
-  const evals = await Promise.all(
-    [...benchSyms].map(async (sym) => {
-      try {
-        return await evaluateGateForSymbol(sym);
-      } catch {
-        return null;
-      }
-    }),
-  );
-  const bySym = new Map(evals.filter(Boolean).map((e) => [e!.sym, e!]));
+  return { token: enriched, intel, signal: agent, security: null };
+}
+
+export async function enrichTokensWithGateSignals<T extends TrendingToken>(tokens: T[]): Promise<T[]> {
+  const hasBench = tokens.some((t) => isGateSymbol(t.symbol.replace(/^\$/, "").trim().toUpperCase()));
+  if (!hasBench) return tokens;
+
+  let batch: Awaited<ReturnType<typeof evaluateAllGateBenchmarks>>;
+  try {
+    batch = await evaluateAllGateBenchmarks();
+  } catch {
+    return tokens;
+  }
 
   return tokens.map((t) => {
     const sym = t.symbol.replace(/^\$/, "").trim().toUpperCase();
-    const ev = bySym.get(sym);
+    if (!isGateSymbol(sym)) return t;
+    const ev = batch.bySym.get(sym);
     if (!ev) return t;
-
-    const agent = gateToAgentSignal(sym, ev.gate, ev.skills.composite);
-    return {
-      ...t,
-      priceUsd: ev.snapshot.price ?? t.priceUsd,
-      change24h: ev.snapshot.change24h ?? t.change24h,
-      marketCap: ev.snapshot.marketCap ?? t.marketCap,
-      volume24h: ev.snapshot.volume24h ?? t.volume24h,
-      agent,
-      discoveryTag: t.discoveryTag ?? "BSC benchmark · gate",
-      sourceTags: [...new Set([...(t.sourceTags ?? []), "CMC Gate", "Strategy Skill"])],
-      intel: {
-        ...(t.intel ?? {}),
-        gateSkills: ev.skills,
-        gateFieldSources: ev.sources,
-      },
-    } as T;
+    return gateBenchmarkToFeedAnalysis(t, ev).token;
   });
+}
+
+export function splitFeedByGateBenchmarks<T extends TrendingToken>(tokens: T[]): {
+  benchmarks: T[];
+  discovery: T[];
+} {
+  const benchmarks: T[] = [];
+  const discovery: T[] = [];
+  for (const t of tokens) {
+    const sym = t.symbol.replace(/^\$/, "").trim().toUpperCase();
+    if (isGateSymbol(sym)) benchmarks.push(t);
+    else discovery.push(t);
+  }
+  return { benchmarks, discovery };
 }

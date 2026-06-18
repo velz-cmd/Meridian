@@ -4,8 +4,8 @@ import { Loader2 } from "lucide-react";
 import {
   strategyPosition,
   strategySignalLabel,
-  GATE_STRATEGY_NAME,
 } from "@/lib/gate-strategy-copy";
+import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { cn } from "@/lib/utils";
 
 type LiveGate = {
@@ -27,6 +27,7 @@ export function GateStrategyLive({
   cmcLive,
   rsiSource,
   positionLabel,
+  onOpenNexus,
 }: {
   symbol: string;
   loading: boolean;
@@ -37,12 +38,13 @@ export function GateStrategyLive({
   cmcLive?: boolean;
   rsiSource?: string;
   positionLabel?: "LONG" | "FLAT";
+  onOpenNexus?: () => void;
 }) {
   if (loading) {
     return (
       <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-5 py-8 text-sm text-white/50">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Applying strategy to live CMC data for {symbol}…
+        Applying live rules for {symbol}…
       </div>
     );
   }
@@ -59,17 +61,17 @@ export function GateStrategyLive({
   const long = position === "LONG";
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-950/35 via-black/50 to-black/60">
+    <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
       <div className="space-y-4 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-300/85">
-              {GATE_STRATEGY_NAME}
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/45">
+              Rule output
             </p>
-            <h2 className="mt-1 text-xl font-bold sm:text-2xl">{symbol} · today&apos;s strategy output</h2>
+            <h2 className="mt-1 text-xl font-bold sm:text-2xl">{symbol} · rule output</h2>
             {price != null && (
               <p className="mt-1 text-sm text-white/55">
-                CMC ${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                ${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 {change24h != null && (
                   <span className={change24h >= 0 ? " text-emerald-300" : " text-rose-300"}>
                     {" "}
@@ -80,9 +82,22 @@ export function GateStrategyLive({
               </p>
             )}
           </div>
-          <div className="text-right">
-            <p className="text-[10px] uppercase tracking-wider text-white/40">Position</p>
-            <p className={cn("text-2xl font-bold", long ? "text-emerald-300" : "text-white/70")}>{position}</p>
+          <div className="flex flex-col items-end gap-2">
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-wider text-white/40">Position</p>
+              <p className={cn("text-2xl font-bold", long ? "text-emerald-300" : "text-white/70")}>{position}</p>
+            </div>
+            {onOpenNexus && (
+              <button
+                type="button"
+                onClick={onOpenNexus}
+                className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-white/90"
+              >
+                {gateSymbolTradableOnTestnet(symbol)
+                  ? GATE_PRODUCT.continueTradable(symbol)
+                  : GATE_PRODUCT.continueResearch(symbol)}
+              </button>
+            )}
           </div>
         </div>
 
@@ -97,15 +112,12 @@ export function GateStrategyLive({
         </p>
 
         <p className="text-xs text-white/40">
-          {gate.checksPassed}/{gate.checksTotal} strategy conditions met ·{" "}
-          {cmcLive ? "live CoinMarketCap" : "CMC"}
+          {gate.checksPassed}/{gate.checksTotal} conditions met
           {rsiSource?.includes("historical")
-            ? " · RSI from CMC daily bars"
+            ? " · RSI from daily bars"
             : rsiSource?.includes("binance")
-              ? " · RSI from Binance daily"
-              : rsiSource?.includes("proxy")
-                ? " · RSI proxy (degraded)"
-                : ""}
+              ? " · RSI from venue daily"
+              : ""}
         </p>
       </div>
     </section>
