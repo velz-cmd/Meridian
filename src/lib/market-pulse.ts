@@ -112,9 +112,11 @@ export function computeMarketPulse(input: {
   let agentStance: AgentMarketStance = "FLAT";
   if (cascadeLevel === "extreme" || gateSignal === "EXIT" || gateSignal === "AVOID") {
     agentStance = "DE_RISK";
-  } else if (gateLong && cascadeLevel === "normal" && fg <= 85) {
+  } else if (gateLong && cascadeLevel === "normal") {
     agentStance = "LONG";
-  } else if (cascadeLevel === "elevated" || macro?.label === "risk-off") {
+  } else if (gateLong && cascadeLevel === "elevated" && fg <= 85) {
+    agentStance = "LONG";
+  } else if (cascadeLevel === "elevated" || (macro?.label === "risk-off" && !gateLong)) {
     agentStance = "DE_RISK";
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchBinanceDerivativesContext } from "@/lib/binance-derivatives-context";
+import { fetchGateRoutePayload } from "@/lib/gate-pulse-bridge";
 import { buildMarketPulse } from "@/lib/market-pulse";
 import { buildPositionRoute } from "@/lib/position-router";
 
@@ -13,13 +14,25 @@ export async function GET(req: Request) {
   const agent = searchParams.get("agent")?.toUpperCase();
 
   try {
-    const [pulse, derivatives] = await Promise.all([
+    const [pulse, derivatives, gateRow] = await Promise.all([
       buildMarketPulse(symbol),
       fetchBinanceDerivativesContext(symbol),
+      fetchGateRoutePayload(symbol),
     ]);
 
     const agentAction =
       agent === "BUY" || agent === "SELL" || agent === "HOLD" ? (agent as "BUY" | "SELL" | "HOLD") : null;
+
+    const gate = gateRow
+      ? {
+          signal: gateRow.gate.signal,
+          tier: gateRow.gate.tier,
+          confidence: gateRow.gate.confidence,
+          checksPassed: gateRow.gate.checksPassed,
+          checksTotal: gateRow.gate.checksTotal,
+          regime: gateRow.gate.regime,
+        }
+      : null;
 
     const route = buildPositionRoute({
       symbol,
@@ -27,6 +40,7 @@ export async function GET(req: Request) {
       derivatives,
       agentAction,
       hasRiskPosition: hasPosition,
+      gate,
     });
 
     return NextResponse.json(route, { headers: { "Cache-Control": "no-store" } });

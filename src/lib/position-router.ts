@@ -1,6 +1,13 @@
 /**
  * Spot-native direction router — LONG / FLAT / SHORT-via-stable on BSC Testnet.
- * SHORT = rotate risk asset → USDC (PancakeSwap), not synthetic perp PnL.
+ *
+ * Priority (deterministic, not LLM):
+ *   1. Constitution gate (CMC → nexus-gate.mjs) — primary
+ *   2. Cascade safety overlay (CMC global + BTC shock proxy)
+ *   3. Binance funding/OI — macro context only
+ *   4. Wallet execution path (PancakeSwap V2 · Chapel)
+ *
+ * SHORT = rotate risk asset → USDC, not synthetic perp PnL.
  */
 
 import type { BinanceDerivativesSnapshot } from "./binance-derivatives-context";
@@ -13,10 +20,19 @@ export type PositionDirection = "LONG" | "SHORT" | "FLAT";
 
 export type PositionExecutionKind = "none" | "long_tbnb" | "short_stable" | "exit_tbnb";
 
+export type DirectionLayerStatus = "pass" | "warn" | "block" | "neutral";
+
+export type DirectionLayer = {
+  id: "gate" | "cascade" | "funding" | "execution";
+  label: string;
+  source: string;
+  status: DirectionLayerStatus;
+  detail: string;
+};
+
 export type PositionExecution = {
   kind: PositionExecutionKind;
   side: "buy" | "sell" | "rotate" | "hold";
-  /** Human-readable PancakeSwap path on BSC Testnet */
   path: string;
   payAsset: string;
   receiveAsset: string;
@@ -29,10 +45,20 @@ export type PositionRoute = {
   symbol: string;
   direction: PositionDirection;
   confidence: number;
+  verdict: string;
+  sizeNote: string | null;
+  method: string;
+  layers: DirectionLayer[];
   execution: PositionExecution;
   reasoning: string[];
   pulse: MarketPulse;
   derivatives: BinanceDerivativesSnapshot | null;
+  gate: {
+    signal: string;
+    tier: string;
+    confidence: number | null;
+    regime: string | null;
+  } | null;
   settlement: {
     network: string;
     venue: string;
@@ -41,22 +67,43 @@ export type PositionRoute = {
   generatedAt: string;
 };
 
-function dirConfidence(
+export type GateOverlay = {
+  signal: string;
+  tier: string;
+  confidence?: number;
+  checksPassed?: number;
+  checksTotal?: number;
+  regime?: string;
+};
+
+function layerStatusIcon(s: DirectionLayerStatus): string {
+  if (s === "pass") return "✓";
+  if (s === "warn") return "!";
+  if (s === "block") return "✕";
+  return "·";
+}
+
+function computeConfidence(
   direction: PositionDirection,
+  gate: GateOverlay | null,
   pulse: MarketPulse,
-  gateTier?: string,
+  fundingWarn: boolean,
 ): number {
-  let c = pulse.stressScore != null ? 55 : 50;
-  if (direction === "LONG") {
-    c = pulse.gateTier === "a-plus" ? 78 : pulse.gateTier === "a" ? 68 : 58;
-    c -= pulse.cascadeLevel === "elevated" ? 12 : 0;
-  } else if (direction === "SHORT") {
-    c = pulse.cascadeLevel === "extreme" ? 82 : pulse.cascadeLevel === "elevated" ? 72 : 62;
-    if (pulse.gateSignal === "EXIT" || pulse.gateSignal === "AVOID") c += 8;
-  } else {
-    c = 52;
+  if (direction === "FLAT") {
+    if (gate?.signal === "ENTER_LONG") return 58;
+    return 48;
   }
-  if (gateTier === "a-plus" && direction === "LONG") c += 4;
+
+  let c = gate?.confidence ?? 62;
+  if (direction === "LONG") {
+    if (gate?.tier === "a-plus") c = Math.max(c, 74);
+    else if (gate?.tier === "a") c = Math.max(c, 66);
+    if (pulse.cascadeLevel === "elevated") c -= 10;
+    if (fundingWarn) c -= 4;
+  } else if (direction === "SHORT") {
+    c = pulse.cascadeLevel === "extreme" ? 80 : pulse.cascadeLevel === "elevated" ? 72 : 64;
+    if (gate?.signal === "EXIT" || gate?.signal === "AVOID") c += 6;
+  }
   return Math.round(Math.min(92, Math.max(38, c)));
 }
 
@@ -64,49 +111,138 @@ export function resolvePositionDirection(input: {
   pulse: MarketPulse;
   derivatives?: BinanceDerivativesSnapshot | null;
   agentAction?: "BUY" | "SELL" | "HOLD" | null;
-}): PositionDirection {
-  const { pulse, derivatives, agentAction } = input;
-  const gate = pulse.gateSignal ?? "";
-  const fg = pulse.fearGreed ?? 50;
-
+  gate?: GateOverlay | null;
+  hasRiskPosition?: boolean;
+}): {
+  direction: PositionDirection;
+  verdict: string;
+  sizeNote: string | null;
+  layers: DirectionLayer[];
+  reasoning: string[];
+} {
+  const { pulse, derivatives, agentAction, hasRiskPosition } = input;
+  const gateSignal = input.gate?.signal ?? pulse.gateSignal ?? "HOLD";
+  const gateTier = input.gate?.tier ?? pulse.gateTier ?? "—";
+  const gateRegime = input.gate?.regime ?? pulse.macro?.label ?? null;
   const fundingBias = derivatives ? fundingDirectionBias(derivatives.fundingRate) : null;
+  const fundingWarn = fundingBias === "long_crowded";
 
-  if (
-    pulse.cascadeLevel === "extreme" ||
-    gate === "EXIT" ||
-    gate === "AVOID" ||
-    agentAction === "SELL"
-  ) {
-    return "SHORT";
+  const layers: DirectionLayer[] = [
+    {
+      id: "gate",
+      label: "Constitution gate",
+      source: "CMC → nexus-gate.mjs (deterministic)",
+      status:
+        gateSignal === "ENTER_LONG"
+          ? "pass"
+          : gateSignal === "HOLD"
+            ? "neutral"
+            : "block",
+      detail: `${gateSignal.replace(/_/g, " ")} · tier ${gateTier}${gateRegime ? ` · ${gateRegime}` : ""}`,
+    },
+    {
+      id: "cascade",
+      label: "Cascade safety",
+      source: "CMC global mcap × BTC hourly shock (labeled proxy)",
+      status:
+        pulse.cascadeLevel === "extreme"
+          ? "block"
+          : pulse.cascadeLevel === "elevated"
+            ? "warn"
+            : "pass",
+      detail: `Stress ${pulse.stressScore}/100 · ${pulse.cascadeLevel} cascade`,
+    },
+  ];
+
+  if (derivatives) {
+    layers.push({
+      id: "funding",
+      label: "Perp funding / OI",
+      source: "binance-fapi/public (read-only)",
+      status: fundingWarn ? "warn" : "neutral",
+      detail: `${derivatives.symbol} ${derivatives.fundingRatePct}${
+        derivatives.openInterestUsd != null
+          ? ` · OI ~$${Math.round(derivatives.openInterestUsd / 1e6)}M`
+          : ""
+      } — macro context, not execution`,
+    });
   }
 
-  if (
-    pulse.cascadeLevel === "elevated" ||
-    pulse.macro?.label === "risk-off" ||
-    (fg < 25 && pulse.stressScore >= 40) ||
-    fundingBias === "long_crowded"
-  ) {
-    if (gate === "ENTER_LONG" && pulse.cascadeLevel !== "elevated") {
-      return "FLAT";
+  const reasoning: string[] = [
+    `Gate ${gateSignal.replace(/_/g, " ")} (${gateTier}) from live CMC bar`,
+    `Cascade ${pulse.cascadeLevel} · stress ${pulse.stressScore}/100`,
+  ];
+  if (pulse.fearGreed != null) reasoning.push(`Fear & Greed ${pulse.fearGreed} (CMC)`);
+  if (derivatives) {
+    reasoning.push(`Binance funding ${derivatives.fundingRatePct} — tilt only`);
+  }
+
+  let direction: PositionDirection = "FLAT";
+  let verdict = "Gate HOLD — stay flat until entry rules align.";
+  let sizeNote: string | null = null;
+
+  const forceDeRisk =
+    gateSignal === "EXIT" ||
+    gateSignal === "AVOID" ||
+    agentAction === "SELL" ||
+    pulse.cascadeLevel === "extreme";
+
+  if (forceDeRisk) {
+    direction = hasRiskPosition ? "SHORT" : "FLAT";
+    verdict = hasRiskPosition
+      ? gateSignal === "EXIT" || gateSignal === "AVOID"
+        ? "Gate exit — rotate risk asset to USDC on Chapel."
+        : "Extreme cascade — hedge open risk via stable rotate."
+      : "Defensive flat — no risk asset held; stay in tBNB/stables.";
+    reasoning.push(
+      direction === "SHORT"
+        ? "SHORT = spot hedge (asset → USDC), not perp."
+        : "No position to rotate — flat is correct.",
+    );
+  } else if (gateSignal === "ENTER_LONG") {
+    if (pulse.cascadeLevel === "elevated" && pulse.stressScore >= 55) {
+      direction = hasRiskPosition ? "SHORT" : "FLAT";
+      verdict = hasRiskPosition
+        ? "Elevated stress — gate cleared but tape hot; hedge existing size."
+        : "Elevated stress — gate long signal but wait before new size.";
+      reasoning.push("Cascade overlay blocks fresh long until stress < 55.");
+    } else {
+      direction = "LONG";
+      verdict =
+        pulse.cascadeLevel === "elevated"
+          ? "A/A+ gate clears tactical long — size reduced until stress normalizes."
+          : "Constitution ENTER LONG — deploy tBNB → asset on PancakeSwap Chapel.";
+      sizeNote =
+        gateRegime === "risk-off" || pulse.macro?.label === "risk-off"
+          ? "Risk-off regime — gate already sized thesis small; trail 1h invalidation."
+          : pulse.cascadeLevel === "elevated"
+            ? "Elevated cascade — use ≤50% of usual autopilot size."
+            : fundingWarn
+              ? "Crowded long funding — consider smaller clip."
+              : null;
+      reasoning.push("Gate is primary; risk-off is in the thesis, not a veto.");
     }
-    return pulse.stressScore >= 50 ? "SHORT" : "FLAT";
+  } else if (agentAction === "BUY" && pulse.cascadeLevel === "normal") {
+    direction = "LONG";
+    verdict = "Agent BUY + normal cascade — tactical long when constitution GRANTs.";
   }
 
-  if (gate === "ENTER_LONG" && pulse.agentStance === "LONG") {
-    return "LONG";
-  }
+  layers.push({
+    id: "execution",
+    label: "Settlement direction",
+    source: "PancakeSwap V2 · BSC Testnet",
+    status: direction === "FLAT" ? "neutral" : direction === "LONG" ? "pass" : "warn",
+    detail: `${direction} · ${direction === "SHORT" ? "asset → USDC" : direction === "LONG" ? "tBNB → asset" : "no new size"}`,
+  });
 
-  if (agentAction === "BUY" && pulse.cascadeLevel === "normal" && fg <= 88) {
-    return "LONG";
-  }
-
-  return "FLAT";
+  return { direction, verdict, sizeNote, layers, reasoning };
 }
 
 export function buildPositionExecution(
   direction: PositionDirection,
   symbol: string,
   hasRiskPosition: boolean,
+  verdict: string,
 ): PositionExecution {
   const sym = symbol.toUpperCase();
   const tradable = gateSymbolTradableOnTestnet(sym);
@@ -116,7 +252,7 @@ export function buildPositionExecution(
     return {
       kind: "long_tbnb",
       side: "buy",
-      path: tradable ? `tBNB → ${sym} (PancakeSwap V2 · Chapel)` : `${sym} — research only on desk`,
+      path: tradable ? `tBNB → ${sym} (PancakeSwap V2 · Chapel)` : `${sym} — evaluate only (no Chapel pair)`,
       payAsset: "tBNB",
       receiveAsset: sym,
       tradable,
@@ -139,9 +275,7 @@ export function buildPositionExecution(
     return {
       kind: "none",
       side: "hold",
-      path: hasRiskPosition
-        ? `${sym} → tBNB available if USDC route fails`
-        : "In stables/tBNB — spot desk cannot open naked short without perp leg",
+      path: verdict,
       payAsset: "—",
       receiveAsset: "USDC",
       tradable: false,
@@ -152,7 +286,7 @@ export function buildPositionExecution(
   return {
     kind: "none",
     side: "hold",
-    path: "No size change — wait for gate + pulse alignment",
+    path: verdict,
     payAsset: "—",
     receiveAsset: "—",
     tradable: false,
@@ -166,49 +300,59 @@ export function buildPositionRoute(input: {
   derivatives?: BinanceDerivativesSnapshot | null;
   agentAction?: "BUY" | "SELL" | "HOLD" | null;
   hasRiskPosition?: boolean;
+  gate?: GateOverlay | null;
 }): PositionRoute {
   const sym = input.symbol.toUpperCase();
-  const direction = resolvePositionDirection(input);
-  const execution = buildPositionExecution(direction, sym, input.hasRiskPosition ?? false);
+  const resolved = resolvePositionDirection(input);
+  const execution = buildPositionExecution(
+    resolved.direction,
+    sym,
+    input.hasRiskPosition ?? false,
+    resolved.verdict,
+  );
+  const fundingWarn = input.derivatives
+    ? fundingDirectionBias(input.derivatives.fundingRate) === "long_crowded"
+    : false;
 
-  const reasoning: string[] = [];
-  if (input.pulse.gateSignal) {
-    reasoning.push(`Gate ${input.pulse.gateSignal.replace(/_/g, " ")} (${input.pulse.gateTier ?? "—"})`);
-  }
-  reasoning.push(`Pulse stress ${input.pulse.stressScore}/100 · ${input.pulse.cascadeLevel} cascade`);
-  if (input.pulse.fearGreed != null) reasoning.push(`Fear & Greed ${input.pulse.fearGreed}`);
-  if (input.derivatives) {
-    reasoning.push(
-      `Binance ${input.derivatives.symbol} funding ${input.derivatives.fundingRatePct} · OI ${
-        input.derivatives.openInterestUsd != null
-          ? `$${Math.round(input.derivatives.openInterestUsd / 1e6)}M`
-          : "—"
-      }`,
-    );
-  }
-  if (input.agentAction) reasoning.push(`Agent signal ${input.agentAction}`);
-
-  if (direction === "SHORT") {
-    reasoning.push(
-      "SHORT = spot-native stable hedge (sell/rotate to USDC) — not a perp short on this stack.",
-    );
-  }
+  const gateSignal = input.gate?.signal ?? input.pulse.gateSignal ?? "HOLD";
+  const gateTier = input.gate?.tier ?? input.pulse.gateTier ?? "—";
 
   return {
     ok: true,
     symbol: sym,
-    direction,
-    confidence: dirConfidence(direction, input.pulse, input.pulse.gateTier),
+    direction: resolved.direction,
+    confidence: computeConfidence(resolved.direction, input.gate ?? null, input.pulse, fundingWarn),
+    verdict: resolved.verdict,
+    sizeNote: resolved.sizeNote,
+    method:
+      "Deterministic stack: CMC gate engine → cascade safety → Binance funding (context) → wallet swap.",
+    layers: resolved.layers,
     execution,
-    reasoning,
+    reasoning: resolved.reasoning,
     pulse: input.pulse,
     derivatives: input.derivatives ?? null,
+    gate: input.gate
+      ? {
+          signal: gateSignal,
+          tier: gateTier,
+          confidence: input.gate.confidence ?? null,
+          regime: input.gate.regime ?? null,
+        }
+      : gateSignal
+        ? {
+            signal: gateSignal,
+            tier: gateTier,
+            confidence: null,
+            regime: input.pulse.macro?.label ?? null,
+          }
+        : null,
     settlement: {
       network: "BSC Testnet (Chapel)",
       venue: "PancakeSwap V2",
-      note:
-        "Direction is enforced on-chain via wallet-signed swaps. Perp funding/OI is macro context only.",
+      note: "On-chain = wallet-signed swaps only. Permit GRANT is server-side constitution, not a contract.",
     },
     generatedAt: new Date().toISOString(),
   };
 }
+
+export { layerStatusIcon };

@@ -104,7 +104,7 @@ export function NexusAgentPulseStrip({
         {pulse.cascadeLevel !== "normal" && (
           <div className="flex items-center gap-2 rounded-lg border border-rose-400/20 bg-rose-500/8 px-2.5 py-2 text-[11px] text-rose-100/90">
             <TrendingDown className="h-3.5 w-3.5 shrink-0" />
-            Cascade stress {pulse.cascadeLevel} — autopilot blocks new longs until tape stabilizes.
+            Cascade {pulse.cascadeLevel} — blocks fresh longs above stress threshold.
           </div>
         )}
 
