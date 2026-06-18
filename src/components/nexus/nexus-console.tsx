@@ -11,6 +11,8 @@ import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { ArcPanel } from "@/components/ui/arc-panel";
 import { NexusCollapsible } from "@/components/nexus/nexus-collapsible";
 import { NexusPremiumHero } from "@/components/nexus/nexus-premium-hero";
+import { GateCapitalRouter } from "@/components/gate/gate-capital-router";
+import { useGateRoute } from "@/hooks/use-gate-route";
 import { NexusAlphaHero } from "@/components/nexus/nexus-alpha-hero";
 import { CommunityPulsePanel } from "@/components/shared/community-pulse-panel";
 import type { CommunityPulse } from "@/lib/community-pulse";
@@ -47,12 +49,17 @@ import { NexusMobileTokenActions } from "@/components/nexus/nexus-mobile-token-a
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
 import { meridianClientHeaders } from "@/lib/circle-agents";
+import { buildBscTestnetTradeTokens, isTestnetDeskToken, matchTestnetDeskBySymbol } from "@/lib/testnet-onchain";
+import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
+import { useSwapTokenQuotes } from "@/hooks/use-swap-token-quotes";
+import { NexusGateBanner, type GateHandoff } from "@/components/nexus/nexus-gate-banner";
 import { NexusTokenStrip } from "@/components/nexus/nexus-token-strip";
 import { NexusCenterTokenHeader } from "@/components/nexus/nexus-center-token-header";
 import { NexusTokenChatButton } from "@/components/nexus/nexus-token-chat";
 import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { dedupeFeedTokens } from "@/lib/feed-curation";
+import { isGateSymbol } from "@/lib/gate-constants";
 import { mergeFeedTokensStable } from "@/lib/token-security";
 import type { NexusDecision } from "@/lib/storage";
 import { cn } from "@/lib/utils";
@@ -85,7 +92,11 @@ export function NexusConsole() {
   const { isConnected } = useAccount();
   const walletChainId = useChainId();
   const { payBnbFee, ensureBscNetwork, isPending: bnbFeePending } = useBnbSettlement();
+  const bnbSpotUsd = useBnbSpotUsd();
+  const testnetDeskRaw = useMemo(() => buildBscTestnetTradeTokens(bnbSpotUsd), [bnbSpotUsd]);
+  const testnetDeskTokens = useSwapTokenQuotes(testnetDeskRaw, bnbSpotUsd);
   const [portfolioKey, setPortfolioKey] = useState(0);
+  const [tradeDeskToken, setTradeDeskToken] = useState<TrendingMarketToken | null>(null);
 
   const [selectedToken, setSelectedToken] = useState<TrendingMarketToken | null>(null);
   const [intelTier, setIntelTier] = useState<"feed" | "alpha">("feed");
@@ -106,7 +117,58 @@ export function NexusConsole() {
   } | null>(null);
   const [feedTokens, setFeedTokens] = useState<TrendingMarketToken[]>([]);
   const [communityPulse, setCommunityPulse] = useState<CommunityPulse | null>(null);
+  const [gateHandoff, setGateHandoff] = useState<GateHandoff | null>(null);
   const isMobile = useIsMobile();
+  const { route: gateRoute, loading: gateRouteLoading } = useGateRoute(45_000);
+
+  useEffect(() => {
+    const onHandoff = (e: Event) => {
+      const detail = (e as CustomEvent<{
+        handoff: GateHandoff;
+        deskToken: TrendingMarketToken;
+        tab?: string;
+      }>).detail;
+      if (!detail?.deskToken) return;
+      setGateHandoff(detail.handoff);
+      setTradeDeskToken(detail.deskToken);
+      setSelectedToken(detail.deskToken);
+      setRightTab("trade");
+      setTradeTab("buy");
+      if (isMobile) setMobilePanel("trade");
+      toast({
+        title: `Gate → ${detail.handoff.symbol}`,
+        message:
+          detail.handoff.permit === "GRANT"
+            ? "Permit GRANT — wallet-signed swap ready on BSC Testnet."
+            : "Opened from Gate — constitution may block BUY.",
+        type: detail.handoff.permit === "GRANT" ? "success" : "info",
+      });
+    };
+    window.addEventListener("meridian-gate-handoff", onHandoff);
+    return () => window.removeEventListener("meridian-gate-handoff", onHandoff);
+  }, [isMobile, toast]);
+
+  const activeTradeToken = useMemo(() => {
+    if (selectedToken && isTestnetDeskToken(selectedToken)) return selectedToken;
+    if (tradeDeskToken) return tradeDeskToken;
+    if (selectedToken) {
+      const matched = matchTestnetDeskBySymbol(selectedToken.symbol, bnbSpotUsd);
+      if (matched) return matched;
+    }
+    return testnetDeskTokens.find((t) => t.symbol === "CAKE") ?? testnetDeskTokens[0] ?? null;
+  }, [selectedToken, tradeDeskToken, testnetDeskTokens, bnbSpotUsd]);
+
+  useEffect(() => {
+    if (selectedToken || testnetDeskTokens.length === 0) return;
+    const cake = testnetDeskTokens.find((t) => t.symbol === "CAKE") ?? testnetDeskTokens[0];
+    setSelectedToken(cake);
+  }, [selectedToken, testnetDeskTokens]);
+
+  const handleDeskSelect = useCallback((token: TrendingMarketToken) => {
+    setTradeDeskToken(token);
+    setSelectedToken(token);
+    setIntelTier("feed");
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || window.location.hash !== "#nexus-constitution-desk") return;
@@ -125,7 +187,12 @@ export function NexusConsole() {
 
   const displayDecision = selectedToken ? tokenToDecision(selectedToken) : null;
   const tokenDossier = useTokenDossier(selectedToken, intelTier);
-  const deskAgent = tokenDossier.payload?.agent ?? selectedToken?.agent;
+  const benchSym = selectedToken?.symbol.replace(/^\$/, "").trim().toUpperCase() ?? "";
+  const deskAgent = useMemo(() => {
+    if (!selectedToken) return undefined;
+    if (isGateSymbol(benchSym)) return selectedToken.agent;
+    return tokenDossier.payload?.agent ?? selectedToken.agent;
+  }, [selectedToken, tokenDossier.payload?.agent, benchSym]);
   const constitution = useConstitutionPermit(selectedToken, deskAgent);
 
   const scrollToConstitutionDesk = useCallback(() => {
@@ -223,7 +290,7 @@ export function NexusConsole() {
       setAlphaThesis(undefined);
       const key = tokenKey(token);
       const fromFeed = feedTokens.find((t) => tokenKey(t) === key);
-      setSelectedToken(
+      const merged =
         fromFeed
           ? {
               ...fromFeed,
@@ -233,11 +300,42 @@ export function NexusConsole() {
               agent: token.agent ?? fromFeed.agent,
               intel: token.intel ?? fromFeed.intel,
             }
-          : token,
-      );
+          : token;
+      setSelectedToken(merged);
+
+      const sym = merged.symbol.replace(/^\$/, "").trim().toUpperCase();
+      if (isGateSymbol(sym) && merged.agent?.action) {
+        const action = merged.agent.action;
+        if (action === "BUY") setTradeTab("buy");
+        else if (action === "SELL") setTradeTab("sell");
+        const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
+        if (desk) setTradeDeskToken(desk);
+      }
+
       if (openChart) openChartView();
     },
-    [openChartView, feedTokens],
+    [openChartView, feedTokens, bnbSpotUsd],
+  );
+
+  const selectBenchmarkBySymbol = useCallback(
+    (sym: string) => {
+      const hit =
+        feedTokens.find((t) => t.symbol.replace(/^\$/, "").toUpperCase() === sym.toUpperCase()) ??
+        feedTokens[0];
+      if (hit) handleTokenSelect(hit, true);
+    },
+    [feedTokens, handleTokenSelect],
+  );
+
+  const deployBenchmark = useCallback(
+    (sym: string) => {
+      selectBenchmarkBySymbol(sym);
+      setRightTab("trade");
+      setTradeTab("buy");
+      if (isMobile) setMobilePanel("trade");
+      scrollToMobileContent();
+    },
+    [selectBenchmarkBySymbol, isMobile, scrollToMobileContent],
   );
 
   const handleMobilePanel = useCallback(
@@ -278,11 +376,7 @@ export function NexusConsole() {
           t.chainId === prev.chainId,
       );
       if (!match) return tradable[0] ?? prev;
-      return {
-        ...match,
-        security: match.security ?? prev.security,
-        intel: { ...match.intel, ...prev.intel },
-      };
+      return { ...match, intel: { ...prev.intel, ...match.intel } };
     });
     setPortfolioKey((k) => k + 1);
   }, []);
@@ -467,11 +561,7 @@ export function NexusConsole() {
         )}
         {feedTab === "swap" && (
           <div className="nexus-feed-scroll min-h-0 flex-1 overflow-y-auto pr-1 max-lg:overflow-visible max-lg:flex-none">
-            <NexusQuickSwap
-              tokens={feedTokens}
-              alphaTokens={alphaOpportunities}
-              onComplete={() => setPortfolioKey((k) => k + 1)}
-            />
+            <NexusQuickSwap onComplete={() => setPortfolioKey((k) => k + 1)} />
           </div>
         )}
       </div>
@@ -631,8 +721,8 @@ export function NexusConsole() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <NexusTradeHub
           embedded
-          token={selectedToken}
-          catalogTokens={feedTokens}
+          token={activeTradeToken}
+          catalogTokens={testnetDeskTokens}
           activeTab={tradeTab}
           onTabChange={setTradeTab}
           onTradeComplete={() => setPortfolioKey((k) => k + 1)}
@@ -706,11 +796,28 @@ export function NexusConsole() {
           alphaCount={alphaOpportunities.length}
           disabled={bnbFeePending}
         />
-        <div className="hidden lg:block">
+        <div className="mb-4 hidden lg:block">
           <NexusPremiumHero stableCount={STABLE_FEED_LIMIT} />
         </div>
 
+        <div className="mb-4">
+          <GateCapitalRouter
+            route={gateRoute}
+            loading={gateRouteLoading}
+            selectedSymbol={selectedToken?.symbol}
+            onSelectSymbol={selectBenchmarkBySymbol}
+            onDeploy={deployBenchmark}
+            compact={isMobile}
+          />
+        </div>
+
         <NexusMobileContextBar selectedToken={selectedToken} />
+
+        {gateHandoff && (
+          <div className="mb-4">
+            <NexusGateBanner handoff={gateHandoff} />
+          </div>
+        )}
 
         {actionBanner && (
           <div

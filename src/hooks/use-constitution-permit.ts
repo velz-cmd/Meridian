@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AgentSignal } from "@/lib/storage";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 import type { ConstitutionSkillMeta } from "@/lib/constitution-skill-meta";
+import { isGateSymbol } from "@/lib/gate-constants";
 import { appendPermitLog } from "@/lib/constitution-permit-log";
 
 export type ConstitutionPermitPayload = {
@@ -53,6 +54,12 @@ export type ConstitutionPermitPayload = {
   dataSource: string;
   generatedAt?: string;
   api?: { curl?: string; status?: string; permit?: string };
+  skills?: {
+    momentum: { name: string; signal: string; checksPassed: number; checksTotal: number };
+    sentiment: { name: string; state: string; signal: string; flagged: boolean; thesis: string };
+    regime: { name: string; regime: string; positioning: string; signal: string };
+    composite: { signal: string; alignmentScore: number; blockers: string[]; thesis: string };
+  };
 };
 
 function overlayFromToken(token: TrendingMarketToken) {
@@ -108,7 +115,9 @@ export function useConstitutionPermit(
                 confidence: agent.confidence,
                 reasoning: agent.whyAction ?? agent.reasoning,
               }
-            : { action: "BUY" as const, confidence: 70, reasoning: "Desk default probe" },
+            : isGateSymbol(token.symbol.replace(/^\$/, "").trim().toUpperCase())
+              ? undefined
+              : { action: "BUY" as const, confidence: 70, reasoning: "Desk default probe" },
         }),
       })
         .then(async (res) => {

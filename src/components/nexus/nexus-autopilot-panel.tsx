@@ -436,61 +436,26 @@ export function NexusAutopilotPanel({
         return;
       }
       if (side === "sell" && (!tokenAmount || tokenAmount <= 0)) {
-        const msg = "Nothing to sell — buy this token first or lower sell size";
+        const msg = "Nothing to sell — buy this token on-chain first or lower sell size";
         pushLog(msg, "error");
         toast({ type: "error", title: "No position", message: msg });
         return;
       }
 
-      const tradeRes = await fetch("/api/nexus/demo/trade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wallet: address,
-          side,
-          symbol: t.symbol,
-          tokenAddress: t.tokenAddress,
-          sourceChain: t.chainId,
-          tradeNetwork: "bsc",
-          usdcAmount,
-          tokenAmount,
-          priceUsd: t.priceUsd,
-          arcFeeTxHash: sessionTx,
-          useAgentVault,
-          autopilotSession: true,
-        }),
+      pushLog(
+        "Autopilot cannot sign swaps for you — use Buy/Sell tab for wallet-signed PancakeSwap trades on BSC Testnet.",
+        "error",
+      );
+      toast({
+        type: "info",
+        title: "On-chain only",
+        message: "Confirm each buy/sell in the Trade tab — your wallet must sign PancakeSwap txs.",
       });
-      const { ok: tradeOk, data: tradeData, error: tradeErr } = await readApiJson<{
-        trade?: { usdcAmount?: number; tokenAmount?: number; symbol?: string };
-        agentBalanceUsdc?: number;
-        error?: string;
-      }>(tradeRes);
-      if (!tradeOk) throw new Error(tradeData.error ?? tradeErr ?? "Trade failed");
-
-      await refreshBalance();
-      const sigLabel = signal ? `${signal.action} ${signal.confidence}%` : "DCA schedule";
-      const tr = tradeData.trade as
-        | { usdcAmount?: number; tokenAmount?: number; symbol?: string }
-        | undefined;
-      if (side === "buy" && tr) {
-        pushLog(
-          `Bought ${(tr.tokenAmount ?? 0).toFixed(4)} ${tr.symbol ?? t.symbol} for $${(tr.usdcAmount ?? 0).toFixed(2)} · vault $${(tradeData.agentBalanceUsdc ?? vaultBal).toFixed(2)}`,
-          "trade",
-        );
-      } else if (side === "sell" && tr) {
-        pushLog(
-          `Sold ${(tr.tokenAmount ?? 0).toFixed(4)} ${tr.symbol ?? t.symbol} → $${(tr.usdcAmount ?? 0).toFixed(2)} · ${sigLabel}`,
-          "trade",
-        );
-      } else {
-        pushLog(`Auto ${side.toUpperCase()} · ${sigLabel} · vault $${(tradeData.agentBalanceUsdc ?? vaultBal).toFixed(2)}`, "trade");
+      if (trigger === "recurring") {
+        persist({ ...configRef.current, recurringEnabled: false });
+        startedRef.current = false;
       }
-      agentUsdcRef.current = Number(tradeData.agentBalanceUsdc ?? vaultBal);
-      toast({ type: "success", title: "Autopilot trade", message: `${side.toUpperCase()} ${t.symbol}` });
-      onTradeComplete?.();
-      if (trigger === "once") {
-        pushLog("One-time trade complete — recurring agent unchanged", "info");
-      }
+      return;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Autopilot failed";
       pushLog(msg, "error");
@@ -1125,7 +1090,7 @@ export function NexusAutopilotPanel({
                 </p>
                 <ul className="mt-3 space-y-1 text-xs text-white/55">
                   <li>· Deposit tBNB to the vault above on BSC Testnet, then Sync</li>
-                  <li>· Buys debit vault balance (demo ledger on BSC Testnet)</li>
+                  <li>· Trades execute via PancakeSwap — you sign each buy/sell in the Trade tab</li>
                   <li>· Recurring and one-time runs are independent</li>
                 </ul>
                 <div className="mt-4 flex gap-2">

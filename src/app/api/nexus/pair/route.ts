@@ -1,7 +1,23 @@
 import { NextResponse } from "next/server";
 import { fetchTokenByAddress } from "@/lib/dexscreener";
+import { BSC_CHAIN_ID, BSC_MARKET_CHAIN_SLUG } from "@/lib/bsc-chain";
+import { BSC_MAINNET_ANCHORS } from "@/lib/bsc-feed-anchors";
+import { isBscNativeBnb } from "@/lib/arc-usdc-swap";
 
 export const dynamic = "force-dynamic";
+
+function resolveMarketLookup(chainId: string, address: string): { chainId: string; address: string } {
+  const addr = address.toLowerCase();
+  if (String(chainId) === String(BSC_CHAIN_ID) || chainId === "bsc-testnet") {
+    if (isBscNativeBnb(address)) {
+      return { chainId: BSC_MARKET_CHAIN_SLUG, address: BSC_MAINNET_ANCHORS.BNB.tokenAddress };
+    }
+    const byDesk = Object.values(BSC_MAINNET_ANCHORS).find((a) => a.tokenAddress.toLowerCase() === addr);
+    if (byDesk) return { chainId: BSC_MARKET_CHAIN_SLUG, address: byDesk.tokenAddress };
+    return { chainId: BSC_MARKET_CHAIN_SLUG, address };
+  }
+  return { chainId, address };
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -13,7 +29,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const pair = await fetchTokenByAddress(chainId, address);
+    const lookup = resolveMarketLookup(chainId, address);
+    const pair = await fetchTokenByAddress(lookup.chainId, lookup.address);
     if (!pair?.pairAddress) {
       return NextResponse.json({ pairAddress: null, url: null });
     }
@@ -32,6 +49,7 @@ export async function GET(request: Request) {
         fdv: pair.fdv,
         txns24h: pair.txns24h,
         priceChange: pair.priceChange,
+        marketChainId: lookup.chainId,
       },
       {
         headers: {

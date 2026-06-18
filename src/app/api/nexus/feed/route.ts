@@ -12,6 +12,7 @@ import {
 } from "@/lib/feed-cache";
 import { filterLiveFeedTokens } from "@/lib/token-filters";
 import { analyzeTrendingFeed, analyzeTrendingFeedQuick } from "@/lib/nexus-agent";
+import { enrichTokensWithGateSignals } from "@/lib/gate-feed-sync";
 import { trendingToDemoToken } from "@/lib/demo-trading";
 import { enrichTokensWithIcons } from "@/lib/token-icons";
 import { mapWithConcurrency } from "@/lib/async-pool";
@@ -148,11 +149,18 @@ async function buildFeed(
       })
     : await analyzeTrendingFeed(tokens);
 
-  return buildFeedPayload(
+  const payload = buildFeedPayload(
     analyzed,
     quick ? "live-discovery-feed-quick" : "live-discovery-feed",
     feedMeta,
   );
+  const enriched = await enrichTokensWithGateSignals(payload.tokens);
+  const counts = {
+    buy: enriched.filter((t) => t.agent?.action === "BUY").length,
+    sell: enriched.filter((t) => t.agent?.action === "SELL").length,
+    hold: enriched.filter((t) => t.agent?.action === "HOLD").length,
+  };
+  return { ...payload, tokens: enriched, counts };
 }
 
 export async function GET(request: Request) {

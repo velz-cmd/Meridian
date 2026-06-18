@@ -1,8 +1,11 @@
 "use client";
 
 import { type ComponentType } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, Bot, Copy, Scale, ShieldCheck, ShieldBan } from "lucide-react";
+import { buildGateExecutionUrl } from "@/lib/gate-nexus-bridge";
+import { GatePermitSwap } from "@/components/gate/gate-permit-swap";
 import { cn } from "@/lib/utils";
 
 type Arbitration = {
@@ -20,10 +23,14 @@ export function GatePermitArbitration({
   symbol,
   arbitration,
   granted,
+  priceUsd,
+  checks,
 }: {
   symbol: string;
   arbitration: Arbitration | null;
   granted: boolean;
+  priceUsd: number;
+  checks?: { id: string; pass: boolean; label: string }[];
 }) {
   if (!arbitration) return null;
 
@@ -83,6 +90,36 @@ export function GatePermitArbitration({
         )}
 
         <PermitReceipt permitId={arbitration.permitId} verdict={arbitration.verdict} symbol={symbol} />
+
+        {checks && checks.length > 0 && (
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {checks.map((c) => (
+              <p
+                key={c.id}
+                className={cn(
+                  "rounded-lg px-2 py-1.5 text-xs",
+                  c.pass ? "bg-emerald-500/10 text-emerald-100/85" : "bg-rose-500/10 text-rose-100/85",
+                )}
+              >
+                {c.pass ? "✓" : "✗"} {c.label}
+              </p>
+            ))}
+          </div>
+        )}
+
+        <GatePermitSwap
+          symbol={symbol}
+          priceUsd={priceUsd}
+          permitId={arbitration.permitId}
+          granted={granted}
+        />
+
+        <Link
+          href={buildGateExecutionUrl({ symbol, permit: granted ? "GRANT" : "DENY", permitId: arbitration.permitId })}
+          className="text-xs text-white/40 hover:text-white/70"
+        >
+          Full desk →
+        </Link>
       </div>
     </section>
   );

@@ -1,30 +1,25 @@
-# Invoke NEXUS Momentum Gate (CMC Agent Hub)
+# Invoke MERIDIAN Momentum Constitution (CMC Strategy Skill)
 
-Copy into your agent when testing the Skill:
+Copy into your LLM agent:
 
 ```
-Use the nexus-momentum-gate Skill. For symbol BNB:
-1. search_cryptos → get CMC id
-2. get_crypto_quotes_latest → price, market_cap, volume, percent_change_1h/24h/7d
+Generate a backtestable trading strategy for BNB using CoinMarketCap data.
+
+1. search_cryptos → BNB id
+2. get_crypto_quotes_latest → price, volume, percent_change_1h/24h/7d, market_cap
 3. get_crypto_technical_analysis → RSI, MACD
 4. get_global_metrics_latest → fear_greed_index
-5. Optional: get_crypto_metrics → holder concentration
-6. Apply STRATEGY_SPEC gate rules; emit OUTPUT_SCHEMA JSON + human summary
-7. If upstream agent said BUY, run enforceAgentGate to clamp signal
+5. Apply STRATEGY_SPEC.md entry/exit rules (momentum + RSI + MACD + Fear & Greed)
+6. Output JSON per OUTPUT_SCHEMA.json with position LONG or FLAT and a strategy thesis
+7. Reference backtest: npm run bnb:backtest -- --symbol BNB --days 90
 ```
 
-Example expected output header:
+Expected response shape:
 
 ```
-## NEXUS Gate · BNB
-**Signal:** ENTER_LONG · **Tier:** a-plus
-**Confidence:** 64 · **Risk:** 38
-**Agent directive:** Agent may propose tactical long; cap confidence at gate value.
-```
-
-Then run backtest reference:
-
-```powershell
-npm run bnb:backtest
-node bnb-hack/backtest/run.mjs --symbol BNB --days 90
+## Strategy · BNB
+**Position:** LONG | FLAT
+**Signal:** Enter long | Hold flat | Exit
+**Thesis:** [one paragraph from rules, not raw indicator dump]
+**Backtest:** run npm run bnb:backtest -- --symbol BNB --days 90
 ```

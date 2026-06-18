@@ -6,28 +6,33 @@ import {
   issueConstitutionPermit,
   toStructuredOutput,
 } from "../../bnb-hack/engine/nexus-gate.mjs";
-import { fetchGateSnapshot } from "../../bnb-hack/live/cmc-fetch.mjs";
+import { composeSkillVerdict } from "../../bnb-hack/engine/meridian-skills.mjs";
+import { fetchGateSnapshot, fetchGlobalMacro } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { fetchKeyInfo } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { runHistoricalBacktest } from "../../bnb-hack/live/run-backtest.mjs";
 import { convictionScore, routeBscCapital } from "../../bnb-hack/live/gate-router.mjs";
 import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
-import { GATE_SYMBOLS, isGateSymbol } from "@/lib/gate-constants";
+import { GATE_SKILL_REPO, GATE_SYMBOLS, isGateSymbol } from "@/lib/gate-constants";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
+import {
+  buildGateExecutionUrl,
+  GATE_PIPELINE_LAYERS,
+  GATE_STACK_SUMMARY,
+} from "@/lib/gate-nexus-bridge";
 import type { AgentInput } from "@/lib/constitution-permit-handler";
 
 const PUBLIC_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "https://trader-arc.vercel.app";
 
-const DEFAULT_AGENT: AgentInput = {
-  action: "BUY",
-  confidence: 92,
-  reasoning: "Upstream agent proposes tactical long on BSC benchmark.",
-};
-
-async function evaluateSymbol(symbol: string, agent: AgentInput) {
+async function evaluateSymbol(
+  symbol: string,
+  agent: AgentInput | null,
+  macro: Awaited<ReturnType<typeof fetchGlobalMacro>> | null = null,
+) {
   const { snapshot, sources, cmcLive } = await fetchGateSnapshot(symbol);
   const gateRaw = evaluateNexusGate(snapshot);
   const gate = toStructuredOutput(snapshot, gateRaw);
-  const permit = issueConstitutionPermit(snapshot, agent);
+  const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {});
+  const permit = agent ? issueConstitutionPermit(snapshot, agent) : null;
 
   return {
     symbol,
@@ -45,12 +50,18 @@ async function evaluateSymbol(symbol: string, agent: AgentInput) {
       macdSignal: snapshot.macdSignal,
     },
     gate,
-    permit: { ...permit, skill: CONSTITUTION_SKILL },
-    conviction: convictionScore(gate, permit),
+    skills,
+    permit: permit ? { ...permit, skill: CONSTITUTION_SKILL } : null,
+    conviction: permit ? convictionScore(gate, permit) : null,
   };
 }
 
-function buildArbitration(agent: AgentInput, gate: Awaited<ReturnType<typeof evaluateSymbol>>["gate"], permit: Awaited<ReturnType<typeof evaluateSymbol>>["permit"]) {
+function buildArbitration(
+  symbol: string,
+  agent: AgentInput,
+  gate: Awaited<ReturnType<typeof evaluateSymbol>>["gate"],
+  permit: NonNullable<Awaited<ReturnType<typeof evaluateSymbol>>["permit"]>,
+) {
   const agentConf = agent.confidence ?? 70;
   const gateConf = gate.confidence ?? 50;
   const gap = agentConf - gateConf;
@@ -77,6 +88,11 @@ function buildArbitration(agent: AgentInput, gate: Awaited<ReturnType<typeof eva
     permitId: permit.permitId,
     narrative,
     nexusUrl: `${PUBLIC_ORIGIN}/nexus`,
+    executionUrl: `${PUBLIC_ORIGIN}${buildGateExecutionUrl({
+      symbol,
+      permit: permit.status,
+      permitId: permit.permitId,
+    })}`,
   };
 }
 
@@ -86,19 +102,23 @@ export async function buildGateEvaluateResponse(input: {
 }) {
   const symbol = input.symbol.toUpperCase();
   if (!isGateSymbol(symbol)) {
-    throw new Error(`Gate supports BNB and CAKE only — got ${symbol}`);
+    throw new Error(`Gate supports ${GATE_SYMBOLS.join(", ")} only — got ${symbol}`);
   }
 
-  const agent = input.agent ?? DEFAULT_AGENT;
-  const eval_ = await evaluateSymbol(symbol, agent);
+  const agent = input.agent ?? null;
+  const macro = await fetchGlobalMacro();
+  const eval_ = await evaluateSymbol(symbol, agent, macro);
 
   return {
-    product: "MERIDIAN Gate · BSC Capital Router",
+    product: "MERIDIAN Momentum Constitution · CMC Strategy Skill",
     track: "BNB Hack · Strategy Skills (CoinMarketCap)",
     skill: CONSTITUTION_SKILL,
     dataIntegrity: "cmc-only-no-synthetic",
+    macro,
     ...eval_,
-    arbitration: buildArbitration(agent, eval_.gate, eval_.permit),
+    ...(agent && eval_.permit
+      ? { arbitration: buildArbitration(symbol, agent, eval_.gate, eval_.permit) }
+      : {}),
     reproduce: {
       evaluate: `curl "${PUBLIC_ORIGIN}/api/gate/evaluate?symbol=${symbol}"`,
       route: `curl "${PUBLIC_ORIGIN}/api/gate/route"`,
@@ -110,8 +130,9 @@ export async function buildGateEvaluateResponse(input: {
 }
 
 export async function buildGateRouteResponse(input: { agent?: AgentInput | null } = {}) {
-  const agent = input.agent ?? DEFAULT_AGENT;
-  const results = await Promise.all(GATE_SYMBOLS.map((sym) => evaluateSymbol(sym, agent)));
+  const agent = input.agent ?? null;
+  const macro = await fetchGlobalMacro();
+  const results = await Promise.all(GATE_SYMBOLS.map((sym) => evaluateSymbol(sym, agent, macro)));
   const regime = results[0]?.gate.regime ?? "neutral";
   const fearGreed = results[0]?.market.fearGreed ?? 50;
 
@@ -119,15 +140,18 @@ export async function buildGateRouteResponse(input: { agent?: AgentInput | null 
     results.map((r) => ({
       symbol: r.symbol,
       gate: r.gate,
-      permit: r.permit,
+      permit: r.permit ?? {
+        status: r.gate.signal === "ENTER_LONG" ? "GRANT" : "DENY",
+        execute: r.gate.signal === "ENTER_LONG" ? "LONG" : "FLAT",
+      },
       market: r.market,
-      conviction: r.conviction,
+      conviction: r.conviction ?? convictionScore(r.gate, { status: r.gate.signal === "ENTER_LONG" ? "GRANT" : "DENY" }),
     })),
-    { agentAction: agent.action, regime, fearGreed },
+    { agentAction: agent?.action, regime, fearGreed },
   );
 
   return {
-    product: "MERIDIAN Gate · BSC Capital Router",
+    product: "MERIDIAN Momentum Constitution · CMC Strategy Skill",
     track: "BNB Hack · Strategy Skills (CoinMarketCap)",
     skill: CONSTITUTION_SKILL,
     dataIntegrity: "cmc-only-no-synthetic",
@@ -144,14 +168,14 @@ export async function buildGateRouteResponse(input: { agent?: AgentInput | null 
 export async function buildGateBacktestResponse(input: { symbol: string; days?: number }) {
   const symbol = input.symbol.toUpperCase();
   if (!isGateSymbol(symbol)) {
-    throw new Error(`Gate supports BNB and CAKE only — got ${symbol}`);
+    throw new Error(`Gate supports ${GATE_SYMBOLS.join(", ")} only — got ${symbol}`);
   }
 
   const days = input.days ?? 90;
   const result = await runHistoricalBacktest({ symbol, days, includeCompare: true });
 
   return {
-    product: "MERIDIAN Gate · BSC Capital Router",
+    product: "MERIDIAN Momentum Constitution · CMC Strategy Skill",
     track: "BNB Hack · Strategy Skills (CoinMarketCap)",
     skill: CONSTITUTION_SKILL,
     symbol,
@@ -231,7 +255,91 @@ export async function probeGateStatus() {
       evaluate: "/api/gate/evaluate",
       backtest: "/api/gate/backtest",
       status: "/api/gate/status",
+      pipeline: "/api/gate/pipeline",
     },
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function buildGatePipelineResponse() {
+  const status = await probeGateStatus();
+  const hasCmc = status.cmc.configured;
+  const cmcLive = status.cmc.live;
+  const historicalOk = status.cmc.historical;
+
+  const layers = GATE_PIPELINE_LAYERS.map((layer) => {
+    switch (layer.id) {
+      case "skill":
+      case "spec":
+        return {
+          ...layer,
+          status: "ready" as const,
+          detail: "LLM-authored rules in GitHub — importable to CMC Agent Hub",
+        };
+      case "backtest":
+        return {
+          ...layer,
+          status: historicalOk ? ("ready" as const) : hasCmc ? ("degraded" as const) : ("blocked" as const),
+          detail: historicalOk
+            ? "90-day constitution vs naive agent on real daily bars"
+            : hasCmc
+              ? "CMC historical blocked on Basic tier — CLI uses Binance venue replay"
+              : "Set CMC_API_KEY for live historical proof",
+        };
+      case "live":
+        return {
+          ...layer,
+          status: cmcLive ? ("live" as const) : hasCmc ? ("degraded" as const) : ("blocked" as const),
+          detail: cmcLive ? "CoinMarketCap quotes + fear/greed — no synthetic fixtures" : status.cmc.error ?? "CMC unavailable",
+        };
+      case "agent":
+        return {
+          ...layer,
+          status: cmcLive ? ("ready" as const) : ("degraded" as const),
+          detail: "Upstream BUY vs constitution GRANT/DENY with auditable permitId",
+        };
+      case "execution":
+        return {
+          ...layer,
+          status: "ready" as const,
+          detail: `${GATE_STACK_SUMMARY.settlement} · chain ${BSC_CHAIN_ID}`,
+        };
+      default:
+        return { ...layer, status: "ready" as const, detail: "" };
+    }
+  });
+
+  return {
+    product: "MERIDIAN · Full Stack Strategy Skill",
+    track: "BNB Hack · Strategy Skills (CoinMarketCap)",
+    skill: CONSTITUTION_SKILL,
+    stack: GATE_STACK_SUMMARY,
+    layers,
+    demoFlow: [
+      "Open /gate — live CMC gate on BNB vs CAKE",
+      "Permit arbitration — agent intent vs constitution",
+      "90-day backtest — reproducible Quantopian-style proof",
+      "GRANT → Execute on BSC Testnet — wallet-signed PancakeSwap swap",
+    ],
+    artifacts: {
+      skill: `${GATE_SKILL_REPO}/SKILL.md`,
+      strategySpec: `${GATE_SKILL_REPO}/STRATEGY_SPEC.md`,
+      engine: `${GATE_SKILL_REPO.replace("/skills/nexus-momentum-gate", "")}/engine/nexus-gate.mjs`,
+      outputSchema: `${GATE_SKILL_REPO}/OUTPUT_SCHEMA.json`,
+    },
+    urls: {
+      product: `${PUBLIC_ORIGIN}/gate`,
+      execution: `${PUBLIC_ORIGIN}/nexus`,
+      status: `${PUBLIC_ORIGIN}/api/gate/status`,
+      pipeline: `${PUBLIC_ORIGIN}/api/gate/pipeline`,
+    },
+    reproduce: {
+      evaluate: `curl "${PUBLIC_ORIGIN}/api/gate/evaluate?symbol=BNB"`,
+      backtest: `curl "${PUBLIC_ORIGIN}/api/gate/backtest?symbol=BNB&days=90"`,
+      cli: "npm run bnb:backtest -- --symbol BNB --days 90",
+    },
+    cmc: status.cmc,
+    bnb: status.bnb,
     generatedAt: new Date().toISOString(),
   };
 }

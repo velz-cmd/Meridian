@@ -6,11 +6,14 @@ import { ArrowDownUp, ChevronDown, ExternalLink, Loader2, Wallet } from "lucide-
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
+import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
+import { useSwapTokenQuotes } from "@/hooks/use-swap-token-quotes";
+import { usePancakeSwap } from "@/hooks/use-pancake-swap";
+import { useOnChainTokenBalance } from "@/hooks/use-onchain-token-balance";
+import { getBscTestnetSwapList } from "@/lib/testnet-onchain";
 import { BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { NexusCollapsible } from "@/components/nexus/nexus-collapsible";
-import { filterTradableTokens } from "@/lib/token-filters";
 import { formatUsd } from "@/lib/utils";
-import type { DemoPosition } from "@/lib/storage";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 
 const PCT_OPTIONS = [25, 50, 75, 100] as const;
@@ -97,28 +100,17 @@ export function NexusAbSwap({
 }) {
   const toast = useToast();
   const { address, isConnected } = useAccount();
-  const { payBnbFee, ensureBscNetwork, isPending: bnbPending } = useBnbSettlement();
-  const tradable = useMemo(() => filterTradableTokens(tokens), [tokens]);
+  const { ensureBscNetwork } = useBnbSettlement();
+  const { swapTokenForToken, isPending: swapPending } = usePancakeSwap();
+  const bnbSpotUsd = useBnbSpotUsd();
+  const tradableRaw = useMemo(() => getBscTestnetSwapList(bnbSpotUsd), [bnbSpotUsd]);
+  const tradable = useSwapTokenQuotes(tradableRaw, bnbSpotUsd);
 
   const [tokenA, setTokenA] = useState("");
   const [tokenB, setTokenB] = useState("");
   const [amountA, setAmountA] = useState("");
   const [amountMode, setAmountMode] = useState<"token" | "usdc">("token");
   const [loading, setLoading] = useState(false);
-  const [positions, setPositions] = useState<DemoPosition[]>([]);
-
-  const loadPortfolio = useCallback(async () => {
-    if (!address) return;
-    const res = await fetch(`/api/nexus/demo/portfolio?wallet=${address}&t=${Date.now()}`, {
-      cache: "no-store",
-    });
-    const data = await res.json();
-    if (res.ok) setPositions(data.positions ?? []);
-  }, [address]);
-
-  useEffect(() => {
-    void loadPortfolio();
-  }, [loadPortfolio]);
 
   useEffect(() => {
     if (!tokenA && tradable[0]) setTokenA(tradable[0].tokenAddress);
@@ -127,12 +119,16 @@ export function NexusAbSwap({
 
   const a = tradable.find((t) => t.tokenAddress === tokenA);
   const b = tradable.find((t) => t.tokenAddress === tokenB);
-  const posA = positions.find((p) => p.tokenAddress.toLowerCase() === tokenA.toLowerCase());
-  const balanceA = posA?.tokenAmount ?? 0;
+  const balA = useOnChainTokenBalance({
+    symbol: a?.symbol ?? "",
+    tokenAddress: a?.tokenAddress ?? "",
+    chainId: a?.chainId ?? "",
+    wallet: address,
+  });
+  const balanceA = balA.amount;
 
   const amountNum = Math.max(0, Number(amountA) || 0);
-  const tokenAmountSell =
-    amountMode === "usdc" && a && a.priceUsd > 0 ? amountNum / a.priceUsd : amountNum;
+  const tokenAmountSell = amountMode === "token" ? amountNum : amountNum;
   const estB =
     a && b && a.priceUsd > 0 && b.priceUsd > 0
       ? (tokenAmountSell * a.priceUsd) / b.priceUsd
@@ -181,51 +177,21 @@ export function NexusAbSwap({
     setLoading(true);
     try {
       await ensureBscNetwork();
-      const fee = await payBnbFee("SWAP_AB", `${a.tokenAddress}-${b.tokenAddress}-${Date.now()}`);
-
-      const sellRes = await fetch("/api/nexus/demo/trade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wallet: address,
-          side: "sell",
-          symbol: a.symbol,
-          tokenAddress: a.tokenAddress,
-          sourceChain: a.chainId,
-          tradeNetwork: "bsc",
-          tokenAmount: tokenAmountSell,
-          priceUsd: a.priceUsd,
-          arcFeeTxHash: fee.txHash,
-        }),
+      const result = await swapTokenForToken({
+        paySymbol: a.symbol,
+        payAddress: a.tokenAddress,
+        payChainId: a.chainId,
+        receiveSymbol: b.symbol,
+        receiveAddress: b.tokenAddress,
+        receiveChainId: b.chainId,
+        tokenAmount: String(tokenAmountSell),
       });
-      const sellData = await sellRes.json();
-      if (!sellRes.ok) throw new Error(sellData.error ?? "Sell leg failed");
-
-      const usdcOut = sellData.trade?.usdcAmount ?? tokenAmountSell * a.priceUsd;
-      const buyRes = await fetch("/api/nexus/demo/trade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wallet: address,
-          side: "buy",
-          symbol: b.symbol,
-          tokenAddress: b.tokenAddress,
-          sourceChain: b.chainId,
-          tradeNetwork: "bsc",
-          usdcAmount: usdcOut,
-          priceUsd: b.priceUsd,
-          arcFeeTxHash: fee.txHash,
-        }),
-      });
-      const buyData = await buyRes.json();
-      if (!buyRes.ok) throw new Error(buyData.error ?? "Buy leg failed");
-
       toast({
         type: "success",
-        title: "Swap recorded",
-        message: `Sold ${tokenAmountSell.toFixed(4)} ${a.symbol} → ~${(buyData.trade?.tokenAmount ?? estB).toFixed(4)} ${b.symbol}`,
+        title: "Swap confirmed on-chain",
+        message: result.summary,
       });
-      await loadPortfolio();
+      void balA.refetch();
       onComplete?.();
     } catch (e) {
       toast({
@@ -248,14 +214,14 @@ export function NexusAbSwap({
   return (
     <NexusCollapsible
       label="Token swap (A → B)"
-      hint={a && b ? `${a.symbol} → ${b.symbol} · demo ${BSC_CHAIN_LABEL} portfolio` : "Sell A, buy B"}
+      hint={a && b ? `${a.symbol} → ${b.symbol} · PancakeSwap on ${BSC_CHAIN_LABEL}` : "Sell A, buy B"}
       variant="technical"
       icon={ArrowDownUp}
       defaultOpen={defaultOpen}
     >
       <div className="space-y-3">
         <p className="text-[11px] text-white/50">
-          Uses your demo portfolio holdings on {BSC_CHAIN_LABEL}
+          Uses on-chain balances on {BSC_CHAIN_LABEL} — wallet signs the swap
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -350,11 +316,11 @@ export function NexusAbSwap({
           <Button
             variant="nexus"
             className="min-h-[48px] w-full"
-            disabled={loading || bnbPending || !a || !b || balanceA <= 0}
+            disabled={loading || swapPending || !a || !b || balanceA <= 0}
             onClick={() => void executeSwap()}
           >
-            {loading || bnbPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Swap {a?.symbol ?? "A"} → {b?.symbol ?? "B"}
+            {loading || swapPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Sign swap {a?.symbol ?? "A"} → {b?.symbol ?? "B"}
           </Button>
         ) : (
           <p className="text-center text-xs text-white/50">Connect wallet on {BSC_CHAIN_LABEL} to swap</p>

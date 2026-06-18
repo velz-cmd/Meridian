@@ -15,8 +15,8 @@ import {
   cmcFetch,
   fetchLiveSnapshot,
   fetchHistoricalDaily,
-  rsiProxy,
   macdProxy,
+  rsiProxy,
   resolveSymbolId,
 } from "./cmc-fetch.mjs";
 import { fetchBinanceDailySeries } from "./binance-klines.mjs";
@@ -33,6 +33,25 @@ async function fetchFearGreed() {
       return 50;
     }
   }
+}
+
+/** Scale venue bars with live CMC market cap so turnover checks work (no fake mc=0). */
+async function hydrateBarsWithCmcFundamentals(symbol, bars) {
+  const live = await fetchLiveSnapshot(symbol);
+  const cmcPrice = live.price ?? 0;
+  const cmcMc = live.marketCap ?? 0;
+  if (cmcPrice <= 0 || cmcMc <= 0) return bars;
+
+  return bars.map((b, i, arr) => {
+    const p7 = i >= 7 ? arr[i - 7].price : null;
+    const change7d =
+      p7 && p7 > 0 ? Math.round(((b.price - p7) / p7) * 1000) / 10 : (b.change7d ?? 0);
+    return {
+      ...b,
+      marketCap: cmcMc * (b.price / cmcPrice),
+      change7d,
+    };
+  });
 }
 
 function buildSeries(raw, symbol, fearGreed) {
@@ -196,7 +215,8 @@ export async function runHistoricalBacktest(opts = {}) {
     try {
       const raw = await fetchBinanceDailySeries(symbol, days);
       const tail = raw.slice(-days);
-      const series = buildSeries(tail, symbol, fg);
+      const hydrated = await hydrateBarsWithCmcFundamentals(symbol, tail);
+      const series = buildSeries(hydrated, symbol, fg);
       return packBacktestResult(series, {
         symbol,
         days,
@@ -204,12 +224,13 @@ export async function runHistoricalBacktest(opts = {}) {
         slippageBps,
         includeCompare,
         mode: "binance-venue-replay",
-        dataSource: "binance-spot-daily-klines",
+        dataSource: "binance-spot-daily-klines+cmc-market-cap-scaled",
         note:
-          "CMC Basic plan: live permits use CoinMarketCap. Backtest replays the same gate rules on Binance spot daily closes (BSC execution venue) — not synthetic.",
+          "CMC historical unavailable on this API tier. Prices from Binance spot daily closes; market cap scaled from live CMC quote; Fear & Greed from CoinMarketCap.",
         methodology: {
           rsi: "14-period from Binance daily close",
           macd: "derived from daily change",
+          marketCap: "live CMC market_cap scaled by price ratio per bar",
           fearGreed: "coinmarketcap/fear-and-greed/latest (macro overlay)",
           feesBps: feeBps,
           slippageBps,

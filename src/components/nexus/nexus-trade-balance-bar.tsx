@@ -12,10 +12,13 @@ import type { DemoPosition } from "@/lib/storage";
 export function NexusTradeBalanceBar({
   symbol,
   position,
+  onChainBalance,
   showAgentVault = false,
 }: {
   symbol?: string;
   position?: DemoPosition | null;
+  /** Live ERC-20 balance on BSC Testnet (replaces demo ledger) */
+  onChainBalance?: number;
   showAgentVault?: boolean;
 }) {
   const { address, isConnected } = useAccount();
@@ -55,17 +58,17 @@ export function NexusTradeBalanceBar({
           )}
         </div>
       )}
-      {position && position.tokenAmount > 0 && symbol && (
+      {(onChainBalance != null && onChainBalance > 0 && symbol) || (position && position.tokenAmount > 0 && symbol) ? (
         <div className="col-span-full rounded-xl border border-white/10 bg-black/25 px-3 py-2">
           <p className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-white/45">
             <ArcIcon3d icon={NEXUS_TRADE_ICONS.holdings} theme="nexus" size="sm" className="!h-8 !w-8" />
-            Holding {symbol}
+            Holding {symbol} on-chain
           </p>
           <p className="text-sm font-semibold text-white">
-            {position.tokenAmount.toFixed(4)} {symbol} · spent {formatUsd(position.usdcSpent)}
+            {(onChainBalance ?? position?.tokenAmount ?? 0).toFixed(4)} {symbol}
           </p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

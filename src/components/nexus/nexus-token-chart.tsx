@@ -8,6 +8,7 @@ import { ArcPanel } from "@/components/ui/arc-panel";
 import { NexusChartFullscreen } from "@/components/nexus/nexus-chart-fullscreen";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { dexChartEmbedUrl } from "@/lib/dexscreener";
+import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
 import { cn } from "@/lib/utils";
 
 const PAIR_CACHE_KEY = "nexus-pair-v1";
@@ -136,6 +137,9 @@ export function NexusTokenChart({
     tokenAddress,
   });
 
+  const chartChain =
+    chainId && String(chainId) === String(BSC_CHAIN_ID) ? "bsc" : chainId;
+
   if (!chainId || (!resolvedPair && !tokenAddress)) {
     return (
       <motion.div
@@ -219,7 +223,7 @@ export function NexusTokenChart({
           >
             <iframe
               title={`${symbol ?? "Token"} chart`}
-              src={dexChartEmbedUrl(chainId, resolvedPair)}
+              src={dexChartEmbedUrl(chartChain!, resolvedPair)}
               className="nexus-chart-iframe h-[calc(100%+2.5rem)] w-full border-0"
               allow="clipboard-write"
             />
@@ -232,7 +236,7 @@ export function NexusTokenChart({
       <NexusChartFullscreen
         open={fsOpen}
         onClose={() => setFsOpen(false)}
-        chainId={chainId}
+        chainId={chartChain ?? chainId}
         pairAddress={resolvedPair}
         symbol={symbol}
         dexUrl={dexUrl}

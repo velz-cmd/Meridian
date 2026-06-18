@@ -3,7 +3,32 @@
  * Server-side TTL cache saves credits and improves permit latency.
  */
 
+import { fetchBinanceDailySeries } from "./binance-klines.mjs";
+
 const API = "https://pro-api.coinmarketcap.com";
+
+/** Live RSI/MACD from Binance daily when CMC historical tier blocks. */
+async function hydrateTechnicalsFromBinance(symbol, quotes) {
+  try {
+    const bars = await fetchBinanceDailySeries(symbol, 30);
+    if (bars.length < 15) return null;
+    const closes = bars.map((b) => b.price);
+    const rsi = computeRsi14(closes);
+    const last = bars[bars.length - 1];
+    const prev = bars[bars.length - 2];
+    const ch1 =
+      prev?.price && last?.price ? ((last.price - prev.price) / prev.price) * 100 : quotes.change1h;
+    return {
+      rsi: rsi ?? quotes.rsi,
+      macdSignal: macdProxy(ch1, quotes.change24h),
+      sourceRsi: "binance-spot-daily-14rsi",
+      sourceMacd: "binance-spot-daily-derived",
+      bars: bars.length,
+    };
+  } catch {
+    return null;
+  }
+}
 
 const TTL_MS = { fearGreed: 60_000, quotes: 30_000, map: 300_000 };
 /** @type {Map<string, { at: number; data: unknown }>} */
@@ -152,7 +177,27 @@ export async function fetchGateSnapshot(symbol) {
       };
     }
   } catch {
-    /* fall through to quotes-only */
+    /* fall through to Binance venue technicals */
+  }
+
+  try {
+    const venue = await hydrateTechnicalsFromBinance(sym, quotes);
+    if (venue) {
+      sources.rsi = venue.sourceRsi;
+      sources.macd = venue.sourceMacd;
+      sources.historicalBars = venue.bars;
+      return {
+        snapshot: {
+          ...quotes,
+          rsi: venue.rsi,
+          macdSignal: venue.macdSignal,
+        },
+        sources,
+        cmcLive: true,
+      };
+    }
+  } catch {
+    /* quotes-only proxy — last resort */
   }
 
   return { snapshot: quotes, sources, cmcLive: true };
@@ -166,9 +211,7 @@ export async function fetchLiveSnapshot(symbol) {
   const sym = symbol.toUpperCase();
   const [quotes, fgRes] = await Promise.all([
     cmcFetch("/v1/cryptocurrency/quotes/latest", { symbol: sym }, { cacheKey: `quotes:${sym}` }),
-    cmcFetch("/v3/fear-and-greed/latest", {}, { cacheKey: "fg:latest" }).catch(() => ({
-      data: { value: 50 },
-    })),
+    cmcFetch("/v3/fear-and-greed/latest", {}, { cacheKey: "fg:latest" }),
   ]);
 
   const row = quotes.data?.[sym];
@@ -221,5 +264,32 @@ export async function fetchKeyInfo() {
     };
   } catch {
     return null;
+  }
+}
+
+/** CMC global metrics for regime / derivatives-positioning proxy. */
+export async function fetchGlobalMacro() {
+  try {
+    const data = await cmcFetch("/v1/global-metrics/quotes/latest", {}, { cacheKey: "global:latest" });
+    const usd = data.data?.quote?.USD ?? {};
+    const btcDom = data.data?.btc_dominance ?? null;
+    const mktCh =
+      usd.total_market_cap_yesterday != null && usd.total_market_cap
+        ? ((usd.total_market_cap - usd.total_market_cap_yesterday) / usd.total_market_cap_yesterday) * 100
+        : (usd.total_market_cap_change_24h ?? null);
+    const altCh =
+      usd.altcoin_market_cap_yesterday != null && usd.altcoin_market_cap
+        ? ((usd.altcoin_market_cap - usd.altcoin_market_cap_yesterday) / usd.altcoin_market_cap_yesterday) * 100
+        : null;
+    return {
+      btcDominance: btcDom != null ? Number(btcDom) : null,
+      totalMarketCap: usd.total_market_cap ?? null,
+      totalMarketChange24h: mktCh != null ? Number(mktCh) : null,
+      altcoinMarketCap: usd.altcoin_market_cap ?? null,
+      altcoinMarketCapChange24h: altCh != null ? Number(altCh) : null,
+      source: "coinmarketcap/global-metrics/quotes/latest",
+    };
+  } catch {
+    return { source: "unavailable" };
   }
 }

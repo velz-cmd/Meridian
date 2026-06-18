@@ -1,5 +1,5 @@
-/** BNB Hack Track 2 — CMC-listed BSC benchmarks only (no meme / dex overlay). */
-export const GATE_SYMBOLS = ["BNB", "CAKE"] as const;
+/** BNB Hack Track 2 — CMC-listed BSC benchmarks (no stables). */
+export const GATE_SYMBOLS = ["BNB", "CAKE", "FLOKI", "XVS"] as const;
 
 export type GateSymbol = (typeof GATE_SYMBOLS)[number];
 

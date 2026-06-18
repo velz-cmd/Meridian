@@ -1,18 +1,43 @@
-# NEXUS Momentum Gate — Strategy Specification (Backtestable)
+# MERIDIAN Momentum Constitution — Strategy Specification (Backtestable)
 
-**Version:** 1.1.0  
-**Author:** MERIDIAN / NEXUS  
-**Data source:** CoinMarketCap Agent Hub (MCP)  
+**Version:** 1.2.0  
+**Author:** MERIDIAN  
+**Data source:** CoinMarketCap (MCP + REST)  
 **Hackathon:** BNB Hack Track 2 — Strategy Skills  
 **Output schema:** [`OUTPUT_SCHEMA.json`](./OUTPUT_SCHEMA.json)
 
 ---
 
+## Quantopian-style overview
+
+This document is the **judge deliverable**: market data → strategy rules → reproducible backtest.
+
+```python
+# Pseudocode (mirrors bnb-hack/engine/nexus-gate.mjs)
+
+def initialize(context):
+    context.position = FLAT
+    context.fee_bps = 10
+
+def handle_data(context, bar):
+    # bar = CMC daily snapshot: price, volume, changes, rsi, macd, fear_greed
+    signal = evaluate_momentum_constitution(bar)
+
+    if context.position == FLAT and signal == ENTER_LONG:
+        order_target_percent(1.0)   # enter long
+        context.position = LONG
+    elif context.position == LONG and signal in (EXIT, AVOID):
+        order_target_percent(0.0)   # flat
+        context.position = FLAT
+```
+
+---
+
 ## 1. Objective
 
-**Agent-grade pre-trade conviction gate** for liquid CMC-listed assets. Default state: **FLAT/HOLD**. Only **ENTER_LONG** on A/A+ tier when weighted gate agreement clears statistical bars — mirroring MERIDIAN NEXUS `enforceSignalGate` (`src/lib/signal-gate.ts`).
+Transform **CoinMarketCap market data** into a **crypto momentum strategy** with explicit entry/exit rules. Default: **FLAT**. This is a **strategy spec**, not a live-trading agent.
 
-This is **not** generic coin research. It is the **constitution** an autonomous agent must pass before sizing.
+Blends **RSI, MACD, and Fear & Greed** (plus momentum bands and safety filters) into deterministic signals.
 
 ---
 

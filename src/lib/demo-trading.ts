@@ -45,18 +45,23 @@ export function buildDemoQuote(input: {
   tokenAmount?: number;
   priceUsd: number;
   position?: DemoPosition | null;
+  tbnbSpent?: number;
+  bnbSpotUsd?: number;
 }) {
   const price = Math.max(input.priceUsd, 0.00000001);
 
   if (input.side === "buy") {
-    const usdc = input.usdcAmount ?? 0;
-    const tokens = usdc / price;
+    const usd = input.usdcAmount ?? 0;
+    const tokens = usd / price;
+    const tbnb =
+      input.tbnbSpent ??
+      (input.bnbSpotUsd && input.bnbSpotUsd > 0 ? usd / input.bnbSpotUsd : usd);
     return {
       side: "buy" as const,
-      usdcIn: usdc,
+      usdcIn: usd,
       tokenOut: tokens,
       priceUsd: price,
-      label: `Buy ${tokens.toFixed(6)} tokens for ${usdc.toFixed(2)} demo USDC`,
+      label: `Buy ${tokens >= 1_000_000 ? tokens.toExponential(3) : tokens.toFixed(4)} tokens for ${tbnb.toFixed(4)} tBNB (~$${usd.toFixed(2)})`,
     };
   }
 

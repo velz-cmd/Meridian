@@ -5,13 +5,16 @@ import type { AgentInput } from "@/lib/constitution-permit-handler";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Rank BNB vs CAKE — where should an agent deploy BSC capital right now? */
+/** Rank BSC benchmarks — where should an agent deploy capital right now? */
 export async function GET(req: NextRequest) {
-  const agent: AgentInput = {
-    action: (req.nextUrl.searchParams.get("agentAction") ?? "BUY") as AgentInput["action"],
-    confidence: Number(req.nextUrl.searchParams.get("confidence") ?? 92),
-    reasoning: "Agent requested via GET",
-  };
+  const agentAction = req.nextUrl.searchParams.get("agentAction");
+  const agent: AgentInput | null = agentAction
+    ? {
+        action: agentAction as AgentInput["action"],
+        confidence: Number(req.nextUrl.searchParams.get("confidence") ?? 85),
+        reasoning: "Agent requested via GET",
+      }
+    : null;
   try {
     const payload = await buildGateRouteResponse({ agent });
     return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });

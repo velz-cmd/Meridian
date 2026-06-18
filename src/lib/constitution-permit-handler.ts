@@ -3,8 +3,11 @@
  * Synthetic counterfactual removed — use /api/gate/backtest for real historical proof.
  */
 import { issueConstitutionPermit } from "../../bnb-hack/engine/nexus-gate.mjs";
+import { composeSkillVerdict } from "../../bnb-hack/engine/meridian-skills.mjs";
+import { evaluateNexusGate } from "../../bnb-hack/engine/nexus-gate.mjs";
 import { fetchLiveSnapshot, cmcCacheStats } from "../../bnb-hack/live/cmc-fetch.mjs";
-import { fetchGateSnapshot } from "../../bnb-hack/live/cmc-fetch.mjs";
+import { fetchGateSnapshot, fetchGlobalMacro } from "../../bnb-hack/live/cmc-fetch.mjs";
+import { gateSignalToAgentAction } from "@/lib/gate-feed-sync";
 import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
 import { isGateSymbol } from "@/lib/gate-constants";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
@@ -106,11 +109,21 @@ export async function buildConstitutionResponse(input: {
   const symbol = input.symbol.toUpperCase();
   const overlay = input.overlay ?? {};
   const hasCmc = Boolean(process.env.CMC_API_KEY || process.env.CMC_PRO_API_KEY);
-  const gateBenchmark = input.cmcOnly || (isGateSymbol(symbol) && !overlay.liquidityUsd);
+  const gateBenchmark = input.cmcOnly || isGateSymbol(symbol);
 
   if (gateBenchmark && hasCmc) {
+    const macro = await fetchGlobalMacro();
     const { snapshot, sources, cmcLive } = await fetchGateSnapshot(symbol);
-    const permitCore = issueConstitutionPermit(snapshot, input.agent ?? null);
+    const gateRaw = evaluateNexusGate(snapshot);
+    const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {});
+    const alignedAgent =
+      input.agent ??
+      ({
+        action: gateSignalToAgentAction(skills.composite.signal),
+        confidence: gateRaw.confidence ?? 60,
+        reasoning: skills.composite.thesis,
+      } as AgentInput);
+    const permitCore = issueConstitutionPermit(snapshot, alignedAgent);
     const permit = { ...permitCore, skill: CONSTITUTION_SKILL };
 
     return {
@@ -122,6 +135,7 @@ export async function buildConstitutionResponse(input: {
       dataIntegrity: "cmc-only-no-synthetic",
       fieldSources: sources,
       cmcLive,
+      skills,
       bnb: {
         chainId: BSC_CHAIN_ID,
         chain: BSC_CHAIN_LABEL,

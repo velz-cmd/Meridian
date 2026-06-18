@@ -9,23 +9,40 @@ import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
+import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
+import { useSwapTokenQuotes } from "@/hooks/use-swap-token-quotes";
+import { buildBscTestnetTradeTokens } from "@/lib/testnet-onchain";
+import { useOnChainTokenBalance } from "@/hooks/use-onchain-token-balance";
+import {
+  quoteNativeForToken,
+  quoteTokenForNative,
+  quoteTokenForToken,
+  readTokenDecimals,
+  formatTokenUnits,
+} from "@/lib/pancake-v2";
+import { usePancakeSwap } from "@/hooks/use-pancake-swap";
+import { resolveTestnetSwapAddress } from "@/lib/testnet-onchain";
 import { NexusTokenAvatar } from "@/components/nexus/nexus-token-avatar";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL, bscExplorerTx } from "@/lib/bsc-chain";
 import {
-  createBscNativeBnbSwapToken,
   isBscNativeBnb,
   mergeSwapTokenList,
 } from "@/lib/arc-usdc-swap";
-import type { DemoPosition, DemoTradeRecord } from "@/lib/storage";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 
 const PCT_OPTIONS = [25, 50, 75] as const;
+const SWAP_HISTORY_KEY = "nexus-onchain-swaps";
+
+type SwapHistoryRow = {
+  id: string;
+  summary: string;
+  hash: string;
+  at: string;
+};
 
 type SwapSuccessState = {
   summary: string;
-  feeTxHash: string;
-  legs: string[];
-  trades: DemoTradeRecord[];
+  swapTxHash: string;
 };
 
 function formatSwapBalance(token: TrendingMarketToken, amount: number) {
@@ -110,11 +127,10 @@ function TokenPicker({
 }
 
 export function NexusQuickSwap({
-  tokens,
-  alphaTokens,
   onComplete,
 }: {
-  tokens: TrendingMarketToken[];
+  /** @deprecated desk list is fixed BSC Testnet tokens */
+  tokens?: TrendingMarketToken[];
   alphaTokens?: Array<{
     symbol: string;
     name: string;
@@ -129,61 +145,64 @@ export function NexusQuickSwap({
   const toast = useToast();
   const { address, isConnected } = useAccount();
   const { data: walletBalance } = useBalance({ address, chainId: BSC_CHAIN_ID });
-  const { payBnbFee, ensureBscNetwork, isPending: bnbPending, feeUsd } = useBnbSettlement();
+  const { ensureBscNetwork } = useBnbSettlement();
+  const bnbSpotUsd = useBnbSpotUsd();
+  const { swapNativeForToken, swapTokenForNative, swapTokenForToken, isPending: swapPending } =
+    usePancakeSwap();
 
-  const allTokens = useMemo(
-    () => mergeSwapTokenList(tokens, alphaTokens),
-    [tokens, alphaTokens],
+  const mergedTokens = useMemo(
+    () => mergeSwapTokenList([], undefined, bnbSpotUsd),
+    [bnbSpotUsd],
   );
+  const allTokens = useSwapTokenQuotes(mergedTokens, bnbSpotUsd);
 
   const [payToken, setPayToken] = useState("");
   const [receiveToken, setReceiveToken] = useState("");
   const [amount, setAmount] = useState("");
   const [amountMode, setAmountMode] = useState<"token" | "usdc">("token");
   const [loading, setLoading] = useState(false);
-  const [positions, setPositions] = useState<DemoPosition[]>([]);
-  const [recentTrades, setRecentTrades] = useState<DemoTradeRecord[]>([]);
+  const [recentTrades, setRecentTrades] = useState<SwapHistoryRow[]>([]);
   const [success, setSuccess] = useState<SwapSuccessState | null>(null);
   const [swapView, setSwapView] = useState<"swap" | "history">("swap");
+  const [onChainEstReceive, setOnChainEstReceive] = useState<string | null>(null);
 
   const walletTbnb = walletBalance ? Number(walletBalance.formatted) : 0;
 
-  const loadPortfolio = useCallback(async () => {
-    if (!address) return;
-    const res = await fetch(`/api/nexus/demo/portfolio?wallet=${address}&t=${Date.now()}`, {
-      cache: "no-store",
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setPositions(data.positions ?? []);
-      setRecentTrades((data.trades as DemoTradeRecord[])?.slice(0, 25) ?? []);
+  const loadHistory = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(SWAP_HISTORY_KEY);
+      setRecentTrades(raw ? (JSON.parse(raw) as SwapHistoryRow[]).slice(0, 25) : []);
+    } catch {
+      setRecentTrades([]);
     }
-  }, [address]);
+  }, []);
 
-  useEffect(() => {
-    void loadPortfolio();
-  }, [loadPortfolio]);
-
-  const heldKeys = useMemo(
-    () =>
-      new Set(
-        positions.filter((p) => p.tokenAmount > 0).map((p) => p.tokenAddress.toLowerCase()),
-      ),
-    [positions],
+  const pushHistory = useCallback(
+    (row: SwapHistoryRow) => {
+      setRecentTrades((prev) => {
+        const next = [row, ...prev].slice(0, 25);
+        localStorage.setItem(SWAP_HISTORY_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [],
   );
 
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
   const sortedTokens = useMemo(() => {
-    const native = createBscNativeBnbSwapToken();
     return [...allTokens].sort((a, b) => {
       const aNative = isBscNativeBnb(a.tokenAddress) ? 2 : 0;
       const bNative = isBscNativeBnb(b.tokenAddress) ? 2 : 0;
       if (aNative !== bNative) return bNative - aNative;
-      const ah = heldKeys.has(a.tokenAddress.toLowerCase()) ? 1 : 0;
-      const bh = heldKeys.has(b.tokenAddress.toLowerCase()) ? 1 : 0;
-      if (ah !== bh) return bh - ah;
+      const aPriced = a.priceUsd > 0 ? 1 : 0;
+      const bPriced = b.priceUsd > 0 ? 1 : 0;
+      if (aPriced !== bPriced) return bPriced - aPriced;
       return a.symbol.localeCompare(b.symbol);
     });
-  }, [allTokens, heldKeys]);
+  }, [allTokens]);
 
   const receiveOptions = useMemo(
     () =>
@@ -219,31 +238,93 @@ export function NexusQuickSwap({
     !!receive &&
     pay.tokenAddress.toLowerCase() === receive.tokenAddress.toLowerCase();
 
-  const posPay = positions.find((p) => p.tokenAddress.toLowerCase() === payToken.toLowerCase());
-  const balancePay = payIsNative ? walletTbnb : (posPay?.tokenAmount ?? 0);
+  const payTokenBal = useOnChainTokenBalance({
+    symbol: pay?.symbol ?? "",
+    tokenAddress: pay?.tokenAddress ?? "",
+    chainId: pay?.chainId ?? "",
+    wallet: address,
+  });
+
+  const balancePay = payIsNative ? walletTbnb : payTokenBal.amount;
 
   const amountNum = Math.max(0, Number(amount) || 0);
-  const tokenAmountSell =
-    payIsNative || amountMode === "usdc"
-      ? pay && !payIsNative && pay.priceUsd > 0
-        ? amountNum / pay.priceUsd
-        : amountNum
-      : amountNum;
-  const usdcSpend = payIsNative
-    ? amountNum
+  const tokenAmountSell = payIsNative
+    ? 0
     : amountMode === "usdc"
       ? amountNum
+      : amountNum;
+
+  const usdNotional = payIsNative
+    ? amountNum * bnbSpotUsd
+    : amountMode === "usdc"
+      ? amountNum * bnbSpotUsd
       : tokenAmountSell * (pay?.priceUsd ?? 0);
-  const estReceive =
-    pay && receive
-      ? receiveIsNative
-        ? usdcSpend
-        : pay.priceUsd > 0 && receive.priceUsd > 0
-          ? payIsNative
-            ? usdcSpend / receive.priceUsd
-            : (tokenAmountSell * pay.priceUsd) / receive.priceUsd
-          : 0
-      : 0;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadQuote() {
+      if (!pay || !receive || amountNum <= 0) {
+        setOnChainEstReceive(null);
+        return;
+      }
+      try {
+        if (payIsNative && !receiveIsNative) {
+          const out = resolveTestnetSwapAddress(receive);
+          if (!out) {
+            setOnChainEstReceive(null);
+            return;
+          }
+          const q = await quoteNativeForToken(out, String(amountNum));
+          if (cancelled || !q) {
+            setOnChainEstReceive(null);
+            return;
+          }
+          const dec = await readTokenDecimals(out);
+          setOnChainEstReceive(formatTokenUnits(q.amountOut, dec));
+          return;
+        }
+        if (receiveIsNative && !payIsNative) {
+          const inn = resolveTestnetSwapAddress(pay);
+          if (!inn) {
+            setOnChainEstReceive(null);
+            return;
+          }
+          const dec = await readTokenDecimals(inn);
+          const q = await quoteTokenForNative(inn, String(tokenAmountSell), dec);
+          if (cancelled || !q) {
+            setOnChainEstReceive(null);
+            return;
+          }
+          setOnChainEstReceive(formatTokenUnits(q.amountOut, 18));
+          return;
+        }
+        if (!payIsNative && !receiveIsNative) {
+          const inn = resolveTestnetSwapAddress(pay);
+          const out = resolveTestnetSwapAddress(receive);
+          if (!inn || !out) {
+            setOnChainEstReceive(null);
+            return;
+          }
+          const decIn = await readTokenDecimals(inn);
+          const q = await quoteTokenForToken(inn, out, String(tokenAmountSell), decIn);
+          if (cancelled || !q) {
+            setOnChainEstReceive(null);
+            return;
+          }
+          const decOut = await readTokenDecimals(out);
+          setOnChainEstReceive(formatTokenUnits(q.amountOut, decOut));
+        }
+      } catch {
+        if (!cancelled) setOnChainEstReceive(null);
+      }
+    }
+    void loadQuote();
+    return () => {
+      cancelled = true;
+    };
+  }, [pay, receive, amountNum, payIsNative, receiveIsNative, tokenAmountSell]);
+
+  const swapBlockedHint = null;
 
   function applyPct(pct: number) {
     if (payIsNative) {
@@ -256,18 +337,17 @@ export function NexusQuickSwap({
     }
     if (amountMode === "token") {
       if (balancePay <= 0) {
-        toast({ type: "error", title: "No balance", message: `You hold 0 ${pay?.symbol ?? "token"}` });
+        toast({ type: "error", title: "No balance", message: `You hold 0 ${pay?.symbol ?? "token"} on-chain` });
         return;
       }
       setAmount(((balancePay * pct) / 100).toFixed(pct === 100 ? 6 : 4));
       return;
     }
-    const maxUsdc = balancePay * (pay?.priceUsd ?? 0);
-    if (maxUsdc <= 0) {
-      toast({ type: "error", title: "No balance", message: "Select a token you hold" });
+    if (balancePay <= 0) {
+      toast({ type: "error", title: "No balance", message: "Select a token you hold on-chain" });
       return;
     }
-    setAmount(((maxUsdc * pct) / 100).toFixed(2));
+    setAmount(((balancePay * pct) / 100).toFixed(pct === 100 ? 6 : 4));
   }
 
   async function executeSwap() {
@@ -275,16 +355,20 @@ export function NexusQuickSwap({
       toast({ type: "error", title: "Select tokens", message: "Pick pay and receive tokens" });
       return;
     }
+    if (swapBlockedHint) {
+      toast({ type: "error", title: "Not on BSC Testnet", message: swapBlockedHint });
+      return;
+    }
     if (sameToken) {
       toast({ type: "error", title: "Same token", message: "Choose two different tokens" });
       return;
     }
-    if (usdcSpend <= 0 && tokenAmountSell <= 0) {
+    if (amountNum <= 0) {
       toast({ type: "error", title: "Amount", message: "Enter a valid amount" });
       return;
     }
     if (payIsNative) {
-      if (usdcSpend > walletTbnb + 1e-9) {
+      if (amountNum > walletTbnb + 1e-9) {
         toast({
           type: "error",
           title: "Insufficient tBNB",
@@ -296,132 +380,61 @@ export function NexusQuickSwap({
       toast({
         type: "error",
         title: "Insufficient balance",
-        message: `You have ${balancePay.toFixed(4)} ${pay.symbol}`,
+        message: `You have ${balancePay.toFixed(4)} ${pay.symbol} on-chain`,
       });
       return;
     }
 
     setLoading(true);
     setSuccess(null);
-    const legs: string[] = [];
-    let buyTrade: DemoTradeRecord | undefined;
-    let sellTrade: DemoTradeRecord | undefined;
 
     try {
       await ensureBscNetwork();
-      const fee = await payBnbFee("SWAP", `${pay.tokenAddress}-${receive.tokenAddress}-${Date.now()}`);
 
+      let result;
       if (payIsNative && !receiveIsNative) {
-        const buyRes = await fetch("/api/nexus/demo/trade", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            wallet: address,
-            side: "buy",
-            symbol: receive.symbol,
-            tokenAddress: receive.tokenAddress,
-            sourceChain: receive.chainId,
-            tradeNetwork: "bsc",
-            usdcAmount: usdcSpend,
-            priceUsd: receive.priceUsd,
-            arcFeeTxHash: fee.txHash,
-          }),
+        result = await swapNativeForToken({
+          symbol: receive.symbol,
+          tokenAddress: receive.tokenAddress,
+          chainId: receive.chainId,
+          tbnbAmount: String(amountNum),
         });
-        const buyData = await buyRes.json();
-        if (!buyRes.ok) throw new Error(buyData.error ?? "Buy failed");
-        buyTrade = buyData.trade;
-        legs.push(
-          `Bought ~${(buyData.trade?.tokenAmount ?? estReceive).toFixed(4)} ${receive.symbol}`,
-        );
       } else if (receiveIsNative && !payIsNative) {
-        const sellRes = await fetch("/api/nexus/demo/trade", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            wallet: address,
-            side: "swap_to_usdc",
-            symbol: pay.symbol,
-            tokenAddress: pay.tokenAddress,
-            sourceChain: pay.chainId,
-            tradeNetwork: "bsc",
-            tokenAmount: tokenAmountSell,
-            priceUsd: pay.priceUsd,
-            arcFeeTxHash: fee.txHash,
-          }),
+        result = await swapTokenForNative({
+          symbol: pay.symbol,
+          tokenAddress: pay.tokenAddress,
+          chainId: pay.chainId,
+          tokenAmount: String(tokenAmountSell),
         });
-        const sellData = await sellRes.json();
-        if (!sellRes.ok) throw new Error(sellData.error ?? "Sell failed");
-        sellTrade = sellData.trade;
-        legs.push(
-          `Sold ${tokenAmountSell.toFixed(4)} ${pay.symbol} → ~${(sellData.trade?.usdcAmount ?? usdcSpend).toFixed(4)} tBNB`,
-        );
       } else if (!payIsNative && !receiveIsNative) {
-        const sellRes = await fetch("/api/nexus/demo/trade", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            wallet: address,
-            side: "sell",
-            symbol: pay.symbol,
-            tokenAddress: pay.tokenAddress,
-            sourceChain: pay.chainId,
-            tradeNetwork: "bsc",
-            tokenAmount: tokenAmountSell,
-            priceUsd: pay.priceUsd,
-            arcFeeTxHash: fee.txHash,
-          }),
+        result = await swapTokenForToken({
+          paySymbol: pay.symbol,
+          payAddress: pay.tokenAddress,
+          payChainId: pay.chainId,
+          receiveSymbol: receive.symbol,
+          receiveAddress: receive.tokenAddress,
+          receiveChainId: receive.chainId,
+          tokenAmount: String(tokenAmountSell),
         });
-        const sellData = await sellRes.json();
-        if (!sellRes.ok) throw new Error(sellData.error ?? "Sell leg failed");
-        sellTrade = sellData.trade;
-
-        const usdcOut = sellData.trade?.usdcAmount ?? tokenAmountSell * pay.priceUsd;
-        const buyRes = await fetch("/api/nexus/demo/trade", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            wallet: address,
-            side: "buy",
-            symbol: receive.symbol,
-            tokenAddress: receive.tokenAddress,
-            sourceChain: receive.chainId,
-            tradeNetwork: "bsc",
-            usdcAmount: usdcOut,
-            priceUsd: receive.priceUsd,
-            arcFeeTxHash: fee.txHash,
-          }),
-        });
-        const buyData = await buyRes.json();
-        if (!buyRes.ok) throw new Error(buyData.error ?? "Buy leg failed");
-        buyTrade = buyData.trade;
-        legs.push(
-          `Sold ${tokenAmountSell.toFixed(4)} ${pay.symbol}`,
-          `Bought ~${(buyData.trade?.tokenAmount ?? estReceive).toFixed(4)} ${receive.symbol}`,
-        );
+      } else {
+        throw new Error("Cannot swap tBNB to tBNB");
       }
 
-      const summary = receiveIsNative
-        ? `${tokenAmountSell.toFixed(4)} ${pay.symbol} → ${usdcSpend.toFixed(4)} tBNB`
-        : payIsNative
-          ? `${usdcSpend.toFixed(4)} tBNB → ~${(buyTrade?.tokenAmount ?? estReceive).toFixed(4)} ${receive.symbol}`
-          : `${tokenAmountSell.toFixed(4)} ${pay.symbol} → ~${(buyTrade?.tokenAmount ?? estReceive).toFixed(4)} ${receive.symbol}`;
-
-      const trades = [sellTrade, buyTrade].filter(Boolean) as DemoTradeRecord[];
-
-      setSuccess({
-        summary,
-        feeTxHash: fee.txHash,
-        legs,
-        trades,
+      setSuccess({ summary: result.summary, swapTxHash: result.hash });
+      pushHistory({
+        id: result.hash,
+        summary: result.summary,
+        hash: result.hash,
+        at: new Date().toISOString(),
       });
       setAmount("");
+      void payTokenBal.refetch();
 
       toast({
         type: "success",
-        title: "Swap complete",
-        message: summary,
+        title: "Swap confirmed on-chain",
+        message: result.summary,
       });
-      await loadPortfolio();
       onComplete?.();
     } catch (e) {
       toast({
@@ -445,16 +458,28 @@ export function NexusQuickSwap({
   const tokenBalance = useCallback(
     (token: TrendingMarketToken) => {
       if (isBscNativeBnb(token.tokenAddress)) return walletTbnb;
-      const pos = positions.find(
-        (p) => p.tokenAddress.toLowerCase() === token.tokenAddress.toLowerCase(),
-      );
-      return pos?.tokenAmount ?? 0;
+      if (
+        pay &&
+        token.tokenAddress.toLowerCase() === pay.tokenAddress.toLowerCase() &&
+        !payIsNative
+      ) {
+        return payTokenBal.amount;
+      }
+      return 0;
     },
-    [walletTbnb, positions],
+    [walletTbnb, pay, payIsNative, payTokenBal.amount],
   );
 
   const swapReady =
-    amountNum > 0 && !!pay && !!receive && !sameToken && isConnected && !loading && !bnbPending;
+    amountNum > 0 &&
+    !!pay &&
+    !!receive &&
+    !sameToken &&
+    !swapBlockedHint &&
+    onChainEstReceive != null &&
+    isConnected &&
+    !loading &&
+    !swapPending;
 
   return (
     <section className="nexus-quick-swap-panel nexus-section-card arc-glass-card arc-glass-card-nexus arc-border-trace relative space-y-2.5 rounded-2xl p-3">
@@ -490,12 +515,9 @@ export function NexusQuickSwap({
                 key={t.id}
                 className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-2 text-[11px]"
               >
-                <span className="text-white/80">
-                  {t.side === "buy" ? "Buy" : t.side === "swap_to_usdc" ? "Swap→tBNB" : "Sell"}{" "}
-                  <strong className="text-white">{t.symbol}</strong> · {t.usdcAmount.toFixed(4)} tBNB
-                </span>
+                <span className="text-white/80">{t.summary}</span>
                 <a
-                  href={bscExplorerTx(t.arcFeeTxHash)}
+                  href={bscExplorerTx(t.hash)}
                   target="_blank"
                   rel="noreferrer"
                   className="shrink-0 font-semibold text-cyan-300 hover:underline"
@@ -608,14 +630,24 @@ export function NexusQuickSwap({
           <p className="mt-2 text-xs text-cyan-100/85">
             ≈{" "}
             {payIsNative
-              ? `${usdcSpend.toFixed(4)} tBNB`
+              ? `${amountNum.toFixed(4)} tBNB (~$${usdNotional.toFixed(2)})`
               : `${tokenAmountSell.toFixed(4)} ${pay.symbol}`}{" "}
             →{" "}
             {receiveIsNative
-              ? `${estReceive.toFixed(4)} tBNB`
-              : `${estReceive.toFixed(4)} ${receive.symbol}`}
+              ? onChainEstReceive
+                ? `${onChainEstReceive} tBNB`
+                : "… (checking PancakeSwap pool)"
+              : onChainEstReceive
+                ? `${onChainEstReceive} ${receive.symbol}`
+                : `… ${receive.symbol} (checking PancakeSwap pool)`}
           </p>
         )}
+        {swapBlockedHint && (
+          <p className="mt-2 text-xs text-amber-200/90">{swapBlockedHint}</p>
+        )}
+        <p className="mt-2 text-[10px] text-white/45">
+          PancakeSwap V2 on BSC Testnet — wallet will ask you to sign each swap.
+        </p>
       </div>
 
       {isConnected ? (
@@ -625,12 +657,14 @@ export function NexusQuickSwap({
           disabled={!swapReady}
           onClick={() => void executeSwap()}
         >
-          {loading || bnbPending ? (
+          {loading || swapPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : null}
           {sameToken
             ? "Pick two different tokens"
-            : `Swap ${pay?.symbol ?? "—"} → ${receive?.symbol ?? "—"}`}
+            : swapBlockedHint
+              ? "Not swappable on testnet"
+              : `Sign swap ${pay?.symbol ?? "—"} → ${receive?.symbol ?? "—"}`}
         </button>
       ) : (
         <p className="text-center text-xs text-white/50">Connect wallet (top right) to swap</p>
@@ -639,16 +673,14 @@ export function NexusQuickSwap({
       {success && (
         <p className="flex flex-wrap items-center justify-center gap-1.5 text-center text-xs text-emerald-300">
           <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-          <span>
-            Swap successful — {success.summary}
-          </span>
+          <span>On-chain swap — {success.summary}</span>
           <a
-            href={bscExplorerTx(success.feeTxHash)}
+            href={bscExplorerTx(success.swapTxHash)}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-0.5 font-semibold text-cyan-200 hover:underline"
           >
-            fee tx <ExternalLink className="h-3 w-3" />
+            BscScan <ExternalLink className="h-3 w-3" />
           </a>
         </p>
       )}

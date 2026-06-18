@@ -8,11 +8,14 @@ export const dynamic = "force-dynamic";
 /** Live CMC gate evaluation — BNB/CAKE only, no synthetic data. */
 export async function GET(req: NextRequest) {
   const symbol = (req.nextUrl.searchParams.get("symbol") ?? "BNB").toUpperCase();
-  const agent: AgentInput = {
-    action: (req.nextUrl.searchParams.get("agentAction") ?? "BUY") as AgentInput["action"],
-    confidence: Number(req.nextUrl.searchParams.get("confidence") ?? 85),
-    reasoning: "Agent requested via GET",
-  };
+  const agentAction = req.nextUrl.searchParams.get("agentAction");
+  const agent: AgentInput | null = agentAction
+    ? {
+        action: agentAction as AgentInput["action"],
+        confidence: Number(req.nextUrl.searchParams.get("confidence") ?? 85),
+        reasoning: "Agent requested via GET",
+      }
+    : null;
   try {
     const payload = await buildGateEvaluateResponse({ symbol, agent });
     return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });

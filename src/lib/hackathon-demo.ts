@@ -1,61 +1,11 @@
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
-import {
-  BSC_CHAIN_ID,
-  BSC_MARKET_CHAIN_SLUG,
-  BSC_TESTNET_CAKE,
-  BSC_TESTNET_WBNB,
-} from "@/lib/bsc-chain";
+import { BSC_CHAIN_ID, BSC_MARKET_CHAIN_SLUG } from "@/lib/bsc-chain";
+import { buildBscTestnetTradeTokens } from "@/lib/testnet-onchain";
 
-/** BSC Testnet demo tokens for BNB Hack judges */
-export const HACKATHON_DEMO_SYMBOLS = ["BNB", "CAKE"] as const;
+/** BSC Testnet trade desk symbols for constitution / gate demos */
+export const HACKATHON_DEMO_SYMBOLS = ["BNB", "CAKE", "BUSD", "USDT"] as const;
 
-const WBNB = BSC_TESTNET_WBNB;
-const CAKE = BSC_TESTNET_CAKE;
-
-export const HACKATHON_DEMO_TOKENS: TrendingMarketToken[] = [
-  {
-    symbol: "BNB",
-    name: "BNB",
-    tokenAddress: WBNB,
-    chainId: String(BSC_CHAIN_ID),
-    pairAddress: "",
-    priceUsd: 0,
-    change24h: 0,
-    volume24h: 0,
-    liquidityUsd: 0,
-    url: `https://dexscreener.com/${BSC_MARKET_CHAIN_SLUG}/${WBNB}`,
-    discoveryTag: "hackathon-demo",
-    agent: {
-      action: "BUY",
-      confidence: 92,
-      riskScore: 35,
-      reasoning: "Hackathon demo — agent proposes tactical long on BNB.",
-      whyAction: "Momentum + BSC flagship asset for judge walkthrough.",
-      reasoningFactors: [],
-    },
-  },
-  {
-    symbol: "CAKE",
-    name: "PancakeSwap",
-    tokenAddress: CAKE,
-    chainId: String(BSC_CHAIN_ID),
-    pairAddress: "",
-    priceUsd: 0,
-    change24h: 0,
-    volume24h: 0,
-    liquidityUsd: 0,
-    url: `https://dexscreener.com/${BSC_MARKET_CHAIN_SLUG}/${CAKE}`,
-    discoveryTag: "hackathon-demo",
-    agent: {
-      action: "BUY",
-      confidence: 78,
-      riskScore: 42,
-      reasoning: "Hackathon demo — secondary BSC token for constitution compare.",
-      whyAction: "DEX ecosystem token on BSC Testnet demo desk.",
-      reasoningFactors: [],
-    },
-  },
-];
+export const HACKATHON_DEMO_TOKENS: TrendingMarketToken[] = buildBscTestnetTradeTokens(0);
 
 /** Fetch live DexScreener market row for BSC symbol (real prices, not placeholders). */
 export async function hydrateTokenFromMarket(symbol: string): Promise<Partial<TrendingMarketToken> | null> {

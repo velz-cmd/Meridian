@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { GateConsole } from "@/components/gate/gate-console";
 
 export const metadata: Metadata = {
-  title: "MERIDIAN Gate · BSC Capital Router",
+  title: "MERIDIAN · CMC Strategy Skill",
   description:
-    "Constitution-backed capital router for BSC agents — rank BNB vs CAKE, issue permits, prove regime discipline on CoinMarketCap data.",
+    "CoinMarketCap market data turned into a backtestable momentum strategy — entry/exit rules and 90-day proof.",
   openGraph: {
-    title: "MERIDIAN Gate · CMC Strategy Skill",
-    description: "CMC-only strategy gate — no synthetic data in live API.",
+    title: "MERIDIAN Momentum Constitution · CMC Strategy Skill",
+    description: "Quantopian-style strategy from CMC data — SKILL.md + STRATEGY_SPEC + backtest.",
   },
 };
 

@@ -46,7 +46,7 @@ export const NEXUS_VALUE_STEPS = [
   },
   {
     title: "One-tap trade",
-    detail: "Buy, sell, swap, or portfolio P&L on BSC Testnet — without leaving the flow.",
+    detail: "Buy, sell, swap on BSC Testnet via PancakeSwap — wallet signs every tx.",
   },
 ] as const;
 

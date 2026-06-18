@@ -4,6 +4,7 @@
 
 import type { TrendingToken } from "./dexscreener";
 import { fetchStableMarketFeed, fetchTrendingMarketTokens } from "./dexscreener";
+import { fetchBscFeedAnchors, mergeBscAnchorsIntoFeed } from "./bsc-feed-anchors";
 import {
   ensureDiscoveryFeedMin,
   dedupeFeedTokens,
@@ -66,21 +67,27 @@ export async function fetchLiveDiscoveryFeed(
   const sources: Record<string, number> = {};
   const pools: TrendingToken[] = [];
 
+  const bscAnchors = await fetchBscFeedAnchors();
+  sources.bscAnchors = bscAnchors.length;
+  pools.push(...bscAnchors);
+
   if (options?.quick) {
-    const dexLatest = await fetchTrendingMarketTokens(limit, { stable: true, discovery: true });
+    const dexLatest = await fetchTrendingMarketTokens(Math.max(6, limit - bscAnchors.length), {
+      stable: true,
+      discovery: true,
+    });
     sources.dex = dexLatest.length;
     pools.push(...dexLatest);
   } else {
-    const [dexDiscovery, dexLatest, geckoBase, geckoArb] = await Promise.all([
-      fetchStableMarketFeed(limit * 2),
-      fetchTrendingMarketTokens(limit, { stable: false, discovery: true }),
-      fetchGeckoTrendingForNetwork("base", 1),
-      fetchGeckoTrendingForNetwork("arbitrum", 1),
+    const [dexDiscovery, dexLatest, geckoBsc] = await Promise.all([
+      fetchStableMarketFeed(Math.max(6, limit)),
+      fetchTrendingMarketTokens(Math.max(6, limit), { stable: false, discovery: true }),
+      fetchGeckoTrendingForNetwork("bsc", 1),
     ]);
     sources.dexStable = dexDiscovery.length;
     sources.dexRotate = dexLatest.length;
-    sources.gecko = geckoBase.length + geckoArb.length;
-    pools.push(...dexDiscovery, ...dexLatest, ...geckoBase, ...geckoArb);
+    sources.gecko = geckoBsc.length;
+    pools.push(...dexDiscovery, ...dexLatest, ...geckoBsc);
   }
 
   let gmgnErrors: string[] | undefined;
@@ -121,8 +128,10 @@ export async function fetchLiveDiscoveryFeed(
     discoveryTag: t.discoveryTag ?? discoveryHunterLabel(t),
   }));
 
+  const withAnchors = mergeBscAnchorsIntoFeed(bscAnchors, curated, limit);
+
   return {
-    tokens: curated,
+    tokens: withAnchors,
     profile: "discovery-hunter",
     sources,
     gmgnErrors,

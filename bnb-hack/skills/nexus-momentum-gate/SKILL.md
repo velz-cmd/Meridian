@@ -1,12 +1,11 @@
 ---
-name: nexus-momentum-gate
+name: meridian-momentum-constitution
 description: |
-  NEXUS Agent Conviction Gate — a backtestable pre-trade veto layer for AI trading agents via CoinMarketCap MCP.
-  Clamps agent BUY signals to statistically rare ENTER_LONG events using weighted gate checks (momentum, RSI/MACD,
-  Fear & Greed, turnover, holder concentration, rug-pattern detection). Not generic coin research — an agent-grade
-  constitution before sizing. Use when users ask "should my agent enter [coin]", "nexus gate [coin]",
-  "pre-trade conviction", "veto agent buy", or "backtest swing gate on [coin]".
-  Trigger: "nexus gate [coin]", "momentum setup [coin]", "run nexus strategy", "agent conviction [coin]", "/nexus-momentum-gate"
+  Turns CoinMarketCap market data into a backtestable crypto trading strategy.
+  Blends RSI, MACD, and Fear & Greed into explicit entry and exit rules (Quantopian-style).
+  Use when users ask to generate a strategy from CMC data, backtest a momentum rule set,
+  or produce a STRATEGY_SPEC for BNB/CAKE/any CMC-listed asset.
+  Trigger: "momentum strategy [coin]", "CMC strategy [coin]", "backtest momentum [coin]"
 license: MIT
 compatibility: ">=1.0.0"
 user-invocable: true
@@ -18,60 +17,45 @@ allowed-tools:
   - mcp__cmc-mcp__get_global_metrics_latest
 ---
 
-# NEXUS Momentum Gate Skill
+# MERIDIAN Momentum Constitution — CMC Strategy Skill
 
-**Strategy Skill for BNB Hack Track 2** — packages the MERIDIAN NEXUS desk gate (`trader-arc.vercel.app/nexus`) as a **CoinMarketCap Agent Hub Skill** that outputs a **backtestable, rule-based conviction signal** with transparent weighted checks.
+**BNB Hack Track 2 deliverable:** an LLM Skill that **turns CoinMarketCap market data into a trading strategy** — not a live-trading bot.
 
-## Core Principle
+## What this Skill produces
 
-Default **HOLD/FLAT**. This Skill is a **pre-trade veto layer**: even if an upstream agent says BUY, only **ENTER_LONG** when A/A+ tier gates align. Most tokens remain WATCH — by design.
+1. **Strategy rules** — entry, exit, position sizing (see `STRATEGY_SPEC.md`)
+2. **Structured signal** — LONG / FLAT / EXIT for today’s bar (`OUTPUT_SCHEMA.json`)
+3. **Backtest reference** — same rules in `bnb-hack/engine/nexus-gate.mjs`
 
-## Prerequisites
+Default state: **FLAT**. Enter only when A/A+ tier conditions align.
 
-Before using CMC tools, verify the MCP connection. If tools fail, ask the user to configure:
+## CMC MCP workflow
 
-```json
-{
-  "mcpServers": {
-    "cmc-mcp": {
-      "url": "https://mcp.coinmarketcap.com/mcp",
-      "headers": {
-        "X-CMC-MCP-API-KEY": "your-api-key"
-      }
-    }
-  }
-}
-```
+### 1. Resolve symbol
 
-Get your API key: https://pro.coinmarketcap.com/login
+`search_cryptos` → numeric CMC id.
 
-## Workflow
+### 2. Market data
 
-### Step 1 — Resolve token
+`get_crypto_quotes_latest` → price, market_cap, volume_24h, percent_change_1h/24h/7d.
 
-Call `search_cryptos` with user symbol (e.g. BNB, CAKE, ETH). Most tools need the numeric CMC **id**.
+### 3. Technicals
 
-### Step 2 — Market snapshot
+`get_crypto_technical_analysis` → RSI (14), MACD signal.
 
-Call `get_crypto_quotes_latest` with the id for:
-- `price`, `market_cap`, `volume_24h`
-- `percent_change_1h`, `percent_change_24h`, `percent_change_7d`
+### 4. Macro
 
-### Step 3 — Technicals
+`get_global_metrics_latest` → fear_greed_index.
 
-Call `get_crypto_technical_analysis` for:
-- RSI (14)
-- MACD signal (bullish / bearish / neutral)
+### 5. Apply strategy rules
 
-### Step 4 — Macro + holder context
+Map fields into the engine input (see `STRATEGY_SPEC.md` §4–6) or call `evaluateNexusGate(snapshot)`.
 
-Call `get_global_metrics_latest` for **fear_greed_index** (0–100).
+### 6. Emit output
 
-Optional: `get_crypto_metrics` for whale concentration overlay (`top10HolderPct` proxy).
+Return JSON per `OUTPUT_SCHEMA.json` plus a one-paragraph strategy thesis.
 
-### Step 5 — Apply NEXUS Gate
-
-Map MCP JSON into engine input and apply rules from [`STRATEGY_SPEC.md`](./STRATEGY_SPEC.md) or repo engine `bnb-hack/engine/nexus-gate.mjs`:
+## Example input (YAML)
 
 ```yaml
 symbol: BNB
@@ -86,96 +70,32 @@ macdSignal: bullish
 fearGreed: 62
 ```
 
-If an upstream agent already emitted BUY/SELL/HOLD, call `enforceAgentGate(snapshot, agentSignal)` to clamp it.
-
-### Step 6 — Emit structured output
-
-Return JSON matching [`OUTPUT_SCHEMA.json`](./OUTPUT_SCHEMA.json):
+## Example output
 
 ```json
 {
   "schema": "nexus-momentum-gate/v1",
   "symbol": "BNB",
   "signal": "ENTER_LONG",
+  "position": "LONG",
   "tier": "a-plus",
-  "confidence": 64,
-  "risk": 38,
-  "agreement": 0.82,
-  "checksPassed": 8,
-  "checksTotal": 9,
-  "thesis": "BNB: A+ setup — 8/9 checks, edge +32.",
-  "agentDirective": "Agent may propose tactical long; cap confidence at gate value."
+  "thesis": "BNB: A+ setup — 8/9 checks, edge +32. Size small; invalidate on 1h roll-over."
 }
 ```
 
-Also present human-readable summary:
+## Backtest (Quantopian-style)
 
-### Step 7 — Constitution Permit (runtime)
-
-Issue a trade permit for agent execution chains. Schema: [`PERMIT_SCHEMA.json`](./PERMIT_SCHEMA.json)
-
-Live API: `POST https://trader-arc.vercel.app/api/constitution/permit`
-
-```
-## NEXUS Gate · [SYMBOL]
-
-**Signal:** ENTER_LONG | HOLD | EXIT | AVOID
-**Tier:** a-plus | a | watch | avoid
-**Confidence:** NN/100 · **Risk:** NN/100 · **Agreement:** NN%
-
-### Gate checks (weighted)
-- [pass/fail] Fear & Greed not extreme greed
-- [pass/fail] Momentum band
-- [pass/fail] Intraday structure
-- [pass/fail] RSI band
-- [pass/fail] MACD alignment
-- [pass/fail] Turnover sane
-- [pass/fail] Buy flow / holders
-- [pass/fail] Structure clean (no rug flags)
-
-### Agent directive
-[one line — clamp BUY / allow tactical long / force EXIT]
-
-### Backtest
-Run `npm run bnb:backtest` or `node bnb-hack/backtest/run.mjs --symbol BNB --days 90` with CMC_API_KEY.
+```bash
+npm run bnb:backtest -- --symbol BNB --days 90
 ```
 
-## Signal definitions
+Live demo: https://trader-arc.vercel.app/gate
 
-| Signal | Meaning |
-|--------|---------|
-| **ENTER_LONG** | A/A+ tier — tactical long permitted |
-| **HOLD** | No edge — stay flat; clamp agent BUY |
-| **EXIT** | Close long — momentum broken |
-| **AVOID** | Rug/macro/structure failure — block entry |
+## Files
 
-## Error handling
-
-**If `search_cryptos` fails:** Cannot proceed without CMC id. Ask user to verify symbol.
-
-**If `get_crypto_quotes_latest` fails:** Retry once. Without quotes, gate cannot run.
-
-**If `get_crypto_technical_analysis` fails:** Use RSI=50, MACD=neutral; note degraded mode in output gaps.
-
-**If `get_global_metrics_latest` fails:** Use fearGreed=50; note macro check unavailable.
-
-**If rate limited (429):** Inform user, wait, retry with fewer tools.
-
-## Backtestability
-
-- Full spec: [`STRATEGY_SPEC.md`](./STRATEGY_SPEC.md)
-- Output schema: [`OUTPUT_SCHEMA.json`](./OUTPUT_SCHEMA.json)
-- Engine: [`../../engine/nexus-gate.mjs`](../../engine/nexus-gate.mjs)
-- Demo: https://trader-arc.vercel.app/bnb
-
-## Important
-
-- Research tool, not financial advice
-- Uses **CMC-native MCP fields** — required for Agent Hub special prize
-- Extended DEX flow/liquidity overlays optional when BSC on-chain data available
-
-## BNB Hack alignment
-
-- **Track:** Strategy Skills (CoinMarketCap) — backtestable spec, no live execution required
-- **Product:** MERIDIAN NEXUS agent desk — https://trader-arc.vercel.app/nexus
-- **Repo:** https://github.com/ibrahim0-cursor/cursor-arc-circle (`bnb-hack/`)
+| File | Purpose |
+|------|---------|
+| `STRATEGY_SPEC.md` | Backtestable rule document (judge deliverable) |
+| `PROMPT.md` | Copy-paste agent invocation |
+| `OUTPUT_SCHEMA.json` | Structured strategy output |
+| `../engine/nexus-gate.mjs` | Deterministic rule engine |

@@ -2,38 +2,39 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BarChart3, ChevronDown, ExternalLink, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BarChart3, ExternalLink, FileText, Loader2 } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
-import { GATE_SKILL_REPO, type GateSymbol } from "@/lib/gate-constants";
-import { GateCapitalRouter, type CapitalRoutePayload } from "@/components/gate/gate-capital-router";
-import { GatePermitArbitration } from "@/components/gate/gate-permit-arbitration";
+import { GATE_SKILL_REPO, GATE_SYMBOLS, type GateSymbol } from "@/lib/gate-constants";
+import { GITHUB_SKILL, strategyPosition } from "@/lib/gate-strategy-copy";
+import { GateStrategyLive } from "@/components/gate/gate-strategy-live";
+import { GateStrategyBoard, type GateBoardRow } from "@/components/gate/gate-strategy-board";
+import { GateCheckRadar } from "@/components/gate/gate-check-radar";
+import { GateSkillStack, type GateSkillsPayload } from "@/components/gate/gate-skill-stack";
+import { GateDataProvenance } from "@/components/gate/gate-data-provenance";
 import { GateEquityChart } from "@/components/gate/gate-equity-chart";
-import { cn } from "@/lib/utils";
+import { GateCapitalRouter } from "@/components/gate/gate-capital-router";
+import { useGateRoute } from "@/hooks/use-gate-route";
+
+type GateCheck = { id: string; pass: boolean; weight: number; label: string };
 
 type EvaluatePayload = {
   symbol: string;
-  cmcLive: boolean;
-  market: { price: number; change24h: number; fearGreed: number; rsi: number };
-  fieldSources: Record<string, string | number | null>;
+  cmcLive?: boolean;
+  fieldSources?: Record<string, string | number | null>;
+  skills?: GateSkillsPayload;
   gate: {
     signal: string;
+    tier: string;
     regime?: string;
-    checks: { id: string; pass: boolean; label: string }[];
+    thesis: string;
+    confidence?: number;
+    edge?: number;
     checksPassed: number;
     checksTotal: number;
-    thesis: string;
+    checks?: GateCheck[];
   };
-  permit: { status: "GRANT" | "DENY"; blockReason?: string | null };
-  arbitration: {
-    agent: { action: string; confidence: number };
-    gate: { confidence: number; edge: number; signal: string; regime?: string };
-    gap: number;
-    vetoed: boolean;
-    verdict: "GRANT" | "DENY";
-    execute: string;
-    permitId: string;
-    narrative: string;
-  };
+  market: { price: number; change24h: number; fearGreed?: number };
 };
 
 type BacktestPayload = {
@@ -53,40 +54,65 @@ type BacktestPayload = {
 };
 
 export function GateConsole() {
+  const router = useRouter();
   const [symbol, setSymbol] = useState<GateSymbol>("BNB");
-  const [route, setRoute] = useState<CapitalRoutePayload | null>(null);
+  const [board, setBoard] = useState<GateBoardRow[]>([]);
   const [live, setLive] = useState<EvaluatePayload | null>(null);
   const [backtest, setBacktest] = useState<BacktestPayload | null>(null);
-  const [routeLoading, setRouteLoading] = useState(true);
+  const [boardLoading, setBoardLoading] = useState(true);
   const [liveLoading, setLiveLoading] = useState(true);
+  const [liveError, setLiveError] = useState<string | null>(null);
   const [btLoading, setBtLoading] = useState(true);
-  const [auditOpen, setAuditOpen] = useState(false);
+  const [fearGreed, setFearGreed] = useState<number | undefined>();
+  const { route: gateRoute, loading: gateRouteLoading } = useGateRoute(45_000);
   const liveReq = useRef(0);
   const btReq = useRef(0);
+  const boardReq = useRef(0);
 
-  const loadRoute = useCallback(async () => {
-    setRouteLoading(true);
+  const loadBoard = useCallback(async () => {
+    const id = ++boardReq.current;
+    setBoardLoading(true);
     try {
-      const res = await fetch("/api/gate/route", { cache: "no-store" });
-      const data = (await res.json()) as CapitalRoutePayload;
-      if (res.ok) setRoute(data);
+      const res = await fetch("/api/gate/route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        cache: "no-store",
+      });
+      const data = (await res.json()) as { benchmarks?: GateBoardRow[] };
+      if (id !== boardReq.current) return;
+      if (res.ok && data.benchmarks?.length) {
+        setBoard(data.benchmarks);
+        const fg = (data.benchmarks[0] as EvaluatePayload)?.market?.fearGreed;
+        if (fg != null) setFearGreed(fg);
+      }
     } catch {
-      setRoute(null);
+      /* optional */
     } finally {
-      setRouteLoading(false);
+      if (id === boardReq.current) setBoardLoading(false);
     }
   }, []);
 
   const loadLive = useCallback(async (sym: GateSymbol) => {
     const id = ++liveReq.current;
     setLiveLoading(true);
+    setLiveError(null);
     try {
-      const res = await fetch(`/api/gate/evaluate?symbol=${sym}&agentAction=BUY&confidence=92`, { cache: "no-store" });
-      const data = (await res.json()) as EvaluatePayload;
+      const res = await fetch(`/api/gate/evaluate?symbol=${sym}`, { cache: "no-store" });
+      const data = (await res.json()) as EvaluatePayload & { error?: string };
       if (id !== liveReq.current) return;
-      if (res.ok && data.symbol?.toUpperCase() === sym) setLive(data);
+      if (res.ok && data.symbol?.toUpperCase() === sym) {
+        setLive(data);
+        if (data.market.fearGreed != null) setFearGreed(data.market.fearGreed);
+      } else {
+        setLive(null);
+        setLiveError(data.error ?? `Strategy evaluation failed (${res.status})`);
+      }
     } catch {
-      if (id === liveReq.current) setLive(null);
+      if (id === liveReq.current) {
+        setLive(null);
+        setLiveError("Could not reach strategy API");
+      }
     } finally {
       if (id === liveReq.current) setLiveLoading(false);
     }
@@ -108,121 +134,159 @@ export function GateConsole() {
   }, []);
 
   useEffect(() => {
-    void loadRoute();
-  }, [loadRoute]);
+    void loadBoard();
+    const t = setInterval(() => void loadBoard(), 60_000);
+    return () => clearInterval(t);
+  }, [loadBoard]);
 
   useEffect(() => {
     void loadLive(symbol);
     void loadBacktest(symbol);
   }, [symbol, loadLive, loadBacktest]);
 
-  const liveReady = !liveLoading && live?.symbol?.toUpperCase() === symbol;
-  const granted = live?.permit?.status === "GRANT";
+  const regime = live?.gate.regime ?? board.find((r) => r.symbol === symbol)?.gate.regime;
+  const displaySignal = live?.skills?.composite?.signal ?? live?.gate.signal ?? "HOLD";
+  const underperformed =
+    backtest?.ok &&
+    backtest.compare &&
+    backtest.backtest &&
+    backtest.backtest.totalReturnPct < backtest.compare.naiveAgent.totalReturnPct;
+
+  const deployToNexus = useCallback(
+    (sym: string) => {
+      const row = gateRoute?.ranked.find((r) => r.symbol === sym);
+      const permit = row?.permit === "GRANT" ? "GRANT" : "DENY";
+      router.push(`/nexus?from=gate&symbol=${sym}&tab=trade&permit=${permit}`);
+    },
+    [gateRoute, router],
+  );
 
   return (
     <div className="relative min-h-screen text-white" data-gate-page>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.14),_transparent_50%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.12),_transparent_50%)]" />
 
-      <div className="relative mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
-        <header className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/85">
-            MERIDIAN · BSC Capital Router
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Where should your agent deploy on BSC?
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-white/60 sm:text-base">
-            Not another coin screener. A constitution-backed router on <strong className="font-medium text-white/80">BSC Testnet</strong>:
-            rank BNB vs CAKE, issue GRANT/DENY permits, prove regime discipline on real CoinMarketCap history.
-          </p>
+      <div className="relative mx-auto max-w-5xl space-y-5 px-4 py-8 sm:px-6 sm:py-10">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/85">
+              CMC Strategy Skill · Track 2
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Strategy desk</h1>
+            <p className="max-w-xl text-sm text-white/55">
+              Live CMC quotes → 3 skills → constitution checks → capital router → NEXUS execution. Same engine judges
+              replay via CLI.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <SpecChip href={`${GITHUB_SKILL}/SKILL.md`} label="SKILL.md" />
+            <SpecChip href={`${GITHUB_SKILL}/STRATEGY_SPEC.md`} label="STRATEGY_SPEC" />
+            <Link
+              href="/nexus"
+              className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-1.5 text-emerald-100 hover:bg-emerald-500/25"
+            >
+              NEXUS desk →
+            </Link>
+          </div>
         </header>
 
         <GateCapitalRouter
-          data={route}
-          loading={routeLoading}
-          selected={symbol}
-          onSelect={(s) => setSymbol(s as GateSymbol)}
+          route={gateRoute}
+          loading={gateRouteLoading}
+          selectedSymbol={symbol}
+          onSelectSymbol={(s) => setSymbol(s as GateSymbol)}
+          onDeploy={deployToNexus}
         />
 
-        {!liveLoading && liveReady && live?.arbitration && (
-          <GatePermitArbitration symbol={symbol} arbitration={live.arbitration} granted={Boolean(granted)} />
+        <GateStrategyBoard
+          rows={board.length ? board : live ? [live] : []}
+          selected={symbol}
+          onSelect={setSymbol}
+          loading={boardLoading}
+          regime={regime}
+          fearGreed={fearGreed}
+        />
+
+        {live?.skills && live.gate && (
+          <GateSkillStack skills={live.skills} constitutionSignal={live.gate.signal} />
         )}
 
-        {liveLoading && (
-          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/50">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading permit arbitration for {symbol}…
-          </div>
+        {live?.fieldSources && <GateDataProvenance sources={live.fieldSources} />}
+
+        {live?.gate.checks && live.gate.checks.length > 0 && (
+          <GateCheckRadar checks={live.gate.checks} confidence={live.gate.confidence} edge={live.gate.edge} />
         )}
 
-        {liveReady && live && (
-          <div className="rounded-xl border border-white/10 bg-black/25">
-            <button
-              type="button"
-              onClick={() => setAuditOpen((o) => !o)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left text-sm text-white/70"
-            >
-              <span>CMC audit trail · {live.gate.checksPassed}/{live.gate.checksTotal} checks</span>
-              <ChevronDown className={cn("h-4 w-4 transition", auditOpen && "rotate-180")} />
-            </button>
-            {auditOpen && (
-              <div className="border-t border-white/10 px-4 pb-4 pt-2">
-                <div className="mb-3 grid gap-2 sm:grid-cols-4">
-                  <MiniMetric label="Price" value={`$${live.market.price.toFixed(2)}`} />
-                  <MiniMetric label="24h" value={`${live.market.change24h.toFixed(2)}%`} />
-                  <MiniMetric label="F&G" value={String(Math.round(live.market.fearGreed))} />
-                  <MiniMetric label="RSI" value={live.market.rsi.toFixed(1)} />
-                </div>
-                <div className="grid gap-1.5 sm:grid-cols-2">
-                  {live.gate.checks.map((c) => (
-                    <p
-                      key={c.id}
-                      className={cn(
-                        "rounded-lg px-2 py-1.5 text-xs",
-                        c.pass ? "bg-emerald-500/10 text-emerald-100/85" : "bg-rose-500/10 text-rose-100/85",
-                      )}
-                    >
-                      {c.pass ? "✓" : "✗"} {c.label}
-                    </p>
-                  ))}
-                </div>
-                <p className="mt-2 text-[10px] text-white/35">RSI source: {live.fieldSources.rsi}</p>
-              </div>
-            )}
-          </div>
-        )}
+        <GateStrategyLive
+          symbol={symbol}
+          loading={liveLoading}
+          error={liveError}
+          gate={
+            live?.gate
+              ? {
+                  ...live.gate,
+                  signal: displaySignal,
+                  thesis: live.skills?.composite?.thesis ?? live.gate.thesis,
+                }
+              : null
+          }
+          price={live?.market.price}
+          change24h={live?.market.change24h}
+          cmcLive={live?.cmcLive}
+          rsiSource={
+            typeof live?.fieldSources?.rsi === "string" ? live.fieldSources.rsi : undefined
+          }
+          positionLabel={
+            live?.skills?.composite
+              ? strategyPosition(live.skills.composite.signal)
+              : undefined
+          }
+        />
 
         <section className="arc-glass-card overflow-hidden rounded-2xl border border-white/10">
           <div className="space-y-4 p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <ArcIcon3d icon={BarChart3} theme="nexus" size="md" />
               <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300/85">Regime proof</p>
-                <h2 className="text-lg font-semibold">90-day constitution vs naive agent</h2>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300/85">Historical proof</p>
+                <h2 className="text-lg font-semibold">90-day backtest · {symbol}</h2>
                 <p className="text-sm text-white/55">
-                  Real daily bars — CMC historical when available; otherwise Binance spot closes (BSC venue).
-                  Live router always uses CoinMarketCap.
+                  Honest replay — same rules, no look-ahead. Underperformance vs naive buy is shown when it happens.
                 </p>
               </div>
             </div>
 
             {btLoading && (
               <div className="flex items-center gap-2 text-sm text-white/50">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading historical proof…
+                <Loader2 className="h-4 w-4 animate-spin" /> Running backtest…
               </div>
             )}
 
             {!btLoading && backtest?.ok && backtest.equityCurves && backtest.compare && (
               <div className="space-y-4">
                 {backtest.note && (
-                  <p className="rounded-lg border border-cyan-400/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100/85">
+                  <p className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white/55">
                     {backtest.note}
                   </p>
                 )}
+                {underperformed && (
+                  <p className="rounded-lg border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                    This window: constitution returned {backtest.backtest!.totalReturnPct}% vs naive{" "}
+                    {backtest.compare.naiveAgent.totalReturnPct}% — strategy traded less (max DD{" "}
+                    {backtest.backtest!.maxDrawdownPct}% vs {backtest.compare.naiveAgent.maxDrawdownPct}%). Risk filter,
+                    not alpha guarantee.
+                  </p>
+                )}
                 <GateEquityChart points={backtest.equityCurves} symbol={symbol} />
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Stat label="Gate return" value={`${backtest.backtest!.totalReturnPct >= 0 ? "+" : ""}${backtest.backtest!.totalReturnPct}%`} />
-                  <Stat label="Drawdown saved" value={`${backtest.compare.edge.drawdownSavedPct}%`} />
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <Stat
+                    label="Strategy return"
+                    value={`${backtest.backtest!.totalReturnPct >= 0 ? "+" : ""}${backtest.backtest!.totalReturnPct}%`}
+                  />
+                  <Stat
+                    label="Naive agent"
+                    value={`${backtest.compare.naiveAgent.totalReturnPct >= 0 ? "+" : ""}${backtest.compare.naiveAgent.totalReturnPct}%`}
+                  />
+                  <Stat label="Max drawdown" value={`${backtest.backtest!.maxDrawdownPct}%`} />
                   <Stat label="Bars" value={String(backtest.bars)} sub={backtest.dataSource} />
                 </div>
               </div>
@@ -237,24 +301,13 @@ export function GateConsole() {
           </div>
         </section>
 
-        <footer className="flex flex-wrap gap-3 text-xs text-white/45">
-          <a href={`${GATE_SKILL_REPO}/SKILL.md`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-white">
-            CMC Skill <ExternalLink className="h-3 w-3" />
-          </a>
-          <Link href="/nexus" className="hover:text-white">
-            NEXUS execution desk →
+        <footer className="flex flex-wrap gap-4 text-xs text-white/45">
+          <Link href={GATE_SKILL_REPO.replace("/skills/nexus-momentum-gate", "")} className="hover:text-white">
+            Engine on GitHub →
           </Link>
+          <span>CLI: npm run bnb:backtest -- --symbol {symbol} --days 90</span>
         </footer>
       </div>
-    </div>
-  );
-}
-
-function MiniMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
-      <p className="text-[9px] uppercase text-white/40">{label}</p>
-      <p className="text-sm font-semibold">{value}</p>
     </div>
   );
 }
@@ -266,5 +319,20 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
       <p className="text-lg font-bold text-white">{value}</p>
       {sub && <p className="truncate text-[9px] text-white/35">{sub}</p>}
     </div>
+  );
+}
+
+function SpecChip({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 text-white/55 hover:text-white"
+    >
+      <FileText className="h-3 w-3" />
+      {label}
+      <ExternalLink className="h-3 w-3" />
+    </a>
   );
 }

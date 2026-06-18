@@ -67,11 +67,11 @@ export function routeBscCapital(assets, ctx = {}) {
   if (primary === "FLAT") {
     directive = agentWantsBuy
       ? "Agent BUY rejected — no BSC benchmark clears constitution under current regime. Stay flat."
-      : "No deployable conviction on BNB or CAKE. Capital stays flat.";
+      : `No deployable conviction on BSC benchmarks (${sorted.map((a) => a.symbol).join(", ")}). Capital stays flat.`;
   } else if (secondary) {
-    directive = `Route ${splitPrimary}% to ${primary}, ${splitSecondary}% to ${secondary} — relative edge under ${regime} tape.`;
+    directive = `Route ${splitPrimary}% to ${primary}, ${splitSecondary}% to ${secondary} — relative edge under ${regime} tape (4-benchmark router).`;
   } else {
-    directive = `Deploy to ${primary} (${splitPrimary}%) — highest conviction permit on BSC benchmarks.`;
+    directive = `Deploy to ${primary} (${splitPrimary}%) — highest conviction among BSC benchmarks under ${regime} regime.`;
   }
 
   return {

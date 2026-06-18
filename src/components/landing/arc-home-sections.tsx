@@ -60,29 +60,30 @@ export function ArcEcosystemHero() {
           </h1>
 
           <p className="mt-4 max-w-xl text-left text-[15px] leading-relaxed text-[var(--arc-text-muted)] sm:mt-5 sm:text-lg">
-            Watch live assets route through the AI portal — scanned, scored, and released as institutional-grade signals for NEXUS and PRISM.
+            One constitution engine: live CMC data → 3 composable skills → capital router → permit-gated NEXUS desk.
+            Judges get SKILL.md + reproducible backtest; you get a terminal built for daily use.
           </p>
 
           <ArcDeployedBadge />
 
           <ul className="arc-hero-bullets mt-5 max-w-lg space-y-2.5 text-left text-sm leading-relaxed text-white/55 sm:mt-6">
-            <li>BTC · ETH · SOL · USDC orbit the AI core in real time</li>
-            <li>On-chain, social, and macro layers fused in one stack</li>
-            <li>Explainable AI — every route has a thesis</li>
+            <li>4 BSC benchmarks ranked live — conviction router picks where capital deploys</li>
+            <li>9-check constitution + Momentum · Sentiment · Regime skills in action on every scan</li>
+            <li>90-day honest backtest + CLI replay — no synthetic fixtures on judge APIs</li>
           </ul>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link href="/nexus" className="w-full sm:w-auto">
+            <Link href="/gate" className="w-full sm:w-auto">
               <Button variant="default" size="lg" className="arc-btn-pill min-h-[54px] w-full gap-2 px-8 sm:w-auto">
-                <Zap className="h-5 w-5" strokeWidth={1.5} />
-                Launch NEXUS
+                <LineChart className="h-5 w-5" strokeWidth={1.5} />
+                Strategy desk
                 <ArrowUpRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/prism" className="w-full sm:w-auto">
-              <Button variant="outline" size="lg" className="arc-btn-pill min-h-[54px] w-full gap-2 border-white/20 px-8 sm:w-auto">
-                <Radar className="h-5 w-5" strokeWidth={1.5} />
-                Open PRISM
+            <Link href="/nexus" className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="arc-btn-pill min-h-[54px] w-full gap-2 border-white/15 px-8 sm:w-auto">
+                <Zap className="h-5 w-5" strokeWidth={1.5} />
+                NEXUS terminal
               </Button>
             </Link>
           </div>

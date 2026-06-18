@@ -167,9 +167,9 @@ export function NexusConstitutionDesk({
             >
               <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center">
                 <ArbitrationCell
-                  label="Agent"
+                  label="Strategy"
                   value={agent?.action ?? permit.agentRequested ?? "—"}
-                  sub={`${agent?.confidence ?? permit.confidence}% confidence`}
+                  sub={`${agent?.confidence ?? permit.confidence}% · gate-aligned`}
                   tone="violet"
                   dimmed={vetoed}
                 />
@@ -222,6 +222,27 @@ export function NexusConstitutionDesk({
                       Failed: {failedChecks.map((c) => c.label.split("(")[0].trim()).join(" · ")}
                     </p>
                   )}
+                </div>
+              )}
+
+              {payload?.skills && (
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <SkillChip
+                    label="Momentum"
+                    signal={payload.skills.momentum.signal}
+                    detail={`${payload.skills.momentum.checksPassed}/${payload.skills.momentum.checksTotal}`}
+                  />
+                  <SkillChip
+                    label="Sentiment"
+                    signal={payload.skills.sentiment.signal}
+                    detail={payload.skills.sentiment.state.replace(/_/g, " ").toLowerCase()}
+                    warn={payload.skills.sentiment.flagged}
+                  />
+                  <SkillChip
+                    label="Regime"
+                    signal={payload.skills.regime.signal}
+                    detail={`${payload.skills.regime.regime} · ${payload.skills.regime.positioning.replace(/-/g, " ")}`}
+                  />
                 </div>
               )}
 
@@ -286,6 +307,31 @@ function CheckRow({ label, pass }: { label: string; pass: boolean }) {
         <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" />
       )}
       <span className="leading-snug">{label}</span>
+    </div>
+  );
+}
+
+function SkillChip({
+  label,
+  signal,
+  detail,
+  warn,
+}: {
+  label: string;
+  signal: string;
+  detail: string;
+  warn?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border px-3 py-2.5",
+        warn ? "border-amber-400/30 bg-amber-500/10" : "border-white/10 bg-black/30",
+      )}
+    >
+      <p className="text-[10px] uppercase tracking-wider text-white/45">{label}</p>
+      <p className="mt-0.5 text-sm font-bold text-white">{signal.replace("_", " ")}</p>
+      <p className="text-[10px] text-white/50">{detail}</p>
     </div>
   );
 }
