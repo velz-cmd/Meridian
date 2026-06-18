@@ -2,9 +2,9 @@
 
 export const GATE_PRODUCT = {
   kicker: "MERIDIAN",
-  title: "Momentum router",
+  title: "Strategy skill desk",
   subtitle:
-    "Autonomous scan of BSC leaders — ranked by rule checks, not hype. Pick a symbol, review the constitution, execute when cleared.",
+    "Live CMC data → deterministic rules → historical replay → NEXUS execution when cleared.",
   rankingTitle: "Today's ranking",
   rankingFlat: "No symbol clears entry rules — stay flat.",
   rankingActive: (primary: string, pct: number, secondary?: string, secPct?: number) =>
