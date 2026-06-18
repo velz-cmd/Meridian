@@ -153,7 +153,7 @@ export function estimateRequiredUsdc(
   return 0.055 * bnbSpotUsd;
 }
 
-/** Vault USDC needed before starting autopilot (sells do not debit wallet) */
+/** Minimum wallet balance (USD notional) before autopilot buys on BSC Testnet tBNB */
 export function minVaultUsdcForAutopilot(
   config: AutopilotConfig,
   balanceUsd: number,

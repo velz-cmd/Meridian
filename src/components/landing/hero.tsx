@@ -119,17 +119,17 @@ export function ProductShowcase() {
             <Badge variant="nexus">NEXUS</Badge>
             <h2 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">Trading Agent</h2>
             <p className="mt-3 text-sm leading-relaxed text-white/70 sm:text-base">
-              Live feed, agent verdict, risk intelligence, and demo buy/sell with 25/50/75/MAX sizing.
+              Live feed, agent verdict, constitution permit, and wallet-signed tBNB trades on BSC Testnet.
             </p>
             <ul className="mt-5 space-y-2.5 text-sm text-white/75">
               <li className="flex items-center gap-2">
                 <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> Live market feed
               </li>
               <li className="flex items-center gap-2">
-                <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> One-tap % trade sizing
+                <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> PancakeSwap buy/sell · tBNB
               </li>
               <li className="flex items-center gap-2">
-                <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> Constitution gate + demo portfolio P&L
+                <BrainCircuit className="h-4 w-4 shrink-0 text-cyan-300" /> Constitution gate + on-chain portfolio
               </li>
             </ul>
             <Link href="/nexus" className="mt-6 block sm:mt-8">

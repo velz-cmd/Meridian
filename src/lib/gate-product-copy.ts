@@ -13,7 +13,7 @@ export const GATE_PRODUCT = {
       : `Strongest setup: ${primary} (${pct}% notional)`,
   rankingMeta: (long: number, flat: number, regime: string, fg: number) =>
     `${long} long · ${flat} flat · ${regime.replace(/-/g, " ")} tape · sentiment ${fg}`,
-  continueTradable: (sym: string) => `Trade ${sym} on testnet`,
+  continueTradable: (sym: string) => `Trade ${sym} · wallet tBNB`,
   continueResearch: (sym: string) => `Review ${sym}`,
   openExecution: "Open trade desk",
   docs: "Strategy docs",

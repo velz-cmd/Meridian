@@ -138,7 +138,7 @@ export function NexusSwapPanel({ decision }: { decision: NexusDecision | null })
 
             <div>
               <label className="text-xs uppercase tracking-[0.18em] text-white/40">
-                {side === "buy" ? "USDC amount" : "Token amount"}
+                {side === "buy" ? "tBNB amount" : "Token amount"}
               </label>
               <input
                 value={amount}

@@ -168,8 +168,8 @@ export function NexusAgentWalletCard({
                   type: "success",
                   title: "Deposit credited",
                   message: data.credited
-                    ? `+$${data.credited.toFixed(2)} USDC · balance $${bal.toFixed(2)}`
-                    : `Balance $${bal.toFixed(2)} USDC`,
+                    ? `+${data.credited.toFixed(4)} tBNB · balance $${bal.toFixed(2)}`
+                    : `Balance $${bal.toFixed(2)} (tBNB notional)`,
                 });
                 setDepositHint(`Ready for autopilot · $${bal.toFixed(2)} available`);
                 setTxHash("");
@@ -177,7 +177,7 @@ export function NexusAgentWalletCard({
                 toast({
                   type: "error",
                   title: "Could not credit",
-                  message: e instanceof Error ? e.message : "Check tx is USDC from your wallet to vault",
+                  message: e instanceof Error ? e.message : "Check tx is tBNB from your wallet to vault",
                 });
               } finally {
                 setCrediting(false);
@@ -190,10 +190,8 @@ export function NexusAgentWalletCard({
         </div>
       </div>
       <p className="mt-1.5 text-[10px] text-white/45">
-        <strong className="text-white/70">Shared agent vault</strong> — every user sends USDC to this same
-        address from their connected wallet. We credit your balance by your wallet address (not your MetaMask
-        login address as the vault). Autopilot buys deduct from your credited vault balance. Your wallet only
-        pays the small Arc network fee (~$0.01) per trade, not the buy size.
+        <strong className="text-white/70">Legacy API vault</strong> — optional x402 credits only. Buy, sell,
+        swap, and autopilot all use wallet tBNB on BSC Testnet via PancakeSwap.
       </p>
     </div>
   );

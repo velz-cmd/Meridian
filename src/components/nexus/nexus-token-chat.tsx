@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useBalance } from "wagmi";
 import { Bot, Loader2, MessageCircle, Send, X } from "lucide-react";
 import { NexusTokenAvatar } from "@/components/nexus/nexus-token-avatar";
 import { useToast } from "@/components/ui/toast-provider";
-import { useAgentWallet } from "@/hooks/use-agent-wallet";
+import { BSC_CHAIN_ID } from "@/lib/bsc-chain";
+import { usdToTbnb } from "@/lib/trading-copy";
+import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 import { formatPct, formatUsd } from "@/lib/utils";
 
@@ -13,6 +15,7 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 type ChatAction = {
   type: string;
+  usdAmount?: number;
   usdcAmount?: number;
 };
 
@@ -30,10 +33,10 @@ function introFromSnapshot(snap: LiveChatSnapshot | null, token: TrendingMarketT
   if (snap) {
     const move = formatPct(snap.change24h);
     const sig = snap.action ? `${snap.action} ${snap.confidence ?? ""}%` : "HOLD";
-    return `Live ${snap.symbol}: ${formatUsd(snap.priceUsd)} (${move} 24h). Signal ${sig}. ${snap.reasoningHeadline ?? "Ask fundamentals, risks, or say buy $10 / sell / autopilot."}`;
+    return `Live ${snap.symbol}: ${formatUsd(snap.priceUsd)} (${move} 24h). Signal ${sig}. ${snap.reasoningHeadline ?? "Ask fundamentals, risks, or say buy $10 tBNB / sell / autopilot."}`;
   }
   const a = token.agent;
-  return `Loading live ${token.symbol} data… Ask fundamentals, why ${a?.action ?? "HOLD"} ${a?.confidence ?? ""}%, risks, or say "buy $10", "sell", "autopilot every 15 min".`;
+  return `Loading live ${token.symbol} data… Ask fundamentals, why ${a?.action ?? "HOLD"} ${a?.confidence ?? ""}%, risks, or say "buy 0.01 tBNB", "sell", "autopilot every 15 min".`;
 }
 
 export function NexusTokenChatButton({
@@ -82,8 +85,10 @@ export function NexusTokenChatPanel({
   onOpenTrade?: (tab: "buy" | "sell" | "agent") => void;
 }) {
   const toast = useToast();
-  const { isConnected } = useAccount();
-  const { usdcBalance } = useAgentWallet();
+  const { address, isConnected } = useAccount();
+  const { data: balance } = useBalance({ address, chainId: BSC_CHAIN_ID });
+  const walletTbnb = balance ? Number(balance.formatted) : 0;
+  const bnbSpotUsd = useBnbSpotUsd();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [contextLoading, setContextLoading] = useState(true);
@@ -164,7 +169,7 @@ export function NexusTokenChatPanel({
         body: JSON.stringify({
           messages: nextMessages,
           walletConnected: isConnected,
-          agentBalanceUsdc: usdcBalance,
+          walletTbnb,
           token: {
             symbol: token.symbol,
             chainId: token.chainId,
@@ -179,13 +184,17 @@ export function NexusTokenChatPanel({
       const action = data.action as ChatAction | null;
       if (action?.type === "buy") {
         onOpenTrade?.("buy");
+        const usd = action.usdAmount ?? action.usdcAmount;
+        const tbnb = usd ? usdToTbnb(usd, bnbSpotUsd) : undefined;
         toast({
           type: "success",
           title: "Buy tab",
-          message: action.usdcAmount ? `Try $${action.usdcAmount} USDC` : "Set amount and confirm",
+          message: tbnb
+            ? `Try ${tbnb.toFixed(4)} tBNB${usd ? ` (~$${usd})` : ""}`
+            : "Set tBNB amount and confirm in wallet",
         });
       } else if (action?.type === "sell") onOpenTrade?.("sell");
-      else if (action?.type === "autopilot" || action?.type === "deposit") onOpenTrade?.("agent");
+      else if (action?.type === "autopilot") onOpenTrade?.("agent");
     } catch (e) {
       setMessages((m) => [
         ...m,
@@ -194,7 +203,7 @@ export function NexusTokenChatPanel({
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, isConnected, usdcBalance, token, onOpenTrade, toast]);
+  }, [input, loading, messages, isConnected, walletTbnb, bnbSpotUsd, token, onOpenTrade, toast]);
 
   return (
     <div
@@ -251,7 +260,7 @@ export function NexusTokenChatPanel({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void send()}
-              placeholder={`Why ${token.symbol}? Or "buy $10"…`}
+              placeholder={`Why ${token.symbol}? Or "buy 0.01 tBNB"…`}
               disabled={contextLoading}
               className="min-h-[44px] flex-1 rounded-xl border border-white/15 bg-black/40 px-3 text-sm text-white outline-none disabled:opacity-50"
             />

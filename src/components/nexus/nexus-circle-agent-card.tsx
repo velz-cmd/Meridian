@@ -52,9 +52,7 @@ export function NexusCircleAgentCard({ compact = false }: { compact?: boolean })
             Circle Agent Wallet
           </p>
           <p className="mt-1 text-[11px] leading-snug text-white/70">
-            Gateway USDC for x402 nanopayments on Arc. Premium APIs: Alpha scan{" "}
-            {status?.prices?.alphaScan ?? "$0.05"} · Dossier{" "}
-            {status?.prices?.tokenDossier ?? "$0.01"}.
+            Circle API billing (x402) — separate from BSC Testnet tBNB trades.
           </p>
         </div>
         <a
@@ -72,7 +70,7 @@ export function NexusCircleAgentCard({ compact = false }: { compact?: boolean })
           Gateway: {gw != null ? `$${gw}` : "—"}
         </span>
         <span className="rounded-md border border-white/10 bg-black/30 px-2 py-0.5">
-          Vault USDC: {status?.walletUsdc != null ? `$${status.walletUsdc}` : "connect + sync"}
+          API credits: {status?.walletUsdc != null ? `$${status.walletUsdc}` : "—"}
         </span>
         {status?.sellerConfigured ? (
           <span className="rounded-md border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-100/90">

@@ -5,6 +5,7 @@ import {
   formatNexusChatContextForAi,
   sanitizeChatReply,
 } from "@/lib/nexus-chat-context";
+import { TRADING_SETTLEMENT, TRADING_AUTOPILOT_HINT } from "@/lib/trading-copy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,6 +21,8 @@ type ChatBody = {
     tokenAddress: string;
   };
   walletConnected?: boolean;
+  walletTbnb?: number;
+  /** @deprecated use walletTbnb */
   agentBalanceUsdc?: number;
 };
 
@@ -29,7 +32,7 @@ Your job for this token:
 1. Explain fundamentals (liquidity, volume, 24h move, chain) using ONLY the verified live snapshot.
 2. Explain technical picture (RSI, MACD, trend) only when those values appear in the snapshot (not n/a).
 3. Explain why the AI signal is BUY/SELL/HOLD and what to watch — cite confidence and risk from snapshot.
-4. Help with actions: buy $X USDC, sell, one-time trade, or recurring autopilot — remind: deposit USDC to agent vault first for autopilot.
+4. Help with actions on ${TRADING_SETTLEMENT.chainLabel}: buy with tBNB, sell tokens back to tBNB, swap desk tokens (BNB/CAKE/BUSD/USDC), or recurring autopilot. ${TRADING_AUTOPILOT_HINT}
 
 Rules:
 - Only discuss the selected token unless user asks general crypto questions.
@@ -39,12 +42,12 @@ Rules:
 - If data is missing, say "not available in live feed" — NEVER invent prices, holder addresses, whale names, or TA values.
 - Do NOT mention charts, chart links, DexScreener embeds, TradingView, or tell the user to "open the chart". Intel is text-only in chat.
 - 3-6 sentences unless user asks for short answer.
+- Never mention agent vault or USDC for trading — settlement is wallet tBNB on BSC Testnet via PancakeSwap.
 
 Optional action (one per reply):
-- buy: { "type":"buy", "usdcAmount": number }
+- buy: { "type":"buy", "usdAmount": number } — USD notional converted to tBNB in the Trade tab
 - sell: { "type":"sell" }
 - autopilot: { "type":"autopilot", "interval":"15m", "mode":"follow_agent" }
-- deposit: { "type":"deposit" }
 
 JSON only:
 { "reply": "string", "action": null | object }`;
@@ -56,7 +59,7 @@ function heuristicReply(
   if (!ctx) return "Token not found on DexScreener — pick another from the live feed.";
   const t = ctx.token;
   const a = ctx.agent;
-  return `${t.symbol} is $${t.priceUsd.toFixed(t.priceUsd < 1 ? 6 : 4)} (${t.change24h >= 0 ? "+" : ""}${t.change24h.toFixed(2)}% 24h). Liquidity $${Math.round(t.liquidityUsd).toLocaleString()}, vol $${Math.round(t.volume24h).toLocaleString()}. Signal: ${a.action} at ${a.confidence}% confidence, risk ${a.riskScore}/100. ${a.whyAction ?? ""} You asked: "${lastUser.slice(0, 80)}". Use Buy/Sell tabs to trade; fund the agent vault for autopilot.`;
+  return `${t.symbol} is $${t.priceUsd.toFixed(t.priceUsd < 1 ? 6 : 4)} (${t.change24h >= 0 ? "+" : ""}${t.change24h.toFixed(2)}% 24h). Liquidity $${Math.round(t.liquidityUsd).toLocaleString()}, vol $${Math.round(t.volume24h).toLocaleString()}. Signal: ${a.action} at ${a.confidence}% confidence, risk ${a.riskScore}/100. ${a.whyAction ?? ""} You asked: "${lastUser.slice(0, 80)}". Use Buy/Sell tabs — fund wallet with tBNB on BSC Testnet, then sign PancakeSwap txs.`;
 }
 
 export async function POST(request: Request) {
@@ -74,9 +77,10 @@ export async function POST(request: Request) {
 
     const ctx = await buildNexusChatContextLite(t.chainId, t.tokenAddress);
     const context = ctx ? formatNexusChatContextForAi(ctx) : "Token not found — do not invent data.";
+    const walletTbnb = body.walletTbnb ?? 0;
     const walletCtx = body.walletConnected
-      ? `Wallet connected. Agent vault USDC: ${body.agentBalanceUsdc ?? 0} (user must fund vault for scheduled agent).`
-      : "Wallet not connected.";
+      ? `Wallet connected on ${TRADING_SETTLEMENT.chainLabel}. Balance: ${walletTbnb.toFixed(4)} tBNB. Trades debit wallet tBNB via PancakeSwap — not a custodial vault.`
+      : `Wallet not connected — user must connect on ${TRADING_SETTLEMENT.chainLabel} before trading.`;
 
     const client = getAiClient();
     const last = messages[messages.length - 1]?.content ?? "";
@@ -92,37 +96,36 @@ export async function POST(request: Request) {
 
     const completion = await client.chat.completions.create({
       model: getAiModel(),
-      temperature: 0.25,
-      response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: `${SYSTEM}\n\n${context}\n${walletCtx}` },
-        ...messages.slice(-12).map((m) => ({ role: m.role, content: m.content })),
+        { role: "system", content: SYSTEM },
+        { role: "system", content: `${walletCtx}\n\nVERIFIED LIVE SNAPSHOT:\n${context}` },
+        ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       ],
+      response_format: { type: "json_object" },
+      temperature: 0.35,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    let parsed: { reply?: string; action?: { type?: string } };
+    let parsed: { reply?: string; action?: unknown } = {};
     try {
-      parsed = JSON.parse(raw);
+      parsed = JSON.parse(raw) as { reply?: string; action?: unknown };
     } catch {
-      parsed = { reply: raw, action: undefined };
+      parsed = { reply: raw };
     }
 
-    const action = parsed.action;
-    if (action?.type === "analyze") {
-      delete (action as { type?: string }).type;
+    const action = parsed.action as Record<string, unknown> | null;
+    if (action?.type === "buy" && action.usdcAmount != null && action.usdAmount == null) {
+      action.usdAmount = action.usdcAmount;
     }
 
     return NextResponse.json({
-      reply: sanitizeChatReply(parsed.reply ?? "Done."),
-      action: action?.type ? action : null,
-      provider: getAiModel(),
+      reply: sanitizeChatReply(parsed.reply ?? "I couldn't parse that — try again."),
+      action: action ?? null,
+      provider: "ai",
       refreshedAt: ctx?.refreshedAt,
     });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Chat failed" },
-      { status: 500 },
-    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Chat failed";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

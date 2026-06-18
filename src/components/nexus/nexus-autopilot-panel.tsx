@@ -57,7 +57,6 @@ import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { canSwapOnBscTestnet, fetchDeskTokenBalance } from "@/lib/testnet-onchain";
 import { useConstitution } from "@/contexts/nexus-constitution-context";
 import { NexusAgentProvider, type NexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
-import { NexusCircleAgentCard } from "@/components/nexus/nexus-circle-agent-card";
 import { NexusExecutionPanel } from "@/components/nexus/nexus-execution-panel";
 import { NexusTokenSearchPicker } from "@/components/nexus/nexus-token-search-picker";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
@@ -805,7 +804,6 @@ export function NexusAutopilotPanel({
         <p className="text-sm text-white/55">Select a token from the feed, or use Custom Token mode.</p>
       ) : (
         <>
-          <NexusCircleAgentCard compact />
           <NexusExecutionPanel compact />
 
           {!hasDeposit && (

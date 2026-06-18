@@ -17,6 +17,7 @@ import { GateEquityChart } from "@/components/gate/gate-equity-chart";
 import { GateBenchmarkDesk } from "@/components/gate/gate-benchmark-desk";
 import { GateLiveStats } from "@/components/gate/gate-live-stats";
 import { MeridianHowItWorks } from "@/components/shared/meridian-how-it-works";
+import { BscTestnetTradingBanner } from "@/components/shared/bsc-testnet-trading-banner";
 import { useGateRoute } from "@/hooks/use-gate-route";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
 
@@ -136,6 +137,8 @@ export function GateConsole() {
           loading={gateRouteLoading}
           cmcLive={benchmarks.some((b) => b.cmcLive)}
         />
+
+        <BscTestnetTradingBanner />
 
         <MeridianHowItWorks compact />
 

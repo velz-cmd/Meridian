@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { LineChart, Radio, Shield, Sparkles, Zap } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
+import { TRADING_TAGLINE } from "@/lib/trading-copy";
 
 /** Workspace intro — strategy engine + execution terminal */
 export function NexusPremiumHero({ stableCount }: { stableCount: number }) {
@@ -26,8 +27,7 @@ export function NexusPremiumHero({ stableCount }: { stableCount: number }) {
               Trade when the <span className="arc-gradient-text">rules clear</span>
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--arc-text-muted)]">
-              Same live row as the momentum router — chart, agent, permit gate, and PancakeSwap on BSC
-              Testnet. {stableCount} movers in discovery; benchmarks always sync with the router.
+              {TRADING_TAGLINE} {stableCount} movers in discovery; benchmarks sync with the router.
             </p>
           </div>
         </div>

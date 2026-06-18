@@ -15,6 +15,8 @@ import {
   useTestnetHoldings,
   type TestnetHolding,
 } from "@/hooks/use-testnet-holdings";
+import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
+import { TRADING_PORTFOLIO_SUB, usdToTbnb } from "@/lib/trading-copy";
 import { BSC_TESTNET_CATALOG } from "@/lib/testnet-onchain";
 
 const REFRESH_MS = 20_000;
@@ -35,6 +37,7 @@ export function NexusPortfolio({
   showTxHistory?: boolean;
 }) {
   const { address } = useAccount();
+  const bnbSpotUsd = useBnbSpotUsd();
   const markBySymbol = useMemo(
     () => ({ ...markPricesFromFeed(feedTokens), ...(livePrices ?? {}) }),
     [feedTokens, livePrices],
@@ -108,9 +111,7 @@ export function NexusPortfolio({
               Portfolio
               {summary.count ? ` · ${summary.count} on-chain` : ""}
             </p>
-            <p className="text-[10px] text-white/45">
-              BSC Testnet wallet · marked with live feed prices
-            </p>
+            <p className="text-[10px] text-white/45">{TRADING_PORTFOLIO_SUB}</p>
           </div>
         </div>
         {(loading || loadingTrades) && <Loader2 className="h-4 w-4 animate-spin text-white/40" />}
@@ -174,8 +175,11 @@ export function NexusPortfolio({
                       {t.tokenAmount > 0 && (
                         <span className="text-white/55"> · {t.tokenAmount.toFixed(4)}</span>
                       )}
-                      {t.usdcAmount > 0 && (
-                        <span className="text-white/55"> · {formatUsd(t.usdcAmount)}</span>
+                      {t.usdcAmount > 0 && bnbSpotUsd > 0 && (
+                        <span className="text-white/55">
+                          {" "}
+                          · {usdToTbnb(t.usdcAmount, bnbSpotUsd).toFixed(4)} tBNB
+                        </span>
                       )}
                       <p className="text-white/35">{ts}</p>
                     </div>

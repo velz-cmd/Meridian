@@ -49,6 +49,8 @@ import { NexusMobileTokenActions } from "@/components/nexus/nexus-mobile-token-a
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
 import { MeridianPipelineBar } from "@/components/shared/meridian-pipeline-bar";
+import { BscTestnetTradingBanner } from "@/components/shared/bsc-testnet-trading-banner";
+import { NexusTestnetDeskStrip } from "@/components/nexus/nexus-testnet-desk-strip";
 import { meridianClientHeaders } from "@/lib/circle-agents";
 import { buildBscTestnetTradeTokens, isTestnetDeskToken, matchTestnetDeskBySymbol } from "@/lib/testnet-onchain";
 import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
@@ -900,6 +902,12 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         )}
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mb-2 shrink-0 px-1">
+          <NexusTestnetDeskStrip
+            selected={activeTradeToken}
+            onSelect={(t) => handleTokenSelect(t, true)}
+          />
+        </div>
         <NexusTradeHub
           embedded
           token={activeTradeToken}
@@ -979,6 +987,10 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         />
         <div className="mb-4 hidden lg:block">
           <NexusPremiumHero stableCount={STABLE_FEED_LIMIT} />
+        </div>
+
+        <div className="mb-4">
+          <BscTestnetTradingBanner compact />
         </div>
 
         <div className="mb-4">
