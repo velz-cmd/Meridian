@@ -15,14 +15,17 @@ export function GateDeskHero({
   onOpenNexus,
   onRunBacktest,
   backtestLoading,
+  compact,
 }: {
   route: GateRoutePayload | null;
   cmcLive: boolean;
   loading?: boolean;
   leadSymbol?: string;
-  onOpenNexus: () => void;
-  onRunBacktest: () => void;
+  onOpenNexus?: () => void;
+  onRunBacktest?: () => void;
   backtestLoading?: boolean;
+  /** Title + live badge only — actions live in sidebar */
+  compact?: boolean;
 }) {
   const lead = route?.allocation.primary;
   const hasLead = lead && lead !== "FLAT";
@@ -61,11 +64,10 @@ export function GateDeskHero({
             <span className="arc-gradient-text">backtestable strategy</span>
           </h1>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[var(--arc-text-muted)] sm:text-sm">
-            {GATE_PRODUCT.subtitle} Pick a BSC benchmark, read the live rule spec, replay 90 days, then hand off to
-            NEXUS when cleared.
+            {GATE_PRODUCT.subtitle} Use tabs for overview, technical RSI/reasoning, rules, and replay.
           </p>
 
-          {route && (
+          {!compact && route && (
             <p className="mt-3 font-mono text-[11px] text-white/45">
               {hasLead
                 ? GATE_PRODUCT.rankingActive(
@@ -85,19 +87,21 @@ export function GateDeskHero({
           )}
         </div>
 
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
-          <button type="button" onClick={onOpenNexus} className={cn(nexusGlassCta("buy"), "min-w-[168px] px-5 py-2.5 text-sm")}>
-            {leadSymbol ? GATE_PRODUCT.continueTradable(leadSymbol) : GATE_PRODUCT.openExecution}
-          </button>
-          <button
-            type="button"
-            disabled={backtestLoading}
-            onClick={onRunBacktest}
-            className="arc-btn-signal min-w-[168px] rounded-xl border border-white/12 bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-white/80 transition hover:border-cyan-400/35 hover:bg-cyan-500/10 hover:text-white disabled:opacity-50"
-          >
-            {backtestLoading ? "Running replay…" : "90-day replay"}
-          </button>
-        </div>
+        {!compact && onOpenNexus && onRunBacktest && (
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
+            <button type="button" onClick={onOpenNexus} className={cn(nexusGlassCta("buy"), "min-w-[168px] px-5 py-2.5 text-sm")}>
+              {leadSymbol ? GATE_PRODUCT.continueTradable(leadSymbol) : GATE_PRODUCT.openExecution}
+            </button>
+            <button
+              type="button"
+              disabled={backtestLoading}
+              onClick={onRunBacktest}
+              className="arc-btn-signal min-w-[168px] rounded-xl border border-white/12 bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-white/80 transition hover:border-cyan-400/35 hover:bg-cyan-500/10 hover:text-white disabled:opacity-50"
+            >
+              {backtestLoading ? "Running replay…" : "90-day replay"}
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

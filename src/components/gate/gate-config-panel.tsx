@@ -7,7 +7,6 @@ import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-co
 import { strategyPosition } from "@/lib/gate-strategy-copy";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
-import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import { cn } from "@/lib/utils";
 
 export function GateConfigPanel({
@@ -16,7 +15,6 @@ export function GateConfigPanel({
   benchmarks,
   route,
   loading,
-  skills,
   backtestLoading,
   backtestRequested,
   onRunBacktest,
@@ -27,7 +25,6 @@ export function GateConfigPanel({
   benchmarks: GateBenchmarkFull[];
   route: GateRoutePayload | null;
   loading?: boolean;
-  skills?: GateSkillsPayload | null;
   backtestLoading: boolean;
   backtestRequested: boolean;
   onRunBacktest: () => void;
@@ -98,36 +95,6 @@ export function GateConfigPanel({
               route.regime,
               route.fearGreed,
             )}
-          </p>
-        </ArcPanel>
-      )}
-
-      {skills && (
-        <ArcPanel theme="nexus" title="Signal layers" className="gate-panel">
-          <div className="space-y-2">
-            {(
-              [
-                ["Momentum", skills.momentum.signal.replace(/_/g, " "), skills.momentum.checksPassed, skills.momentum.checksTotal],
-                ["Sentiment", skills.sentiment.signal.replace(/_/g, " "), null, null],
-                ["Regime", skills.regime.regime.replace(/-/g, " "), null, null],
-              ] as const
-            ).map(([label, val, pass, total]) => (
-              <div key={label} className="gate-skill-layer">
-                <span className="gate-skill-layer-name">{label}</span>
-                <span
-                  className={cn(
-                    "gate-skill-layer-val",
-                    val.includes("ENTER") && "text-cyan-300",
-                  )}
-                >
-                  {val}
-                  {pass != null && total != null ? ` · ${pass}/${total}` : ""}
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 font-mono text-[10px] text-white/40">
-            Alignment {skills.composite.alignmentScore}/100
           </p>
         </ArcPanel>
       )}

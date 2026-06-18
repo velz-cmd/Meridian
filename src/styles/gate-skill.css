@@ -27,6 +27,14 @@
   }
 }
 
+[data-gate-page] .gate-workspace {
+  min-width: 0;
+}
+
+[data-gate-page] .gate-desk-tabs {
+  scrollbar-width: thin;
+}
+
 [data-gate-page] .gate-config-panel {
   display: flex;
   flex-direction: column;

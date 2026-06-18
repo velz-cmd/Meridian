@@ -6,6 +6,8 @@ import { ArcBackground } from "@/components/layout/arc-background";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
 import { GateConfigPanel } from "@/components/gate/gate-config-panel";
 import { GateDeskHero } from "@/components/gate/gate-desk-hero";
+import { GateDeskTabs, type GateDeskTab } from "@/components/gate/gate-desk-tabs";
+import { GateTechnicalPanel } from "@/components/gate/gate-technical-panel";
 import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
 import { usePositionRoute } from "@/hooks/use-position-route";
 import { GateOutputPanel } from "@/components/gate/gate-output-panel";
@@ -39,6 +41,7 @@ type BacktestPayload = {
 export function GateConsole() {
   const router = useRouter();
   const [symbol, setSymbol] = useState<GateSymbol>("BNB");
+  const [tab, setTab] = useState<GateDeskTab>("overview");
   const [backtest, setBacktest] = useState<BacktestPayload | null>(null);
   const [btLoading, setBtLoading] = useState(false);
   const [btRequested, setBtRequested] = useState(false);
@@ -77,10 +80,6 @@ export function GateConsole() {
   const cmcLive = benchmarks.some((b) => b.cmcLive);
   const { pulse: marketPulse, loading: pulseLoading } = useMarketPulse(symbol, 90_000);
   const { route: positionRoute, loading: directionLoading } = usePositionRoute(symbol, { intervalMs: 90_000 });
-  const leadSymbol =
-    gateRoute?.allocation.primary && gateRoute.allocation.primary !== "FLAT"
-      ? gateRoute.allocation.primary
-      : symbol;
 
   const runBacktest = useCallback(async (sym: GateSymbol) => {
     const id = ++btReq.current;
@@ -131,25 +130,17 @@ export function GateConsole() {
     }
   }, [benchmarks, symbol]);
 
+  useEffect(() => {
+    if (tab === "replay" && !btRequested && !btLoading && selected) {
+      void runBacktest(symbol);
+    }
+  }, [tab, btRequested, btLoading, selected, symbol, runBacktest]);
+
   return (
     <div className="relative min-h-screen text-white" data-arc-theme="nexus" data-gate-page>
       <ArcBackground theme="nexus" />
       <div className="relative z-10 mx-auto max-w-[1680px] px-4 pb-10 pt-1 sm:px-6">
-        <GateDeskHero
-          route={gateRoute}
-          cmcLive={cmcLive}
-          loading={gateRouteLoading}
-          leadSymbol={leadSymbol}
-          onOpenNexus={openInNexus}
-          onRunBacktest={() => void runBacktest(symbol)}
-          backtestLoading={btLoading}
-        />
-
-        <NexusAgentPulseStrip pulse={marketPulse} loading={pulseLoading} symbol={symbol} compact />
-
-        <div className="mb-4">
-          <NexusDirectionDesk route={positionRoute} loading={directionLoading} />
-        </div>
+        <GateDeskHero route={gateRoute} cmcLive={cmcLive} loading={gateRouteLoading} compact />
 
         {routeError && (
           <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
@@ -167,24 +158,76 @@ export function GateConsole() {
             benchmarks={benchmarks}
             route={gateRoute}
             loading={gateRouteLoading}
-            skills={skills ?? null}
             backtestLoading={btLoading}
             backtestRequested={btRequested}
-            onRunBacktest={() => void runBacktest(symbol)}
+            onRunBacktest={() => {
+              setTab("replay");
+              void runBacktest(symbol);
+            }}
             onOpenNexus={openInNexus}
           />
-          <GateOutputPanel
-            selected={selected}
-            route={gateRoute}
-            skills={skills ?? null}
-            loading={gateRouteLoading}
-            backtest={backtest}
-            backtestLoading={btLoading}
-            backtestRequested={btRequested}
-            onQuickSelect={setSymbol}
-            onRunBacktest={() => void runBacktest(symbol)}
-            onOpenNexus={openInNexus}
-          />
+
+          <div className="gate-workspace min-w-0">
+            <GateDeskTabs active={tab} onChange={setTab} />
+
+            {tab === "overview" && (
+              <div className="space-y-3">
+                <NexusAgentPulseStrip pulse={marketPulse} loading={pulseLoading} symbol={symbol} compact />
+                <NexusDirectionDesk route={positionRoute} loading={directionLoading} />
+                <GateOutputPanel
+                  selected={selected}
+                  route={gateRoute}
+                  skills={skills ?? null}
+                  loading={gateRouteLoading}
+                  backtest={backtest}
+                  backtestLoading={btLoading}
+                  backtestRequested={btRequested}
+                  onQuickSelect={setSymbol}
+                  onRunBacktest={() => void runBacktest(symbol)}
+                  section="overview"
+                />
+              </div>
+            )}
+
+            {tab === "technical" && selected && (
+              <GateTechnicalPanel
+                selected={selected}
+                route={gateRoute}
+                skills={skills ?? null}
+                onOpenNexus={openInNexus}
+              />
+            )}
+
+            {tab === "rules" && (
+              <GateOutputPanel
+                selected={selected}
+                route={gateRoute}
+                skills={skills ?? null}
+                loading={gateRouteLoading}
+                backtest={backtest}
+                backtestLoading={btLoading}
+                backtestRequested={btRequested}
+                onQuickSelect={setSymbol}
+                onRunBacktest={() => void runBacktest(symbol)}
+                section="rules"
+              />
+            )}
+
+            {tab === "replay" && (
+              <GateOutputPanel
+                selected={selected}
+                route={gateRoute}
+                skills={skills ?? null}
+                loading={gateRouteLoading}
+                backtest={backtest}
+                backtestLoading={btLoading}
+                backtestRequested={btRequested}
+                onQuickSelect={setSymbol}
+                onRunBacktest={() => void runBacktest(symbol)}
+                section="replay"
+              />
+            )}
+          </div>
         </div>
 
         <MeridianFooter className="mt-8" />

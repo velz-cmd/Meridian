@@ -19,13 +19,16 @@ import {
   strategyPosition,
   strategySignalLabel,
 } from "@/lib/gate-strategy-copy";
-import { GateDataProvenance } from "@/components/gate/gate-data-provenance";
 import { GateEquityChart } from "@/components/gate/gate-equity-chart";
 import { GateSignalMeter } from "@/components/gate/gate-signal-meter";
 import { GateVerdictBlock } from "@/components/gate/gate-verdict-block";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import { cn } from "@/lib/utils";
+
+import type { GateDeskTab } from "@/components/gate/gate-desk-tabs";
+
+type OutputSection = GateDeskTab;
 
 type BacktestPayload = {
   ok: boolean;
@@ -94,7 +97,7 @@ export function GateOutputPanel({
   backtestRequested,
   onQuickSelect,
   onRunBacktest,
-  onOpenNexus,
+  section = "overview",
 }: {
   selected?: GateBenchmarkFull;
   route: GateRoutePayload | null;
@@ -105,7 +108,7 @@ export function GateOutputPanel({
   backtestRequested: boolean;
   onQuickSelect: (sym: GateSymbol) => void;
   onRunBacktest: () => void;
-  onOpenNexus: () => void;
+  section?: OutputSection;
 }) {
   if (loading && !selected) {
     return (
@@ -250,7 +253,7 @@ export function GateOutputPanel({
             <p className="gate-stat-value green">+{gate.edge ?? 0}</p>
             <p className="gate-stat-sub">{gate.regime?.replace(/-/g, " ") ?? "—"}</p>
           </div>
-          {backtest?.ok && backtest.backtest && (
+          {section === "replay" && backtest?.ok && backtest.backtest && (
             <>
               <div className="gate-stat-card">
                 <p className="gate-stat-label">90d return</p>
@@ -279,169 +282,180 @@ export function GateOutputPanel({
           )}
         </div>
 
-        <GateDataProvenance sources={selected.fieldSources} oracle={selected.oracle} />
+        {(section === "overview" || section === "rules") && (
+          <>
+            <GateSignalMeter rows={signalRows} verdict={verdictLabel} verdictConfidence={verdictConfidence} />
 
-        <GateSignalMeter rows={signalRows} verdict={verdictLabel} verdictConfidence={verdictConfidence} />
+            <GateVerdictBlock
+              signal={displaySignal}
+              confidence={verdictConfidence}
+              regime={skills?.regime.regime ?? gate.regime}
+              thesis={gate.thesis}
+            />
+          </>
+        )}
 
-        <GateVerdictBlock
-          signal={displaySignal}
-          confidence={verdictConfidence}
-          regime={skills?.regime.regime ?? gate.regime}
-          thesis={gate.thesis}
-        />
-
-        <div className="gate-rules-grid">
-          <div className="gate-section-block">
-            <div className="gate-section-block-header">Entry & filter · live checks</div>
-            <div className="gate-section-block-body">
-              <div className="gate-rule-list">
-                {entryChecks.length
-                  ? entryChecks.map((c) => (
+        {section === "rules" && (
+          <>
+            <div className="gate-rules-grid">
+              <div className="gate-section-block">
+                <div className="gate-section-block-header">Entry & filter · live checks</div>
+                <div className="gate-section-block-body">
+                  <div className="gate-rule-list">
+                    {entryChecks.length
+                      ? entryChecks.map((c) => (
+                          <RuleCard
+                            key={c.id}
+                            kind={checkRuleKind(c.id)}
+                            condition={c.label}
+                            code={CHECK_PSEUDOCODE[c.id] ?? c.id}
+                            pass={c.pass}
+                          />
+                        ))
+                      : checks.map((c) => (
+                          <RuleCard
+                            key={c.id}
+                            kind={checkRuleKind(c.id)}
+                            condition={c.label}
+                            code={CHECK_PSEUDOCODE[c.id] ?? c.id}
+                            pass={c.pass}
+                          />
+                        ))}
+                  </div>
+                </div>
+              </div>
+              <div className="gate-section-block">
+                <div className="gate-section-block-header">Exit · constitution</div>
+                <div className="gate-section-block-body">
+                  <div className="gate-rule-list">
+                    {STRATEGY_EXIT_RULES.map((rule, i) => (
                       <RuleCard
-                        key={c.id}
-                        kind={checkRuleKind(c.id)}
-                        condition={c.label}
-                        code={CHECK_PSEUDOCODE[c.id] ?? c.id}
-                        pass={c.pass}
+                        key={rule}
+                        kind="exit"
+                        condition={rule}
+                        code={Object.values(EXIT_PSEUDOCODE)[i] ?? "exit_rule()"}
                       />
-                    ))
-                  : checks.map((c) => (
+                    ))}
+                    {filterChecks.map((c) => (
                       <RuleCard
-                        key={c.id}
-                        kind={checkRuleKind(c.id)}
+                        key={`f-${c.id}`}
+                        kind="filter"
                         condition={c.label}
                         code={CHECK_PSEUDOCODE[c.id] ?? c.id}
                         pass={c.pass}
                       />
                     ))}
-              </div>
-            </div>
-          </div>
-          <div className="gate-section-block">
-            <div className="gate-section-block-header">Exit · constitution</div>
-            <div className="gate-section-block-body">
-              <div className="gate-rule-list">
-                {STRATEGY_EXIT_RULES.map((rule, i) => (
-                  <RuleCard
-                    key={rule}
-                    kind="exit"
-                    condition={rule}
-                    code={Object.values(EXIT_PSEUDOCODE)[i] ?? "exit_rule()"}
-                  />
-                ))}
-                {filterChecks.map((c) => (
-                  <RuleCard
-                    key={`f-${c.id}`}
-                    kind="filter"
-                    condition={c.label}
-                    code={CHECK_PSEUDOCODE[c.id] ?? c.id}
-                    pass={c.pass}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="gate-section-block">
-          <div className="gate-section-block-header">Market regime map</div>
-          <div className="gate-section-block-body gate-regime-grid">
-            {regimeRows.map((r) => (
-              <div key={r.label} className="gate-regime-card">
-                <div className="gate-regime-dot" style={{ background: r.color }} />
-                <div>
-                  <p className="gate-regime-label">{r.label}</p>
-                  <p className="gate-regime-action" style={{ color: r.color }}>
-                    {r.action}
-                  </p>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        <div className="gate-section-block">
-          <div className="gate-section-block-header">Position & replay rules</div>
-          <div className="gate-section-block-body gate-risk-grid">
-            {STRATEGY_POSITION_RULES.map((rule) => (
-              <div key={rule} className="gate-risk-item">
-                <p className="gate-risk-val">{rule}</p>
+            <div className="gate-section-block">
+              <div className="gate-section-block-header">Market regime map</div>
+              <div className="gate-section-block-body gate-regime-grid">
+                {regimeRows.map((r) => (
+                  <div key={r.label} className="gate-regime-card">
+                    <div className="gate-regime-dot" style={{ background: r.color }} />
+                    <div>
+                      <p className="gate-regime-label">{r.label}</p>
+                      <p className="gate-regime-action" style={{ color: r.color }}>
+                        {r.action}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {(backtestRequested || backtestLoading) && (
-          <div className="gate-section-block">
-            <div className="gate-section-block-header flex items-center justify-between gap-2">
-              <span>90-day historical replay</span>
-              {!backtestLoading && (
-                <button type="button" className="gate-export-btn" onClick={onRunBacktest}>
-                  Re-run
+            <div className="gate-section-block">
+              <div className="gate-section-block-header">Position & replay rules</div>
+              <div className="gate-section-block-body gate-risk-grid">
+                {STRATEGY_POSITION_RULES.map((rule) => (
+                  <div key={rule} className="gate-risk-item">
+                    <p className="gate-risk-val">{rule}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="gate-code-block">
+              <div className="gate-code-top">
+                <span className="gate-code-lang">LIVE STRATEGY PSEUDOCODE</span>
+                <button type="button" className="gate-export-btn" onClick={() => navigator.clipboard.writeText(pseudocode)}>
+                  Copy
                 </button>
-              )}
+              </div>
+              <pre className="gate-code-pre">{pseudocode}</pre>
             </div>
-            <div className="gate-section-block-body space-y-3">
-              {backtestLoading && (
-                <div className="flex items-center gap-2 text-xs text-[var(--gate-muted)]">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Replaying bars with same rule engine…
-                </div>
-              )}
-              {!backtestLoading && backtest?.ok && backtest.equityCurves && (
-                <>
-                  {backtest.dataSource && (
-                    <p className="rounded-lg border border-cyan-400/20 bg-cyan-500/8 px-2.5 py-2 font-mono text-[10px] text-cyan-100/90">
-                      Replay source: {backtest.dataSource}
-                      {backtest.bars ? ` · ${backtest.bars} bars` : ""}
-                      {backtest.dataSource.includes("binance")
-                        ? " — CMC historical unavailable on Basic tier; same rule engine on venue prices."
-                        : " — CMC historical daily bars."}
-                    </p>
-                  )}
-                  {backtest.note && <p className="text-xs text-[var(--gate-muted)]">{backtest.note}</p>}
-                  {underperformed && backtest.compare && backtest.backtest && (
-                    <p className="text-xs text-[var(--gate-muted)]">
-                      Lower return vs naive agent this window — rules favor lower drawdown (
-                      {backtest.backtest.maxDrawdownPct}% vs {backtest.compare.naiveAgent.maxDrawdownPct}%).
-                    </p>
-                  )}
-                  <GateEquityChart points={backtest.equityCurves} symbol={selected.symbol} />
-                </>
-              )}
-              {!backtestLoading && backtest && !backtest.ok && (
-                <p className="text-xs text-cyan-200/80">
-                  {backtest.error}
-                  {backtest.hint ? ` — ${backtest.hint}` : ""}
-                </p>
-              )}
+
+            <div className="gate-export-bar">
+              <a className="gate-export-btn primary" href={`${GITHUB_SKILL}/SKILL.md`} target="_blank" rel="noopener noreferrer">
+                SKILL.md
+              </a>
+              <a className="gate-export-btn" href={`${GITHUB_SKILL}/STRATEGY_SPEC.md`} target="_blank" rel="noopener noreferrer">
+                Strategy spec
+              </a>
             </div>
-          </div>
+          </>
         )}
 
-        <div className="gate-code-block">
-          <div className="gate-code-top">
-            <span className="gate-code-lang">LIVE STRATEGY PSEUDOCODE</span>
-            <button type="button" className="gate-export-btn" onClick={() => navigator.clipboard.writeText(pseudocode)}>
-              Copy
-            </button>
-          </div>
-          <pre className="gate-code-pre">{pseudocode}</pre>
-        </div>
-      </div>
+        {section === "replay" && (
+          <>
+            {!backtestRequested && !backtestLoading && !backtest?.ok && (
+              <div className="rounded-xl border border-white/10 bg-black/25 px-4 py-8 text-center">
+                <p className="text-sm text-white/70">Run the same rule engine on 90 daily bars.</p>
+                <button type="button" className="gate-btn-secondary mt-3 px-4 py-2" onClick={onRunBacktest}>
+                  Run 90-day replay
+                </button>
+              </div>
+            )}
 
-      <div className="gate-export-bar">
-        <a className="gate-export-btn primary" href={`${GITHUB_SKILL}/SKILL.md`} target="_blank" rel="noopener noreferrer">
-          SKILL.md
-        </a>
-        <a className="gate-export-btn" href={`${GITHUB_SKILL}/STRATEGY_SPEC.md`} target="_blank" rel="noopener noreferrer">
-          Strategy spec
-        </a>
-        <button type="button" className="gate-export-btn" onClick={onOpenNexus}>
-          Open trade desk →
-        </button>
-        <button type="button" className="gate-export-btn" onClick={onRunBacktest}>
-          {backtestRequested ? "Re-run replay" : "Run 90-day replay"}
-        </button>
+            <div className="gate-section-block">
+              <div className="gate-section-block-header flex items-center justify-between gap-2">
+                <span>90-day historical replay</span>
+                {!backtestLoading && backtestRequested && (
+                  <button type="button" className="gate-export-btn" onClick={onRunBacktest}>
+                    Re-run
+                  </button>
+                )}
+              </div>
+              <div className="gate-section-block-body space-y-3">
+                {backtestLoading && (
+                  <div className="flex items-center gap-2 text-xs text-[var(--gate-muted)]">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Replaying bars with same rule engine…
+                  </div>
+                )}
+                {!backtestLoading && backtest?.ok && backtest.equityCurves && (
+                  <>
+                    {backtest.dataSource && (
+                      <p className="rounded-lg border border-cyan-400/20 bg-cyan-500/8 px-2.5 py-2 font-mono text-[10px] text-cyan-100/90">
+                        Replay source: {backtest.dataSource}
+                        {backtest.bars ? ` · ${backtest.bars} bars` : ""}
+                        {backtest.dataSource.includes("binance")
+                          ? " — CMC historical unavailable on Basic tier; same rule engine on venue prices."
+                          : " — CMC historical daily bars."}
+                      </p>
+                    )}
+                    {backtest.note && <p className="text-xs text-[var(--gate-muted)]">{backtest.note}</p>}
+                    {underperformed && backtest.compare && backtest.backtest && (
+                      <p className="text-xs text-[var(--gate-muted)]">
+                        Lower return vs naive agent this window — rules favor lower drawdown (
+                        {backtest.backtest.maxDrawdownPct}% vs {backtest.compare.naiveAgent.maxDrawdownPct}%).
+                      </p>
+                    )}
+                    <GateEquityChart points={backtest.equityCurves} symbol={selected.symbol} />
+                  </>
+                )}
+                {!backtestLoading && backtest && !backtest.ok && (
+                  <p className="text-xs text-cyan-200/80">
+                    {backtest.error}
+                    {backtest.hint ? ` — ${backtest.hint}` : ""}
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
