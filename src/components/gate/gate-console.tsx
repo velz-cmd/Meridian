@@ -47,14 +47,15 @@ type BacktestPayload = {
 
 export function GateConsole() {
   const router = useRouter();
-  const [symbol, setSymbol] = useState<GateSymbol>("BNB");
+  const userPickedSymbol = useRef<GateSymbol | null>(null);
+  const [symbol, setSymbol] = useState<GateSymbol>("CAKE");
   const [tab, setTab] = useState<GateDeskTab>("overview");
   const [backtest, setBacktest] = useState<BacktestPayload | null>(null);
   const [btLoading, setBtLoading] = useState(false);
   const [btRequested, setBtRequested] = useState(false);
   const btReq = useRef(0);
 
-  const { route: gateRoute, benchmarks, loading: gateRouteLoading, error: routeError, reload } = useGateRoute(120_000);
+  const { route: gateRoute, benchmarks, loading: gateRouteLoading, error: routeError, degraded: routeDegraded, reload } = useGateRoute(180_000);
 
   const lastLeadRef = useRef<string | null>(
     typeof window !== "undefined" ? sessionStorage.getItem("meridian-gate-lead-key") : null,
@@ -134,9 +135,16 @@ export function GateConsole() {
     btReq.current += 1;
   }, [symbol]);
 
+  const handleSelectSymbol = useCallback((sym: GateSymbol) => {
+    userPickedSymbol.current = sym;
+    setSymbol(sym);
+  }, []);
+
   useEffect(() => {
+    if (userPickedSymbol.current) return;
     if (benchmarks.length && !benchmarks.find((b) => b.symbol === symbol)) {
-      setSymbol(benchmarks[0]!.symbol as GateSymbol);
+      const cake = benchmarks.find((b) => b.symbol === "CAKE");
+      setSymbol((cake?.symbol ?? benchmarks[0]!.symbol) as GateSymbol);
     }
   }, [benchmarks, symbol]);
 
@@ -153,8 +161,21 @@ export function GateConsole() {
         <GateDeskHero route={gateRoute} cmcLive={cmcLive} loading={gateRouteLoading} compact />
 
         {routeError && (
-          <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            <p className="font-medium">{routeError}</p>
+          <div
+            className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
+              benchmarks.length
+                ? "border-amber-400/25 bg-amber-500/10 text-amber-100"
+                : "border-rose-400/30 bg-rose-500/10 text-rose-100"
+            }`}
+          >
+            <p className="font-medium">
+              {benchmarks.length
+                ? routeDegraded
+                  ? "CMC rate-limited — showing cached or Binance venue quotes"
+                  : "Live scan note"
+                : "Gate scan failed"}
+            </p>
+            <p className="mt-1 text-xs opacity-90">{routeError}</p>
             <button type="button" className="mt-2 font-mono text-xs underline" onClick={() => void reload()}>
               Retry scan
             </button>
@@ -164,7 +185,7 @@ export function GateConsole() {
         <div className="gate-desk-main">
           <GateConfigPanel
             symbol={symbol}
-            onSelectSymbol={setSymbol}
+            onSelectSymbol={handleSelectSymbol}
             benchmarks={benchmarks}
             route={gateRoute}
             loading={gateRouteLoading}
@@ -214,7 +235,7 @@ export function GateConsole() {
                   backtest={backtest}
                   backtestLoading={btLoading}
                   backtestRequested={btRequested}
-                  onQuickSelect={setSymbol}
+                  onQuickSelect={handleSelectSymbol}
                   onRunBacktest={() => void runBacktest(symbol)}
                   section="overview"
                 />
@@ -239,7 +260,7 @@ export function GateConsole() {
                 backtest={backtest}
                 backtestLoading={btLoading}
                 backtestRequested={btRequested}
-                onQuickSelect={setSymbol}
+                onQuickSelect={handleSelectSymbol}
                 onRunBacktest={() => void runBacktest(symbol)}
                 section="rules"
               />
@@ -254,7 +275,7 @@ export function GateConsole() {
                 backtest={backtest}
                 backtestLoading={btLoading}
                 backtestRequested={btRequested}
-                onQuickSelect={setSymbol}
+                onQuickSelect={handleSelectSymbol}
                 onRunBacktest={() => void runBacktest(symbol)}
                 section="replay"
               />

@@ -64,6 +64,14 @@ export function GateConfigPanel({
                         <span className={long ? "text-emerald-400" : "text-white/40"}>{long ? "LONG" : "FLAT"}</span>
                         {" · "}
                         {bench.gate.checksPassed}/{bench.gate.checksTotal}
+                        {bench.market.price > 0 && (
+                          <>
+                            {" · "}
+                            <span className="text-white/55">
+                              ${bench.market.price >= 1 ? bench.market.price.toFixed(2) : bench.market.price.toFixed(4)}
+                            </span>
+                          </>
+                        )}
                       </>
                     ) : (
                       "—"

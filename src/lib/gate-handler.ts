@@ -17,6 +17,10 @@ import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
 import { GATE_SKILL_REPO, GATE_SYMBOLS, isGateSymbol } from "@/lib/gate-constants";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import {
+  evaluateAllGateBenchmarks,
+  type GateBenchmarkEval,
+} from "@/lib/gate-benchmark-cache";
+import {
   buildGateExecutionUrl,
   GATE_PIPELINE_LAYERS,
   GATE_STACK_SUMMARY,
@@ -179,38 +183,73 @@ export async function buildGateEvaluateResponse(input: {
   };
 }
 
+function evalToRouteBenchmark(
+  ev: GateBenchmarkEval,
+  oracle: Awaited<ReturnType<typeof fetchBoracleUsdPrice>> | null,
+) {
+  const snapshot = ev.snapshot as {
+    price?: number;
+    change24h?: number;
+    change1h?: number;
+    change7d?: number;
+    fearGreed?: number;
+    rsi?: number;
+    macdSignal?: string;
+    marketCap?: number;
+    volume24h?: number;
+  };
+  const compositeCleared = ev.skills.composite.cleared;
+  const stubPermit = {
+    status: compositeCleared ? ("GRANT" as const) : ("DENY" as const),
+    execute: compositeCleared ? ("LONG" as const) : ("FLAT" as const),
+  };
+  return {
+    symbol: ev.sym,
+    cmcLive: ev.cmcLive,
+    fieldSources: ev.sources,
+    oracle: oracle
+      ? {
+          ...oracle,
+          cmcPriceUsd: snapshot.price,
+          cmcDeltaPct: oracleCmcDeltaPct(oracle.priceUsd, snapshot.price ?? 0),
+        }
+      : null,
+    market: {
+      price: snapshot.price ?? 0,
+      change24h: snapshot.change24h ?? 0,
+      fearGreed: snapshot.fearGreed,
+      rsi: snapshot.rsi,
+      macdSignal: snapshot.macdSignal,
+      marketCap: snapshot.marketCap,
+      volume24h: snapshot.volume24h,
+    },
+    gate: ev.gate,
+    skills: ev.skills,
+    conviction: convictionScore(ev.gate, stubPermit, ev.skills),
+  };
+}
+
 export async function buildGateRouteResponse(input: { agent?: AgentInput | null } = {}) {
   const agent = input.agent ?? null;
-  const macro = await fetchGlobalMacro();
-  const batch = await fetchGateSnapshotsBatch([...GATE_SYMBOLS]);
+  const batch = await evaluateAllGateBenchmarks();
+  if (batch.bySym.size === 0) {
+    throw new Error(batch.error ?? "Gate benchmark batch empty");
+  }
+
   const oracles = await Promise.all(
     GATE_SYMBOLS.map(async (sym) => ({
       sym,
-      oracle: isBoracleGateSymbol(sym) ? await fetchBoracleUsdPrice(sym) : null,
+      oracle: isBoracleGateSymbol(sym) ? await fetchBoracleUsdPrice(sym).catch(() => null) : null,
     })),
   );
   const oracleBySym = Object.fromEntries(oracles.map((o) => [o.sym, o.oracle]));
 
-  const bnbSnapshot = (batch.BNB?.snapshot ?? null) as Record<string, unknown> | null;
-  const results = await Promise.all(
-    GATE_SYMBOLS.map((sym) => {
-      const pack = batch[sym];
-      if (!pack) throw new Error(`No CMC batch quote for ${sym}`);
-      return evaluateFromPack(
-        sym,
-        pack as {
-          snapshot: Record<string, unknown>;
-          sources: Record<string, string | number | null>;
-          cmcLive: boolean;
-          volatility?: Record<string, unknown> | null;
-        },
-        agent,
-        macro,
-        oracleBySym[sym] ?? null,
-        bnbSnapshot,
-      );
-    }),
-  );
+  const results = GATE_SYMBOLS.map((sym) => {
+    const ev = batch.bySym.get(sym);
+    if (!ev) return null;
+    return evalToRouteBenchmark(ev, oracleBySym[sym] ?? null);
+  }).filter(Boolean) as ReturnType<typeof evalToRouteBenchmark>[];
+
   const regime = results[0]?.gate.regime ?? "neutral";
   const fearGreed = results[0]?.market.fearGreed ?? 50;
 
@@ -218,7 +257,7 @@ export async function buildGateRouteResponse(input: { agent?: AgentInput | null 
     results.map((r) => ({
       symbol: r.symbol,
       gate: r.gate,
-      permit: r.permit ?? {
+      permit: {
         status: r.skills?.composite?.cleared ? "GRANT" : "DENY",
         execute: r.skills?.composite?.cleared ? "LONG" : "FLAT",
       },
@@ -233,7 +272,10 @@ export async function buildGateRouteResponse(input: { agent?: AgentInput | null 
     product: "MERIDIAN Momentum Constitution · CMC Strategy Skill",
     track: "BNB Hack · Strategy Skills (CoinMarketCap)",
     skill: CONSTITUTION_SKILL,
-    dataIntegrity: "cmc-only-no-synthetic",
+    dataIntegrity: batch.degraded ? "degraded-cache-or-venue" : "cmc-only-no-synthetic",
+    degraded: batch.degraded ?? false,
+    cacheNote: batch.error ?? null,
+    fromCache: batch.fromCache ?? false,
     benchmarks: results,
     route,
     reproduce: {

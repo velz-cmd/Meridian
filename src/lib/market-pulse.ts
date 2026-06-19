@@ -237,13 +237,18 @@ export async function buildMarketPulse(symbol?: string): Promise<MarketPulse> {
   }
 
   try {
-    const { fetchGateSnapshot } = await import("../../bnb-hack/live/cmc-fetch.mjs");
-    const sym = symbol && ["BNB", "CAKE", "FLOKI", "XVS"].includes(symbol.toUpperCase()) ? symbol.toUpperCase() : "BNB";
-    const pack = await fetchGateSnapshot(sym);
-    fearGreed = (pack.snapshot.fearGreed as number) ?? null;
-    btcChange1h = (pack.snapshot.change1h as number) ?? null;
-    if (sym === "BNB") {
-      btcChange24h = (pack.snapshot.change24h as number) ?? btcChange24h;
+    const { evaluateAllGateBenchmarks } = await import("@/lib/gate-benchmark-cache");
+    const sym =
+      symbol && ["BNB", "CAKE", "FLOKI", "XVS"].includes(symbol.toUpperCase()) ? symbol.toUpperCase() : "BNB";
+    const batch = await evaluateAllGateBenchmarks();
+    const ev = batch.bySym.get(sym);
+    const snap = ev?.snapshot as { fearGreed?: number; change1h?: number; change24h?: number } | undefined;
+    if (snap) {
+      fearGreed = snap.fearGreed ?? fearGreed;
+      btcChange1h = snap.change1h ?? btcChange1h;
+      if (sym === "BNB") {
+        btcChange24h = snap.change24h ?? btcChange24h;
+      }
     }
   } catch {
     /* fallback below */

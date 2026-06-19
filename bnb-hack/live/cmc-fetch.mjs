@@ -3,7 +3,7 @@
  * Server-side TTL cache saves credits and improves permit latency.
  */
 
-import { fetchBinanceDailySeries } from "./binance-klines.mjs";
+import { fetchBinanceDailySeries, fetchVenueGateSnapshotsBatch } from "./binance-klines.mjs";
 import {
   computeVolatilityFromCloses,
   computeVolatilityFromOhlcBars,
@@ -37,7 +37,9 @@ async function hydrateTechnicalsFromBinance(symbol, quotes) {
 
 const API = "https://pro-api.coinmarketcap.com";
 
-const TTL_MS = { fearGreed: 120_000, quotes: 90_000, map: 600_000, batch: 90_000 };
+const TTL_MS = { fearGreed: 180_000, quotes: 120_000, map: 600_000, batch: 120_000, global: 180_000 };
+/** @type {Map<string, Promise<unknown>>} */
+const inflight = new Map();
 /** @type {Map<string, { at: number; data: unknown }>} */
 const cache = new Map();
 
@@ -82,30 +84,43 @@ export async function cmcFetch(path, params = {}, opts = {}) {
   if (cacheKey) {
     const hit = cacheGet(cacheKey);
     if (hit) return hit;
+    const pending = inflight.get(cacheKey);
+    if (pending) return pending;
   }
-  const res = await fetch(`${API}${path}?${qs}`, {
-    headers: { "X-CMC_PRO_API_KEY": key, Accept: "application/json" },
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    let msg = text;
+  const run = (async () => {
+    const res = await fetch(`${API}${path}?${qs}`, {
+      headers: { "X-CMC_PRO_API_KEY": key, Accept: "application/json" },
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      let msg = text;
+      try {
+        const j = JSON.parse(text);
+        msg = j.status?.error_message || text;
+      } catch {
+        /* keep raw */
+      }
+      if (cacheKey) {
+        const stale = cache.get(cacheKey);
+        if (stale) return stale.data;
+      }
+      const err = /** @type {Error & { status?: number; code?: string }} */ (new Error(`CMC ${res.status}: ${msg}`));
+      err.status = res.status;
+      throw err;
+    }
+    const parsed = JSON.parse(text);
+    if (cacheKey) cacheSet(cacheKey, parsed);
+    return parsed;
+  })();
+  if (cacheKey) {
+    inflight.set(cacheKey, run);
     try {
-      const j = JSON.parse(text);
-      msg = j.status?.error_message || text;
-    } catch {
-      /* keep raw */
+      return await run;
+    } finally {
+      inflight.delete(cacheKey);
     }
-    if (res.status === 429 && cacheKey) {
-      const stale = cache.get(cacheKey);
-      if (stale) return stale.data;
-    }
-    const err = /** @type {Error & { status?: number; code?: string }} */ (new Error(`CMC ${res.status}: ${msg}`));
-    err.status = res.status;
-    throw err;
   }
-  const parsed = JSON.parse(text);
-  if (cacheKey) cacheSet(cacheKey, parsed);
-  return parsed;
+  return run;
 }
 
 export async function resolveSymbolId(symbol) {
@@ -262,64 +277,89 @@ function quoteRowToSnapshot(sym, row, fearGreed) {
 export async function fetchGateSnapshotsBatch(symbols) {
   const syms = symbols.map((s) => s.toUpperCase());
   const symParam = syms.join(",");
+  const batchKey = `quotes:batch:${symParam}`;
+
+  try {
+    return await fetchGateSnapshotsBatchCmc(syms, symParam);
+  } catch (e) {
+    const stale = cache.get(batchKey);
+    if (stale?.data) {
+      try {
+        return await buildBatchOutFromCmcQuotes(syms, stale.data, true);
+      } catch {
+        /* fall through */
+      }
+    }
+    const fgStale = cache.get("fg:latest");
+    const fearGreed = fgStale?.data?.data?.value ?? 50;
+    try {
+      const venue = await fetchVenueGateSnapshotsBatch(syms, fearGreed);
+      return venue;
+    } catch {
+      throw e;
+    }
+  }
+}
+
+async function buildBatchOutFromCmcQuotes(syms, quotes, cmcLiveFlag) {
+  const fearGreed =
+    cache.get("fg:latest")?.data?.data?.value ??
+    quotes?.data?.BNB?.quote?.USD?.fearGreed ??
+    50;
+  /** @type {Record<string, { snapshot: object; sources: Record<string, string | number | null>; cmcLive: boolean }>} */
+  const out = {};
+  for (const sym of syms) {
+    const row = quotes.data?.[sym];
+    if (!row) continue;
+    const base = quoteRowToSnapshot(sym, row, fearGreed);
+    const sources = {
+      price: "coinmarketcap/quotes/latest",
+      marketCap: "coinmarketcap/quotes/latest",
+      volume24h: "coinmarketcap/quotes/latest",
+      change1h: "coinmarketcap/quotes/latest",
+      change24h: "coinmarketcap/quotes/latest",
+      change7d: "coinmarketcap/quotes/latest",
+      fearGreed: "coinmarketcap/fear-and-greed/latest",
+      rsi: "binance-spot-daily-14rsi",
+      macd: "binance-spot-daily-derived",
+    };
+    try {
+      const venue = await hydrateTechnicalsFromBinance(sym, base);
+      if (venue) {
+        sources.rsi = venue.sourceRsi;
+        sources.macd = venue.sourceMacd;
+        if (venue.sourceVolatility) sources.volatility = venue.sourceVolatility;
+        out[sym] = {
+          snapshot: { ...base, rsi: venue.rsi, macdSignal: venue.macdSignal },
+          sources,
+          cmcLive: cmcLiveFlag,
+          volatility: venue.volatility ?? null,
+        };
+        continue;
+      }
+    } catch {
+      /* quotes-only */
+    }
+    out[sym] = { snapshot: base, sources, cmcLive: cmcLiveFlag };
+  }
+  return out;
+}
+
+async function fetchGateSnapshotsBatchCmc(syms, symParam) {
   const [quotes, fgRes] = await Promise.all([
     cmcFetch(
       "/v1/cryptocurrency/quotes/latest",
       { symbol: symParam },
       { cacheKey: `quotes:batch:${symParam}` },
     ),
-    cmcFetch("/v3/fear-and-greed/latest", {}, { cacheKey: "fg:latest" }),
+    cmcFetch("/v3/fear-and-greed/latest", {}, { cacheKey: "fg:latest" }).catch(() => ({
+      data: { value: 50 },
+    })),
   ]);
-  const fearGreed = fgRes.data?.value ?? 50;
-
-  /** @type {Record<string, { snapshot: object; sources: Record<string, string | number | null>; cmcLive: boolean }>} */
-  const out = {};
-
-  await Promise.all(
-    syms.map(async (sym) => {
-      const row = quotes.data?.[sym];
-      if (!row) return;
-      const base = quoteRowToSnapshot(sym, row, fearGreed);
-      /** @type {Record<string, string | number | null>} */
-      const sources = {
-        price: "coinmarketcap/quotes/latest",
-        marketCap: "coinmarketcap/quotes/latest",
-        volume24h: "coinmarketcap/quotes/latest",
-        change1h: "coinmarketcap/quotes/latest",
-        change24h: "coinmarketcap/quotes/latest",
-        change7d: "coinmarketcap/quotes/latest",
-        change30d: "coinmarketcap/quotes/latest",
-        volumeChange24h: "coinmarketcap/quotes/latest",
-        cmcRank: "coinmarketcap/quotes/latest",
-        fdv: "coinmarketcap/quotes/latest",
-        fearGreed: "coinmarketcap/fear-and-greed/latest",
-        rsi: "binance-spot-daily-14rsi",
-        macd: "binance-spot-daily-derived",
-        historicalBars: null,
-      };
-      try {
-        const venue = await hydrateTechnicalsFromBinance(sym, base);
-        if (venue) {
-          sources.rsi = venue.sourceRsi;
-          sources.macd = venue.sourceMacd;
-          sources.historicalBars = venue.bars;
-          if (venue.sourceVolatility) sources.volatility = venue.sourceVolatility;
-          out[sym] = {
-            snapshot: { ...base, rsi: venue.rsi, macdSignal: venue.macdSignal },
-            sources,
-            cmcLive: true,
-            volatility: venue.volatility ?? null,
-          };
-          return;
-        }
-      } catch {
-        /* quotes-only */
-      }
-      out[sym] = { snapshot: base, sources, cmcLive: true };
-    }),
-  );
-
-  return out;
+  if (fgRes?.data?.value != null) {
+    cacheSet("fg:latest", fgRes);
+  }
+  return buildBatchOutFromCmcQuotes(syms, quotes, true);
 }
 
 /**

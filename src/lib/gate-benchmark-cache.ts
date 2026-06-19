@@ -7,7 +7,7 @@ import { composeSkillVerdict } from "../../bnb-hack/engine/meridian-skills.mjs";
 import { fetchGateSnapshotsBatch, fetchGlobalMacro } from "../../bnb-hack/live/cmc-fetch.mjs";
 import { GATE_SYMBOLS } from "@/lib/gate-constants";
 
-const TTL_MS = 90_000;
+const TTL_MS = 120_000;
 
 export type GateBenchmarkEval = {
   sym: string;
@@ -90,13 +90,45 @@ export async function evaluateAllGateBenchmarks(force = false): Promise<GateBenc
           );
         }
       }
-      if (evals.size === 0) throw new Error("CMC batch returned no gate benchmark quotes");
+      if (evals.size === 0) {
+        throw new Error("CMC batch returned no gate benchmark quotes");
+      }
+      const venueOnly = [...evals.values()].every((e) => !e.cmcLive);
       cached = { at: Date.now(), evals, macro };
-      return { bySym: evals, macro, fromCache: false };
+      return { bySym: evals, macro, fromCache: false, degraded: venueOnly || undefined };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (cached && cached.evals.size > 0) {
+      const isRateLimit = /429|rate limit/i.test(msg);
+      if (cached && cached.evals.size > 0 && (isRateLimit || !force)) {
         return { bySym: cached.evals, macro: cached.macro, fromCache: true, degraded: true, error: msg };
+      }
+      try {
+        const { fetchVenueGateSnapshotsBatch } = await import("../../bnb-hack/live/binance-klines.mjs");
+        const fgStale = 50;
+        const venue = await fetchVenueGateSnapshotsBatch([...GATE_SYMBOLS], fgStale);
+        const evals = new Map<string, GateBenchmarkEval>();
+        const bnbSnapshot = (venue.BNB?.snapshot ?? null) as Record<string, unknown> | null;
+        for (const sym of GATE_SYMBOLS) {
+          const pack = venue[sym];
+          if (pack) {
+            evals.set(
+              sym,
+              evaluatePack(sym, pack as Parameters<typeof evaluatePack>[1], null, bnbSnapshot),
+            );
+          }
+        }
+        if (evals.size > 0) {
+          cached = { at: Date.now(), evals, macro: cached?.macro ?? null };
+          return {
+            bySym: evals,
+            macro: cached?.macro ?? null,
+            fromCache: false,
+            degraded: true,
+            error: `${msg} · using Binance venue quotes`,
+          };
+        }
+      } catch {
+        /* rethrow original */
       }
       throw e;
     } finally {
