@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { ArcPanel } from "@/components/ui/arc-panel";
 import { GATE_SYMBOLS, type GateSymbol } from "@/lib/gate-constants";
 import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
-import { strategyPosition } from "@/lib/gate-strategy-copy";
+import { effectivePosition } from "@/lib/gate-effective-signal";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
 import { cn } from "@/lib/utils";
@@ -46,7 +46,7 @@ export function GateConfigPanel({
             {GATE_SYMBOLS.map((sym) => {
               const bench = benchmarks.find((b) => b.symbol === sym);
               const rank = rankBySym[sym];
-              const long = bench ? strategyPosition(bench.gate.signal) === "LONG" : false;
+              const long = bench ? effectivePosition(bench.gate, bench.skills as never) === "LONG" : false;
               return (
                 <button
                   key={sym}
@@ -90,8 +90,8 @@ export function GateConfigPanel({
           </p>
           <p className="mt-2 font-mono text-[10px] text-white/40">
             {GATE_PRODUCT.rankingMeta(
-              benchmarks.filter((b) => strategyPosition(b.gate.signal) === "LONG").length,
-              benchmarks.filter((b) => strategyPosition(b.gate.signal) === "FLAT").length,
+              benchmarks.filter((b) => effectivePosition(b.gate, b.skills as never) === "LONG").length,
+              benchmarks.filter((b) => effectivePosition(b.gate, b.skills as never) === "FLAT").length,
               route.regime,
               route.fearGreed,
             )}

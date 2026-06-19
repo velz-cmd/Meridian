@@ -47,9 +47,10 @@ async function evaluateFromPack(
   });
   const permit = agent ? issueConstitutionPermit(snapshot, agent) : null;
 
+  const compositeCleared = skills.composite.cleared;
   const stubPermit = {
-    status: gate.signal === "ENTER_LONG" ? ("GRANT" as const) : ("DENY" as const),
-    execute: gate.signal === "ENTER_LONG" ? ("LONG" as const) : ("FLAT" as const),
+    status: compositeCleared ? ("GRANT" as const) : ("DENY" as const),
+    execute: compositeCleared ? ("LONG" as const) : ("FLAT" as const),
   };
 
   return {
@@ -213,8 +214,8 @@ export async function buildGateRouteResponse(input: { agent?: AgentInput | null 
       symbol: r.symbol,
       gate: r.gate,
       permit: r.permit ?? {
-        status: r.gate.signal === "ENTER_LONG" ? "GRANT" : "DENY",
-        execute: r.gate.signal === "ENTER_LONG" ? "LONG" : "FLAT",
+        status: r.skills?.composite?.cleared ? "GRANT" : "DENY",
+        execute: r.skills?.composite?.cleared ? "LONG" : "FLAT",
       },
       market: r.market,
       skills: r.skills,

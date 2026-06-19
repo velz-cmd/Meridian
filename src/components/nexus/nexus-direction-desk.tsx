@@ -46,6 +46,7 @@ export function NexusDirectionDesk({
   canBuySpot = true,
   canSellSpot = true,
   compact,
+  strategyOnly,
 }: {
   route: PositionRoute | null;
   loading?: boolean;
@@ -56,6 +57,8 @@ export function NexusDirectionDesk({
   canBuySpot?: boolean;
   canSellSpot?: boolean;
   compact?: boolean;
+  /** Gate desk: strategy read + decision stack only — no duplicate position toggles */
+  strategyOnly?: boolean;
 }) {
   if (loading && !route) {
     return (
@@ -87,13 +90,13 @@ export function NexusDirectionDesk({
           </div>
           {route.gate && (
             <span className="rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-1 font-mono text-[10px] text-violet-100">
-              Gate {route.gate.signal.replace(/_/g, " ")} · {route.gate.tier}
+              Desk {route.gate.signal.replace(/_/g, " ")} · {route.gate.tier}
             </span>
           )}
         </div>
 
         <div className={cn("mb-3 rounded-xl border px-3.5 py-3", verdictTheme(active))}>
-          <p className="text-[10px] font-semibold uppercase tracking-wider opacity-75">Strategy read</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider opacity-75">Unified strategy read</p>
           <p className="mt-1 text-sm leading-relaxed opacity-95">{route.verdict}</p>
           {route.sizeNote && (
             <p className="mt-2 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[11px] leading-relaxed">
@@ -102,6 +105,8 @@ export function NexusDirectionDesk({
           )}
         </div>
 
+        {!strategyOnly && (
+          <>
         <p className="mb-2 font-mono text-[9px] uppercase tracking-wider text-white/38">
           Position target (long · flat · short) — from CMC gate, not a swap button
         </p>
@@ -123,8 +128,10 @@ export function NexusDirectionDesk({
             );
           })}
         </div>
+          </>
+        )}
 
-        {showSpotActions && (
+        {showSpotActions && !strategyOnly && (
           <div className="mb-3 rounded-xl border border-white/10 bg-black/35 p-2.5">
             <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-white/45">
               Spot desk action · PancakeSwap Chapel (wallet Buy / Sell)
@@ -165,7 +172,7 @@ export function NexusDirectionDesk({
           </div>
         )}
 
-        {!compact && (
+        {(strategyOnly || !compact) && (
           <div className="rounded-xl border border-white/8 bg-black/35 px-3 py-2.5">
             <p className="font-mono text-[10px] uppercase tracking-wider text-white/40">Decision stack</p>
             <ul className="mt-2 space-y-1.5">

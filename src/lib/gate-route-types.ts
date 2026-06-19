@@ -73,7 +73,16 @@ export type GateBenchmarkFull = {
       metrics?: { rs24h?: number; rs7d?: number; benchmark?: string };
     };
     volatility?: { state?: string; signal?: string; squeeze?: boolean; expansion?: boolean };
-    composite?: { signal?: string; alignmentScore?: number; thesis?: string; blockers?: string[] };
+    composite?: {
+      signal?: string;
+      constitutionSignal?: string;
+      alignmentScore?: number;
+      thesis?: string;
+      blockers?: string[];
+      cleared?: boolean;
+      constitutionOnly?: boolean;
+      votes?: { long: number; hold: number; bear: number; total: number };
+    };
   };
   conviction?: number;
 };

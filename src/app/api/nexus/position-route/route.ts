@@ -23,11 +23,20 @@ export async function GET(req: Request) {
     const agentAction =
       agent === "BUY" || agent === "SELL" || agent === "HOLD" ? (agent as "BUY" | "SELL" | "HOLD") : null;
 
+    const compositeSignal = gateRow
+      ? ((gateRow.skills as { composite?: { signal?: string } } | undefined)?.composite?.signal ??
+        gateRow.gate.signal)
+      : undefined;
+    const compositeConfidence = gateRow
+      ? ((gateRow.skills as { composite?: { alignmentScore?: number } } | undefined)?.composite?.alignmentScore ??
+        gateRow.gate.confidence)
+      : undefined;
+
     const gate = gateRow
       ? {
-          signal: gateRow.gate.signal,
+          signal: compositeSignal ?? gateRow.gate.signal,
           tier: gateRow.gate.tier,
-          confidence: gateRow.gate.confidence,
+          confidence: compositeConfidence ?? gateRow.gate.confidence,
           checksPassed: gateRow.gate.checksPassed,
           checksTotal: gateRow.gate.checksTotal,
           regime: gateRow.gate.regime,

@@ -86,7 +86,12 @@ export type GateSkillsPayload = {
     checksPassed?: number;
     checksTotal?: number;
   };
-  composite: SkillComposite;
+  composite: SkillComposite & {
+    constitutionSignal?: string;
+    constitutionOnly?: boolean;
+    longPct?: number;
+    votes?: { long: number; hold: number; bear: number; total: number };
+  };
 };
 
 function signalTone(signal: string) {
@@ -99,6 +104,7 @@ export function GateSkillStack({ skills, constitutionSignal }: { skills: GateSki
   const compositePos = strategyPosition(skills.composite.signal);
   const rawPos = strategyPosition(constitutionSignal);
   const blocked = skills.composite.blockers.length > 0 && rawPos === "LONG" && compositePos === "FLAT";
+  const splitVerdict = skills.composite.constitutionOnly;
 
   const layers = [
     {
@@ -188,8 +194,14 @@ export function GateSkillStack({ skills, constitutionSignal }: { skills: GateSki
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/45">
               CMC skill stack · {layers.length} layers · live
             </p>
-            <h2 className="mt-1 text-lg font-semibold text-white">Eight deterministic skills → constitution</h2>
-            {blocked && (
+            <h2 className="mt-1 text-lg font-semibold text-white">Eight skills → one consensus verdict</h2>
+            {splitVerdict && (
+              <p className="mt-1 text-xs text-amber-200/90">
+                Constitution says {rawPos} but only {skills.composite.votes?.long ?? 0}/{skills.composite.votes?.total ?? 8}{" "}
+                layers agree — desk holds {compositePos} until aligned.
+              </p>
+            )}
+            {blocked && !splitVerdict && (
               <p className="mt-1 text-xs text-amber-200/90">
                 Constitution says LONG but composite blocked: {skills.composite.blockers.join(", ")}
               </p>
@@ -200,7 +212,11 @@ export function GateSkillStack({ skills, constitutionSignal }: { skills: GateSki
             <p className={cn("text-xl font-bold", compositePos === "LONG" ? "text-emerald-300" : "text-white/65")}>
               {compositePos}
             </p>
-            <p className="text-[10px] text-white/40">{skills.composite.alignmentScore}/100 aligned</p>
+            <p className="text-[10px] text-white/40">
+              {skills.composite.votes
+                ? `${skills.composite.votes.long} long · ${skills.composite.votes.hold} hold · ${skills.composite.votes.bear} bear`
+                : `${skills.composite.longPct ?? "—"}% long weight`}
+            </p>
           </div>
         </div>
 

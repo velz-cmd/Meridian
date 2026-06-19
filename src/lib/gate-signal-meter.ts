@@ -117,15 +117,22 @@ export function buildGateSignalMeter(
       name: "Skill alignment",
       value: alignment,
       max: 100,
-      direction: alignment >= 65 ? "CLEAR" : alignment >= 45 ? "PARTIAL" : "BLOCKED",
-      bull: alignment >= 55,
+      direction:
+        skills?.composite?.cleared
+          ? "CLEAR"
+          : skills?.composite?.constitutionOnly
+            ? "SPLIT"
+            : alignment >= 65
+              ? "PARTIAL"
+              : "BLOCKED",
+      bull: Boolean(skills?.composite?.cleared),
     },
     {
-      name: "Momentum layer",
-      value: momentumPct,
+      name: "Desk verdict",
+      value: alignment,
       max: 100,
-      direction: (skills?.momentum.signal ?? selected.gate.signal).replace(/_/g, " "),
-      bull: skills?.momentum.signal === "ENTER_LONG",
+      direction: (skills?.composite?.signal ?? selected.gate.signal).replace(/_/g, " "),
+      bull: (skills?.composite?.signal ?? selected.gate.signal) === "ENTER_LONG",
     },
     {
       name: "RS vs BNB",

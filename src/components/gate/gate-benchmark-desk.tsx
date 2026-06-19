@@ -3,7 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { GATE_SYMBOLS, type GateSymbol } from "@/lib/gate-constants";
 import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
-import { strategyPosition } from "@/lib/gate-strategy-copy";
+import { effectivePosition } from "@/lib/gate-effective-signal";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
 import { cn } from "@/lib/utils";
 
@@ -35,11 +35,11 @@ export function GateBenchmarkDesk({
   const rankBySym = Object.fromEntries(ranked.map((r) => [r.symbol, r]));
   const deploying = route && route.allocation.primary !== "FLAT";
   const primarySym = route?.allocation.primary;
-  const longCount = benchmarks.filter((b) => strategyPosition(b.gate.signal) === "LONG").length;
+  const longCount = benchmarks.filter((b) => effectivePosition(b.gate, b.skills as never) === "LONG").length;
 
   const selectedBench = benchmarks.find((b) => b.symbol === selected);
   const selectedRank = rankBySym[selected];
-  const selectedPos = selectedBench ? strategyPosition(selectedBench.gate.signal) : "FLAT";
+  const selectedPos = selectedBench ? effectivePosition(selectedBench.gate, selectedBench.skills as never) : "FLAT";
   const selectedChecks = selectedBench
     ? `${selectedBench.gate.checksPassed}/${selectedBench.gate.checksTotal} rules`
     : "—";
@@ -73,7 +73,7 @@ export function GateBenchmarkDesk({
             const bench = benchmarks.find((b) => b.symbol === sym);
             const rank = rankBySym[sym];
             const active = selected === sym;
-            const long = bench ? strategyPosition(bench.gate.signal) === "LONG" : false;
+            const long = bench ? effectivePosition(bench.gate, bench.skills as never) === "LONG" : false;
             const rsi = bench?.market.rsi;
 
             return (
@@ -102,7 +102,7 @@ export function GateBenchmarkDesk({
                         long ? "bg-emerald-500/20 text-emerald-200" : "bg-white/10 text-white/50",
                       )}
                     >
-                      {strategyPosition(bench.gate.signal)}
+                      {effectivePosition(bench.gate, bench.skills as never)}
                     </span>
                   ) : (
                     <span className="text-[10px] text-white/30">…</span>

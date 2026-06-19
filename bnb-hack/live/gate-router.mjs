@@ -67,9 +67,10 @@ export function convictionScore(gate, permit, skills = null) {
     if (v.signal === "AVOID") score -= 14;
   }
 
-  const cleared = permit?.status === "GRANT" || gate.signal === "ENTER_LONG";
-  if (!cleared || gate.signal === "HOLD" || gate.signal === "AVOID" || gate.signal === "EXIT") {
-    score *= gate.signal === "HOLD" ? 0.52 : 0.32;
+  const cleared = skills?.composite?.cleared ?? (permit?.status === "GRANT" && gate.signal === "ENTER_LONG");
+  const effectiveSignal = skills?.composite?.signal ?? gate.signal;
+  if (!cleared || effectiveSignal !== "ENTER_LONG") {
+    score *= effectiveSignal === "HOLD" ? 0.52 : 0.32;
   }
 
   return Math.round(Math.min(96, Math.max(6, score)));
@@ -112,8 +113,8 @@ export function routeBscCapital(assets, ctx = {}) {
   const fg = ctx.fearGreed ?? top?.market?.fearGreed ?? 50;
   const agentWantsBuy = ctx.agentAction === "BUY";
 
-  const topGrant = top?.permit?.status === "GRANT";
-  const secondGrant = second?.permit?.status === "GRANT";
+  const topGrant = top?.skills?.composite?.cleared ?? top?.permit?.status === "GRANT";
+  const secondGrant = second?.skills?.composite?.cleared ?? second?.permit?.status === "GRANT";
   const spread = top && second ? top.conviction - second.conviction : 0;
 
   /** @type {"BNB" | "CAKE" | "FLAT"} */
@@ -166,7 +167,7 @@ export function routeBscCapital(assets, ctx = {}) {
       symbol: a.symbol,
       conviction: a.conviction,
       permit: a.permit.status,
-      signal: a.gate.signal,
+      signal: a.skills?.composite?.signal ?? a.gate.signal,
       tier: a.gate.tier,
       edge: a.gate.edge,
       checks: `${a.gate.checksPassed}/${a.gate.checksTotal}`,

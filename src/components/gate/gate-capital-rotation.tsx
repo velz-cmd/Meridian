@@ -60,6 +60,7 @@ export function GateCapitalRotation({
   if (rows.length === 0) return null;
 
   const lead = rows[0];
+  const routerLead = route?.ranked?.[0];
 
   return (
     <section className="gate-capital-rotation rounded-2xl border border-cyan-400/20 bg-cyan-950/15 overflow-hidden">
@@ -68,8 +69,9 @@ export function GateCapitalRotation({
           BSC capital rotation · relative strength skill
         </p>
         <p className="mt-1 text-sm text-white/70">
-          Marginal desk capital ranks by RS vs BNB (CMC 24h/7d) + conviction router —{" "}
-          <span className="font-semibold text-white">{lead?.symbol}</span> leads at {lead?.rotationScore}/100.
+          RS ranks marginal flow vs BNB (CMC 24h/7d). Router deploys by conviction —{" "}
+          <span className="font-semibold text-white">{routerLead?.symbol ?? lead?.symbol}</span> leads router at{" "}
+          {routerLead?.conviction ?? "—"} conv · RS leader {lead?.symbol} at {lead?.rotationScore}/100.
         </p>
       </div>
       <div className="overflow-x-auto">

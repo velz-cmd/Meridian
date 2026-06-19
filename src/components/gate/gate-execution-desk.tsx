@@ -46,6 +46,7 @@ export function GateExecutionDesk({
   permit,
   permitId,
   compact,
+  deskSignal,
 }: {
   symbol: string;
   route: PositionRoute | null;
@@ -53,6 +54,8 @@ export function GateExecutionDesk({
   permit?: "GRANT" | "DENY";
   permitId?: string;
   compact?: boolean;
+  /** Composite desk signal when skills disagree with raw constitution */
+  deskSignal?: string;
 }) {
   const router = useRouter();
   const sym = symbol.replace(/^\$/, "").trim().toUpperCase();
@@ -131,9 +134,9 @@ export function GateExecutionDesk({
               </p>
             </div>
           </div>
-          {route?.gate && (
+          {(route?.gate || deskSignal) && (
             <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2.5 py-1 font-mono text-[10px] text-cyan-100">
-              Gate {route.gate.signal.replace(/_/g, " ")} · {route.gate.tier}
+              Desk {(deskSignal ?? route?.gate?.signal ?? "HOLD").replace(/_/g, " ")} · {route?.gate?.tier ?? "—"}
             </span>
           )}
         </div>

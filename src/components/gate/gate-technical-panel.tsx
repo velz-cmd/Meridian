@@ -6,7 +6,7 @@ import { GateSkillStack } from "@/components/gate/gate-skill-stack";
 import { GateDataProvenance } from "@/components/gate/gate-data-provenance";
 import { GateSignalMeter } from "@/components/gate/gate-signal-meter";
 import { buildGateSignalMeter } from "@/lib/gate-signal-meter";
-import { strategyPosition } from "@/lib/gate-strategy-copy";
+import { effectiveGateSignal, effectivePosition } from "@/lib/gate-effective-signal";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import { cn } from "@/lib/utils";
@@ -57,8 +57,8 @@ export function GateTechnicalPanel({
   onOpenNexus: () => void;
 }) {
   const gate = selected.gate;
-  const displaySignal = skills?.composite?.signal ?? gate.signal;
-  const long = strategyPosition(gate.signal) === "LONG";
+  const displaySignal = effectiveGateSignal(gate, skills);
+  const long = effectivePosition(gate, skills) === "LONG";
   const verdictLabel = long ? "LONG" : displaySignal === "EXIT" ? "EXIT" : displaySignal === "AVOID" ? "AVOID" : "FLAT";
   const checks = gate.checks ?? [];
   const passedWeight = checks.filter((c) => c.pass).reduce((s, c) => s + c.weight, 0);

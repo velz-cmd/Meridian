@@ -21,6 +21,7 @@ import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { type GateSymbol } from "@/lib/gate-constants";
 import { buildGateExecutionUrl } from "@/lib/gate-nexus-bridge";
+import { effectiveCleared, effectiveGateSignal } from "@/lib/gate-effective-signal";
 import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { useGateRoute } from "@/hooks/use-gate-route";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
@@ -107,12 +108,14 @@ export function GateConsole() {
     const upper = sym.toUpperCase();
     const ranked = gateRoute?.ranked.find((r) => r.symbol === upper);
     const bench = benchmarks.find((b) => b.symbol === upper);
-    const permit =
-      ranked?.permit === "GRANT" || ranked?.permit === "DENY"
-        ? ranked.permit
-        : bench?.gate.signal === "ENTER_LONG"
-          ? "GRANT"
-          : "DENY";
+    const permit = effectiveCleared(
+      { signal: bench?.gate.signal ?? "HOLD" },
+      bench?.skills as GateSkillsPayload | undefined,
+    )
+      ? "GRANT"
+      : ranked?.permit === "GRANT"
+        ? "GRANT"
+        : "DENY";
     const params = new URLSearchParams(
       buildGateExecutionUrl({ symbol: upper, permit: permit as "GRANT" | "DENY", tab: "trade" }).split("?")[1],
     );
@@ -181,15 +184,17 @@ export function GateConsole() {
                   symbol={symbol}
                   route={positionRoute}
                   loading={directionLoading}
+                  deskSignal={selected ? effectiveGateSignal(selected.gate, skills) : undefined}
                   permit={
-                    gateRoute?.ranked.find((r) => r.symbol === symbol)?.permit === "GRANT"
+                    effectiveCleared(
+                      { signal: selected?.gate.signal ?? "HOLD" },
+                      skills,
+                    )
                       ? "GRANT"
-                      : selected?.gate.signal === "ENTER_LONG"
-                        ? "GRANT"
-                        : "DENY"
+                      : "DENY"
                   }
                 />
-                <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact />
+                <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact strategyOnly />
                 {selected && (
                   <>
                     <GateCapitalRotation benchmarks={benchmarks} route={gateRoute} />

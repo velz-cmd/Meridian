@@ -11,20 +11,24 @@ import {
 } from "@/lib/gate-rule-pseudocode";
 import { buildGateSignalMeter } from "@/lib/gate-signal-meter";
 import {
-  GATE_STRATEGY_NAME,
-  GATE_STRATEGY_TAGLINE,
-  STRATEGY_EXIT_RULES,
-  STRATEGY_POSITION_RULES,
-  GITHUB_SKILL,
-  strategyPosition,
-  strategySignalLabel,
-} from "@/lib/gate-strategy-copy";
+  effectiveConfidence,
+  effectiveGateSignal,
+  effectivePosition,
+} from "@/lib/gate-effective-signal";
 import { GateEquityChart } from "@/components/gate/gate-equity-chart";
 import { GateSignalMeter } from "@/components/gate/gate-signal-meter";
 import { GateVerdictBlock } from "@/components/gate/gate-verdict-block";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import { cn } from "@/lib/utils";
+import {
+  GATE_STRATEGY_NAME,
+  GATE_STRATEGY_TAGLINE,
+  STRATEGY_EXIT_RULES,
+  STRATEGY_POSITION_RULES,
+  GITHUB_SKILL,
+  strategySignalLabel,
+} from "@/lib/gate-strategy-copy";
 
 import type { GateDeskTab } from "@/components/gate/gate-desk-tabs";
 
@@ -157,15 +161,15 @@ export function GateOutputPanel({
 
   const gate = selected.gate;
   const checks = gate.checks ?? [];
-  const position = strategyPosition(gate.signal);
+  const displaySignal = effectiveGateSignal(gate, skills);
+  const position = effectivePosition(gate, skills);
   const long = position === "LONG";
-  const displaySignal = skills?.composite?.signal ?? gate.signal;
   const pseudocode = buildStrategyPseudocode(selected.symbol, checks, displaySignal);
 
   const passedWeight = checks.filter((c) => c.pass).reduce((s, c) => s + c.weight, 0);
   const totalWeight = checks.reduce((s, c) => s + c.weight, 0);
   const agreementPct = totalWeight > 0 ? Math.round((passedWeight / totalWeight) * 100) : 0;
-  const verdictConfidence = gate.confidence ?? skills?.composite.alignmentScore ?? agreementPct;
+  const verdictConfidence = long ? effectiveConfidence(gate, skills) : Math.min(effectiveConfidence(gate, skills), gate.confidence ?? 50);
   const signalRows = buildGateSignalMeter(selected, route, skills);
   const verdictLabel = long ? "LONG" : displaySignal === "EXIT" ? "EXIT" : displaySignal === "AVOID" ? "AVOID" : "FLAT";
 
@@ -206,11 +210,14 @@ export function GateOutputPanel({
             <p className="gate-strategy-title">
               {selected.symbol} · {GATE_STRATEGY_NAME}
             </p>
-            <p className="gate-strategy-tagline">{gate.thesis ?? GATE_STRATEGY_TAGLINE}</p>
+            <p className="gate-strategy-tagline">{skills?.composite?.thesis ?? gate.thesis ?? GATE_STRATEGY_TAGLINE}</p>
             <div className="gate-meta-chips">
               <span className="gate-meta-chip accent">{gate.tier.toUpperCase()}</span>
               <span className={cn("gate-meta-chip", long ? "green" : "")}>{position}</span>
               <span className="gate-meta-chip">{strategySignalLabel(displaySignal)}</span>
+              {skills?.composite?.constitutionOnly && (
+                <span className="gate-meta-chip">Constitution only · wait for stack</span>
+              )}
               {selected.cmcLive && <span className="gate-meta-chip green">CMC live</span>}
               {GATE_SYMBOLS.map((s) => s).includes(selected.symbol as GateSymbol) && (
                 <span className="gate-meta-chip">{selected.symbol}/USDT</span>
@@ -218,8 +225,8 @@ export function GateOutputPanel({
             </div>
           </div>
           <div className="gate-score-ring">
-            <div className="gate-score-value">{gate.confidence ?? agreementPct}</div>
-            <div className="gate-score-label">Conviction</div>
+            <div className="gate-score-value">{verdictConfidence}</div>
+            <div className="gate-score-label">{long ? "Alignment" : "Conviction"}</div>
           </div>
         </div>
 

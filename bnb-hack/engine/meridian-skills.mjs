@@ -188,7 +188,10 @@ export function evaluateRegimeSkill(t, macro = {}) {
     const ch7 = t.change7d ?? 0;
     if (positioning === "crowded-long-unwind") signal = "AVOID";
     else if (positioning === "capitulation") {
-      signal = ch7 > 3 && ch24 > -4 ? "ENTER_LONG" : Math.abs(ch24) < 1.5 ? "HOLD" : ch24 < -4 ? "HOLD" : "ENTER_LONG";
+      // Contrarian long only when washout is stabilizing — not when 7d still bleeding
+      if (ch7 > 3 && ch24 > -4) signal = "ENTER_LONG";
+      else if (ch24 > -3 && ch7 > -8 && ch1 >= -4) signal = "HOLD";
+      else signal = "HOLD";
     } else {
       signal = Math.abs(ch24) < 2 ? "HOLD" : ch24 < -5 ? "AVOID" : "HOLD";
     }
@@ -570,7 +573,82 @@ export function evaluateVolatilityCompressionSkill(t, vol) {
 }
 
 /**
- * Compose skills + base gate into one auditable verdict.
+ * Weighted consensus — all layers must agree for ENTER_LONG; honest alignment %.
+ * @param {object} input
+ * @param {ReturnType<typeof import("./nexus-gate.mjs").evaluateNexusGate>} input.gate
+ * @param {object} input.skills
+ * @param {string[]} input.blockers
+ */
+function resolveCompositeConsensus({ gate, skills, blockers }) {
+  const layers = [
+    { id: "constitution", name: "Constitution", signal: gate.signal, weight: 2.5 },
+    { id: "momentum", name: "Momentum", signal: skills.momentum.signal, weight: 1.2 },
+    { id: "sentiment", name: "Sentiment", signal: skills.sentiment.signal, weight: 1 },
+    { id: "regime", name: "Regime", signal: skills.regime.signal, weight: 1.5 },
+    { id: "trend", name: "Trend", signal: skills.trend.signal, weight: 1.1 },
+    { id: "liquidity", name: "Liquidity", signal: skills.liquidity.signal, weight: 1 },
+    { id: "structural", name: "Structural", signal: skills.structural.signal, weight: 0.6 },
+    { id: "relativeStrength", name: "RS vs BNB", signal: skills.relativeStrength.signal, weight: 1.4 },
+    { id: "volatility", name: "Volatility", signal: skills.volatility.signal, weight: 1 },
+  ];
+
+  const totalWeight = layers.reduce((s, l) => s + l.weight, 0);
+  let longW = 0;
+  let holdW = 0;
+  let bearW = 0;
+
+  for (const layer of layers) {
+    if (layer.signal === "ENTER_LONG") longW += layer.weight;
+    else if (layer.signal === "HOLD") holdW += layer.weight;
+    else bearW += layer.weight;
+  }
+
+  const longPct = longW / totalWeight;
+  const bearPct = bearW / totalWeight;
+  const LONG_MIN = 0.52;
+  const constitutionLong = gate.signal === "ENTER_LONG";
+
+  let compositeSignal = "HOLD";
+
+  if (blockers.length > 0) {
+    compositeSignal = bearPct >= 0.28 ? (layers.some((l) => l.signal === "EXIT") ? "EXIT" : "AVOID") : "HOLD";
+  } else if (constitutionLong && longPct >= LONG_MIN && bearPct < 0.18) {
+    compositeSignal = "ENTER_LONG";
+  } else if (bearPct >= 0.32 && bearW > longW) {
+    compositeSignal = layers.some((l) => l.signal === "EXIT") ? "EXIT" : "AVOID";
+  } else if (constitutionLong && longPct >= 0.42 && bearPct < 0.22) {
+    compositeSignal = "HOLD";
+  } else {
+    compositeSignal = "HOLD";
+  }
+
+  let agreeWeight = 0;
+  for (const layer of layers) {
+    if (layer.signal === compositeSignal) agreeWeight += layer.weight;
+    else if (compositeSignal === "HOLD" && (layer.signal === "HOLD" || layer.signal === "AVOID" || layer.signal === "EXIT")) {
+      agreeWeight += layer.weight * 0.85;
+    } else if (compositeSignal === "ENTER_LONG" && layer.signal === "ENTER_LONG") {
+      agreeWeight += layer.weight;
+    }
+  }
+
+  const alignmentScore = Math.round(Math.min(100, Math.max(0, (agreeWeight / totalWeight) * 100)));
+  const longVotes = layers.filter((l) => l.signal === "ENTER_LONG").length;
+  const holdVotes = layers.filter((l) => l.signal === "HOLD").length;
+  const bearVotes = layers.filter((l) => l.signal === "EXIT" || l.signal === "AVOID").length;
+
+  return {
+    compositeSignal,
+    alignmentScore,
+    longPct: Math.round(longPct * 100),
+    bearPct: Math.round(bearPct * 100),
+    layers: layers.map((l) => ({ id: l.id, name: l.name, signal: l.signal, weight: l.weight })),
+    votes: { long: longVotes, hold: holdVotes, bear: bearVotes, total: layers.length },
+    cleared: blockers.length === 0 && compositeSignal === "ENTER_LONG" && constitutionLong,
+  };
+}
+
+/**
  * @param {CmcTokenSnapshot} t
  * @param {ReturnType<typeof import("./nexus-gate.mjs").evaluateNexusGate>} gate
  * @param {object} [macro]
@@ -593,11 +671,9 @@ export function composeSkillVerdict(t, gate, macro = {}, ctx = {}) {
   if (sentiment.flagged && (sentiment.state === "BEARISH_DIVERGE" || sentiment.state === "HEAT_WITHOUT_FLOW")) {
     blockers.push("sentiment-diverge");
   }
+  if (regime.signal === "AVOID" && gate.signal === "ENTER_LONG") blockers.push("regime-avoid");
   if (regime.regime === "risk-off" && regime.positioning === "crowded-long-unwind" && gate.signal === "ENTER_LONG") {
     blockers.push("regime-unwind");
-  }
-  if (regime.strategyMode === "defensive" && gate.signal === "ENTER_LONG") {
-    blockers.push("regime-defensive");
   }
   if (trend.signal === "EXIT") blockers.push("trend-distribution");
   if (trend.signal === "AVOID") blockers.push("trend-break");
@@ -609,39 +685,28 @@ export function composeSkillVerdict(t, gate, macro = {}, ctx = {}) {
   if (volRegime.signal === "AVOID") blockers.push("vol-whip");
   if (volRegime.signal === "EXIT") blockers.push("vol-expansion");
 
-  const skillsAligned =
-    momentum.signal === "ENTER_LONG" ||
-    (momentum.signal === "HOLD" && sentiment.signal === "ENTER_LONG" && !sentiment.flagged);
+  const skillBundle = {
+    momentum,
+    sentiment,
+    regime,
+    trend,
+    liquidity,
+    structural,
+    relativeStrength,
+    volatility: volRegime,
+  };
 
-  let compositeSignal = gate.signal;
-  if (blockers.length > 0 && gate.signal === "ENTER_LONG") {
-    compositeSignal = "HOLD";
-  } else if (skillsAligned && sentiment.signal === "ENTER_LONG" && momentum.signal !== "EXIT") {
-    compositeSignal = gate.signal === "ENTER_LONG" ? "ENTER_LONG" : gate.signal;
-  }
-
-  const skillLayerScore =
-    (trend.checksPassed / trend.checksTotal) * 8 +
-    (liquidity.checksPassed / liquidity.checksTotal) * 8 +
-    (structural.checksPassed / structural.checksTotal) * 6 +
-    (relativeStrength.checksPassed / relativeStrength.checksTotal) * 8 +
-    (volRegime.checksPassed / Math.max(volRegime.checksTotal, 1)) * 6;
-
-  const alignmentScore = Math.round(
-    (momentum.checksPassed / momentum.checksTotal) * 18 +
-      (sentiment.flagged ? 0 : 12) +
-      (sentiment.state === "BULLISH_DIVERGE" ? 10 : sentiment.state === "BEARISH_DIVERGE" ? 0 : 6) +
-      (gate.checksPassed / Math.max(gate.checksTotal, 1)) * 20 +
-      skillLayerScore +
-      Math.min(8, Math.abs(momentum.metrics.change24h ?? 0) * 0.5) +
-      (regime.regime === "risk-off" ? (t.change7d > 3 ? 5 : t.change24h > -2 ? 2 : 0) : 6) +
-      (relativeStrength.role === "leader" ? 6 : relativeStrength.role === "laggard" ? -8 : 0) +
-      (volRegime.squeeze ? 5 : volRegime.expansion ? -4 : 0),
-  );
+  const consensus = resolveCompositeConsensus({ gate, skills: skillBundle, blockers });
+  const compositeSignal = consensus.compositeSignal;
+  const alignmentScore = consensus.alignmentScore;
 
   const sym = (t.symbol ?? "TOKEN").toUpperCase();
   const rsi = momentum.metrics.rsi;
-  const alignLabel = alignmentScore >= 70 ? "skills aligned" : alignmentScore >= 50 ? "partial alignment" : "weak alignment";
+  const alignLabel =
+    alignmentScore >= 70 ? "skills aligned" : alignmentScore >= 50 ? "partial alignment" : "weak alignment";
+
+  const constitutionOnly =
+    gate.signal === "ENTER_LONG" && compositeSignal !== "ENTER_LONG" && blockers.length === 0;
 
   return {
     momentum,
@@ -654,17 +719,25 @@ export function composeSkillVerdict(t, gate, macro = {}, ctx = {}) {
     volatility: volRegime,
     composite: {
       signal: compositeSignal,
+      constitutionSignal: gate.signal,
       alignmentScore,
+      longPct: consensus.longPct,
+      bearPct: consensus.bearPct,
+      votes: consensus.votes,
+      layers: consensus.layers,
       blockers,
-      cleared: blockers.length === 0 && compositeSignal === "ENTER_LONG",
+      cleared: consensus.cleared,
+      constitutionOnly,
       thesis:
         blockers.length > 0
           ? `${sym}: blocked (${blockers.join(", ")}) — ${gate.gaps?.[0] ?? "constitution holds flat"}.`
           : compositeSignal === "ENTER_LONG"
-            ? `${sym}: ${rsi.toFixed(1)} RSI · RS ${relativeStrength.metrics.rs24h >= 0 ? "+" : ""}${relativeStrength.metrics.rs24h.toFixed(1)}% vs ${relativeStrength.metrics.benchmark} · ${volRegime.state} vol · ${liquidity.turnover} turnover · ${gate.checksPassed}/${gate.checksTotal} · ${alignLabel} (${alignmentScore}/100).`
-            : gate.thesis?.startsWith(sym)
-              ? gate.thesis
-              : `${sym}: ${gate.thesis}`,
+            ? `${sym}: ${rsi.toFixed(1)} RSI · RS ${relativeStrength.metrics.rs24h >= 0 ? "+" : ""}${relativeStrength.metrics.rs24h.toFixed(1)}% vs ${relativeStrength.metrics.benchmark} · ${volRegime.state} vol · ${liquidity.turnover} turnover · ${gate.checksPassed}/${gate.checksTotal} · ${alignLabel} (${alignmentScore}/100 · ${consensus.votes.long}/${consensus.votes.total} layers long).`
+            : constitutionOnly
+              ? `${sym}: constitution ${gate.tier?.toUpperCase() ?? "A"} clears (${gate.checksPassed}/${gate.checksTotal}) but skill stack not aligned (${consensus.votes.long}/${consensus.votes.total} long · ${alignmentScore}/100) — hold flat until layers agree.`
+              : gate.thesis?.startsWith(sym)
+                ? gate.thesis
+                : `${sym}: ${gate.thesis}`,
     },
   };
 }
