@@ -395,7 +395,7 @@ export function NexusTradeHub({
             </div>
             {agentLive && (
               <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-200">
-                LIVE
+                Autopilot active
               </span>
             )}
           </div>

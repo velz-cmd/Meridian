@@ -52,6 +52,6 @@ export function chapelDeskLabel(token: {
 }) {
   if (token.chapelRouteLabel) return token.chapelRouteLabel;
   if (token.chapelDesk || token.demoTradeable) return "Chapel desk";
-  if (token.gateEvalOnly) return "CMC gate · eval only";
-  return null;
+  if (token.gateEvalOnly) return "Gate analysis · no Chapel route";
+  return "Discovery · mainnet data";
 }

@@ -147,7 +147,7 @@ export async function fetchHolderCascade(
     return {
       holders: moralis.map((w, i) => ({ ...w, rank: i + 1 })),
       traders: tradersFromPoolTxs(paprikaTxs),
-      source: "birdeye",
+      source: "moralis",
       notes: ["Top holders: Moralis owners", ...notes],
     };
   }
@@ -170,5 +170,5 @@ export async function fetchHolderCascade(
     }
   }
 
-  return { holders: [], traders: [], source: "birdeye", notes };
+  return { holders: [], traders: [], source: "none", notes };
 }

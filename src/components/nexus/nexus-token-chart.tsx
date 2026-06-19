@@ -184,9 +184,9 @@ export function NexusTokenChart({
   }
 
   const headerAction = (
-    <div className="flex items-center gap-2">
-      <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
-        Live
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+        Dex market data
       </span>
       {showExpand && (
         <button
@@ -227,6 +227,9 @@ export function NexusTokenChart({
               className="nexus-chart-iframe h-[calc(100%+2.5rem)] w-full border-0"
               allow="clipboard-write"
             />
+            <p className="pointer-events-none absolute bottom-1 left-2 right-2 text-center text-[9px] text-white/35">
+              Mainnet chart · trades settle on BSC Testnet Chapel
+            </p>
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-12 items-center justify-center border-t border-white/10 bg-[#050508] text-[10px] font-medium uppercase tracking-[0.2em] text-white/35">
               Market chart
             </div>

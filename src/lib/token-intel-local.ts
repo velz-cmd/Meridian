@@ -22,6 +22,7 @@ export function buildLocalTokenIntel(token: TrendingToken): TokenIntel {
       trend: ta.trend,
       trendLine: ta.trendLine,
       score: ta.score,
+      taSource: "dex-proxy",
     },
   };
 }

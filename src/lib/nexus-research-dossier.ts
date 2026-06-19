@@ -32,7 +32,7 @@ export type HolderTableRow = {
   address: string;
   pctSupply: number;
   label?: string;
-  source: "birdeye" | "gmgn" | "dexpaprika" | "demo";
+  source: "birdeye" | "gmgn" | "dexpaprika" | "moralis" | "none" | "demo";
 };
 
 export type TraderTableRow = {

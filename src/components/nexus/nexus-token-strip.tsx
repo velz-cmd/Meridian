@@ -36,9 +36,12 @@ export function NexusTokenStrip({
       </p>
       <div className="flex gap-1.5 overflow-x-auto pb-0.5 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:thin] [scrollbar-color:rgba(168,85,247,0.35)_transparent]">
         {list.map((t) => {
+          const sym = t.symbol.replace(/^\$/, "").trim().toUpperCase();
+          const selSym = selected?.symbol.replace(/^\$/, "").trim().toUpperCase();
           const active =
-            selected?.tokenAddress.toLowerCase() === t.tokenAddress.toLowerCase() &&
-            selected.chainId === t.chainId;
+            (selected && selSym === sym && selected.chainId === t.chainId) ||
+            (selected?.tokenAddress.toLowerCase() === t.tokenAddress.toLowerCase() &&
+              selected.chainId === t.chainId);
           return (
             <button
               key={`${t.chainId}:${t.tokenAddress}`}

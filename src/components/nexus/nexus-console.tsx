@@ -168,6 +168,39 @@ function enrichSelectionFromFeed(
   return prev;
 }
 
+/** Honor explicit user pick during feed refresh — never fall back to stale prev row. */
+function resolveUserLockedSelection(
+  pool: TrendingMarketToken[],
+  prev: TrendingMarketToken | null,
+  userKey: string | null,
+  userSym: string | null,
+): TrendingMarketToken | null {
+  if (!userKey && !userSym) return null;
+
+  let hit: TrendingMarketToken | undefined;
+  if (userKey) hit = pool.find((t) => tokenKey(t) === userKey);
+  if (!hit && userSym) {
+    hit =
+      findGateTokenInFeed(pool, userSym) ??
+      pool.find((t) => normalizeSym(t.symbol) === userSym);
+  }
+  if (!hit && prev) {
+    if (userKey && tokenKey(prev) === userKey) hit = prev;
+    else if (userSym && normalizeSym(prev.symbol) === userSym) hit = prev;
+  }
+  if (!hit) return prev;
+
+  const base = mergeGateBenchmarkRow({
+    ...hit,
+    intel:
+      prev && normalizeSym(prev.symbol) === normalizeSym(hit.symbol)
+        ? { ...(prev.intel ?? {}), ...(hit.intel ?? {}) }
+        : hit.intel,
+    agent: hit.agent ?? prev?.agent,
+  });
+  return enrichSelectionFromFeed(base, pool);
+}
+
 /** Chapel swap target for wallet; null when discovery-only with no route. */
 function resolveActiveTradeToken(
   selected: TrendingMarketToken | null,
@@ -236,6 +269,8 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
   const handoffToastShown = useRef(false);
   /** Once the user picks a feed row, refresh must not jump back to BNB/CAKE default. */
   const userPickedSelectionKey = useRef<string | null>(null);
+  const userPickedSymbol = useRef<string | null>(null);
+  const initialHandoffApplied = useRef(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -417,6 +452,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         setAlphaThesis(undefined);
         setSelectedToken(mergeGateBenchmarkRow(feedHit));
         userPickedSelectionKey.current = tokenKey(feedHit);
+        userPickedSymbol.current = sym;
         if (tradable) {
           setTradeTab(tradeAction);
           if (isMobile) setMobilePanel("trade");
@@ -432,6 +468,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           if (!row) return;
           setSelectedToken(row);
           userPickedSelectionKey.current = tokenKey(row);
+          userPickedSymbol.current = sym;
           if (isGateBenchmarkRowComplete(row)) pendingHandoffSym.current = null;
           if (tradable) {
             setTradeTab(tradeAction);
@@ -468,12 +505,14 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
 
   useEffect(() => {
     const handoff = initialGateHandoff;
-    if (!handoff) return;
+    if (!handoff || initialHandoffApplied.current) return;
+    if (userPickedSelectionKey.current || userPickedSymbol.current) return;
     const sym = normalizeSym(handoff.symbol);
     const feedHit = findGateTokenInFeed(feedTokens, sym);
-    if (normalizeSym(selectedToken?.symbol ?? "") === sym && feedHit) return;
+    if (!feedHit && feedTokens.length === 0) return;
     applyGateHandoff(handoff, feedTokens, { silent: handoffToastShown.current });
-  }, [initialGateHandoff, feedTokens, selectedToken?.symbol, applyGateHandoff]);
+    initialHandoffApplied.current = true;
+  }, [initialGateHandoff, feedTokens, applyGateHandoff]);
 
   const openTradePanel = useCallback(
     (tab: "buy" | "sell" | "agent") => {
@@ -521,6 +560,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
       );
       setSelectedToken(merged);
       userPickedSelectionKey.current = tokenKey(merged);
+      userPickedSymbol.current = sym;
       pendingHandoffSym.current = null;
 
       const action = merged.agent?.action;
@@ -560,11 +600,14 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
       const pending = pendingHandoffSym.current;
       const pool = merged.length ? merged : tradable;
       setSelectedToken((prev) => {
-        if (prev && userPickedSelectionKey.current) {
-          const locked = enrichSelectionFromFeed(prev, pool);
-          if (tokenKey(locked) === userPickedSelectionKey.current || normalizeSym(locked.symbol) === normalizeSym(prev.symbol)) {
-            return locked;
-          }
+        const userLocked = resolveUserLockedSelection(
+          pool,
+          prev,
+          userPickedSelectionKey.current,
+          userPickedSymbol.current,
+        );
+        if (userPickedSelectionKey.current || userPickedSymbol.current) {
+          if (userLocked) return userLocked;
         }
         const next = resolveFeedSelection(prev, pool, pending);
         if (pending && findGateTokenInFeed(pool, pending)) {
@@ -733,6 +776,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
       },
     });
     userPickedSelectionKey.current = `${row.chainId}:${row.tokenAddress.toLowerCase()}`;
+    userPickedSymbol.current = normalizeSym(row.symbol);
     openChartView();
   }
 
@@ -746,6 +790,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
             cleanFeed
             selectedAddress={selectedToken?.tokenAddress}
             selectedKey={selectedToken ? tokenKey(selectedToken) : undefined}
+            selectedSymbol={selectedToken ? normalizeSym(selectedToken.symbol) : undefined}
             onSelect={(t, opts) => handleTokenSelect(t, opts?.openChart ?? true)}
             onTokensRefresh={handleFeedRefresh}
             onOpenTrade={(tab) => {

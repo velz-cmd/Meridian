@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Shield, Sparkles, Loader2, ArrowRight, ExternalLink } from "lucide-react";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
-import { HACKATHON_DEMO_TOKENS, hydrateTokenFromMarket } from "@/lib/hackathon-demo";
+import { hydrateTokenFromMarket } from "@/lib/hackathon-demo";
+import { findGateTokenInFeed } from "@/lib/gate-benchmark-token";
 import { useConstitutionCompare } from "@/hooks/use-constitution-compare";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { formatUsd } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+
+const START_SYMBOLS = ["CAKE", "BNB"] as const;
 
 export function NexusConstitutionStartPicks({
   feedTokens,
@@ -17,7 +20,7 @@ export function NexusConstitutionStartPicks({
   feedTokens: TrendingMarketToken[];
   onSelect: (token: TrendingMarketToken) => void;
 }) {
-  const [hydrated, setHydrated] = useState<TrendingMarketToken[]>(HACKATHON_DEMO_TOKENS);
+  const [hydrated, setHydrated] = useState<TrendingMarketToken[]>([]);
   const [loading, setLoading] = useState(true);
   const compare = useConstitutionCompare();
 
@@ -26,17 +29,33 @@ export function NexusConstitutionStartPicks({
     void (async () => {
       setLoading(true);
       const rows = await Promise.all(
-        HACKATHON_DEMO_TOKENS.map(async (demo) => {
-          const live = feedTokens.find((t) => t.symbol.toUpperCase() === demo.symbol);
-          if (live?.priceUsd && live.priceUsd > 0) {
-            return { ...demo, ...live, agent: demo.agent };
+        START_SYMBOLS.map(async (sym) => {
+          const live =
+            findGateTokenInFeed(feedTokens, sym) ??
+            feedTokens.find((t) => t.symbol.replace(/^\$/, "").trim().toUpperCase() === sym);
+          if (live?.priceUsd && live.priceUsd > 0) return live;
+          const fromApi = await hydrateTokenFromMarket(sym);
+          if (fromApi?.priceUsd) {
+            return {
+              symbol: sym,
+              name: fromApi.name ?? sym,
+              tokenAddress: fromApi.tokenAddress ?? "",
+              chainId: fromApi.chainId ?? "bsc",
+              pairAddress: fromApi.pairAddress ?? "",
+              priceUsd: fromApi.priceUsd,
+              change24h: fromApi.change24h ?? 0,
+              volume24h: fromApi.volume24h ?? 0,
+              liquidityUsd: fromApi.liquidityUsd ?? 0,
+              url: fromApi.url ?? "",
+              icon: fromApi.icon,
+              agent: live?.agent,
+            } satisfies TrendingMarketToken;
           }
-          const fromApi = await hydrateTokenFromMarket(demo.symbol);
-          return fromApi ? { ...demo, ...fromApi, agent: demo.agent } : demo;
+          return live ?? null;
         }),
       );
       if (!cancelled) {
-        setHydrated(rows);
+        setHydrated(rows.filter(Boolean) as TrendingMarketToken[]);
         setLoading(false);
       }
     })();
@@ -54,7 +73,7 @@ export function NexusConstitutionStartPicks({
         </p>
         <h3 className="text-lg font-semibold text-white">Agents propose — the gate decides GO or STOP</h3>
         <p className="text-sm leading-relaxed text-white/55">
-          Start with BNB or CAKE for testnet swaps. For ranked BSC setups and rule checks, open the momentum router.
+          Start with BNB or CAKE for Chapel testnet swaps. For ranked BSC setups and rule checks, open the momentum router.
         </p>
         <Link
           href="/gate"
@@ -84,8 +103,10 @@ export function NexusConstitutionStartPicks({
               <div className="min-w-0">
                 <p className="text-sm font-bold text-white">{token.symbol}</p>
                 <p className="text-[10px] text-white/50">
-                  {token.priceUsd > 0 ? formatUsd(token.priceUsd) : "—"} · Agent {token.agent?.action}{" "}
-                  {token.agent?.confidence}%
+                  {token.priceUsd > 0 ? formatUsd(token.priceUsd) : "—"}
+                  {token.agent
+                    ? ` · ${token.agent.deskVerdict ?? token.agent.action} ${token.agent.confidence}%`
+                    : " · live market"}
                 </p>
               </div>
             </button>

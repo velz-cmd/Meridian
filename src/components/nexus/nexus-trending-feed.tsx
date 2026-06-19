@@ -151,6 +151,7 @@ function chainLabel(chainId: string): string {
 export function NexusTrendingFeed({
   selectedAddress,
   selectedKey,
+  selectedSymbol,
   onSelect,
   onTokensRefresh,
   onOpenTrade,
@@ -162,6 +163,8 @@ export function NexusTrendingFeed({
   selectedAddress?: string;
   /** Preferred selection match — chainId + tokenAddress */
   selectedKey?: string;
+  /** Symbol match — survives gate benchmark address normalization */
+  selectedSymbol?: string;
   onSelect: (token: TrendingMarketToken, options?: { openChart?: boolean }) => void;
   onTokensRefresh?: (tokens: TrendingMarketToken[]) => void;
   onOpenTrade?: (tab: "buy" | "sell" | "agent") => void;
@@ -181,12 +184,11 @@ export function NexusTrendingFeed({
   const [secondsLeft, setSecondsLeft] = useState(REFRESH_MS / 1000);
   const [counts, setCounts] = useState(() => sessionSeed?.counts ?? { buy: 0, sell: 0, hold: 0 });
   const [feedCycle, setFeedCycle] = useState(() => sessionSeed?.feedCycle ?? 0);
+  const [aiProvider, setAiProvider] = useState<string | null>(null);
+  const [feedNote, setFeedNote] = useState<string | null>(null);
 
-  const onSelectRef = useRef(onSelect);
   const onRefreshRef = useRef(onTokensRefresh);
   const selectedAddressRef = useRef(selectedAddress);
-  const didInitialPick = useRef(false);
-  const userPickedRef = useRef(false);
   const loadInFlightRef = useRef(false);
   const hasTokensRef = useRef(tokens.length > 0);
 
@@ -195,20 +197,25 @@ export function NexusTrendingFeed({
   }, [tokens.length]);
 
   useEffect(() => {
-    onSelectRef.current = onSelect;
-  }, [onSelect]);
-  useEffect(() => {
     onRefreshRef.current = onTokensRefresh;
   }, [onTokensRefresh]);
   useEffect(() => {
     selectedAddressRef.current = selectedAddress;
   }, [selectedAddress]);
 
-  const applyFeed = useCallback((list: TrendingMarketToken[], data: { feedCycle?: number; updatedAt?: string; counts?: typeof counts }) => {
+  const applyFeed = useCallback((list: TrendingMarketToken[], data: { feedCycle?: number; updatedAt?: string; counts?: typeof counts; aiProvider?: string; gmgnFromCache?: boolean }) => {
     const tradable = dedupeFeedTokens(filterTradableTokens(list));
     setFeedCycle(data.feedCycle ?? 0);
     setUpdatedAt(data.updatedAt ?? new Date().toISOString());
     setCounts(data.counts ?? { buy: 0, sell: 0, hold: 0 });
+    setAiProvider(data.aiProvider ?? null);
+    if (data.gmgnFromCache) {
+      setFeedNote("Showing cached discovery — live refresh in progress");
+    } else if (data.aiProvider === "heuristic") {
+      setFeedNote("Desk signals use live market rules · add GROQ/OPENAI key for LLM reasoning");
+    } else {
+      setFeedNote(null);
+    }
     setSecondsLeft(REFRESH_MS / 1000);
     setError(null);
     setTokens((prev) => {
@@ -223,12 +230,6 @@ export function NexusTrendingFeed({
       });
       return merged;
     });
-    if (!userPickedRef.current && !didInitialPick.current && tradable.length > 0) {
-      didInitialPick.current = true;
-      const cake = tradable.find((t) => t.symbol.replace(/^\$/, "").trim().toUpperCase() === "CAKE");
-      const pick = cake ?? tradable.find((t) => t.symbol.replace(/^\$/, "").trim().toUpperCase() !== "BNB") ?? tradable[0];
-      onSelectRef.current(pick, { openChart: false });
-    }
   }, []);
 
   const fetchFeed = useCallback(async (quick: boolean, timeoutMs: number, bustCache = false) => {
@@ -325,24 +326,35 @@ export function NexusTrendingFeed({
   }, []);
 
   function handleUserSelect(token: TrendingMarketToken) {
-    userPickedRef.current = true;
     onSelect(token, { openChart: true });
+  }
+
+  function rowSym(symbol: string): string {
+    return symbol.replace(/^\$/, "").trim().toUpperCase();
   }
 
   function renderTokenRow(token: TrendingMarketToken) {
     const selected =
+      (selectedSymbol && rowSym(token.symbol) === selectedSymbol) ||
       (selectedKey && tokenKey(token) === selectedKey) ||
       selectedAddress?.toLowerCase() === token.tokenAddress.toLowerCase();
     const agent = token.agent;
     const sec = token.security;
 
     return (
-      <motion.button
+      <motion.div
         key={`${token.chainId}:${token.tokenAddress}`}
-        type="button"
+        role="button"
+        tabIndex={0}
         onClick={() => handleUserSelect(token)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleUserSelect(token);
+          }
+        }}
         className={cn(
-          "nexus-feed-row w-full rounded-2xl border text-left transition-all duration-200 active:scale-[0.99] max-lg:min-h-[72px]",
+          "nexus-feed-row w-full cursor-pointer rounded-2xl border text-left transition-all duration-200 active:scale-[0.99] max-lg:min-h-[72px]",
           compactDesktop ? "p-2 lg:rounded-xl" : "p-3",
           selected
             ? "arc-glass-card arc-glass-card-nexus arc-glass-interactive arc-border-trace border-cyan-400/40 shadow-[0_0_24px_-6px_var(--nexus-glow)]"
@@ -472,6 +484,7 @@ export function NexusTrendingFeed({
               {token.intel?.technical && cleanFeed && (
                 <span className="text-[10px] text-violet-200/60">
                   · RSI {token.intel.technical.rsi.toFixed(0)}
+                  {token.intel.technical.taSource === "dex-proxy" ? "~" : ""}
                 </span>
               )}
             </p>
@@ -522,7 +535,7 @@ export function NexusTrendingFeed({
             Sells {token.txns24h?.sells ?? "—"}
           </span>
         </div>
-      </motion.button>
+      </motion.div>
     );
   }
 
@@ -581,6 +594,18 @@ export function NexusTrendingFeed({
         Tap any token to open its chart. Bottom tabs: Tokens · Chart · Trade.
         {refreshing && <span className="ml-1 text-cyan-300"> Updating…</span>}
       </p>
+
+      {feedNote && (
+        <p className="rounded-lg border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100/90">
+          {feedNote}
+        </p>
+      )}
+
+      {error && tokens.length > 0 && (
+        <p className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-100">
+          {error}
+        </p>
+      )}
 
       <div className="nexus-feed-scroll-mask flex min-h-0 flex-1 flex-col">
         <div
