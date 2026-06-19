@@ -76,6 +76,8 @@ export function NexusAgentReasoningStrip({
     live?.narrative ||
     agent?.whyAction ||
     agent?.reasoning ||
+    (token.intel as { gateSkills?: { composite?: { thesis?: string } } } | undefined)?.gateSkills
+      ?.composite?.thesis ||
     alphaThesis ||
     "";
 
@@ -132,7 +134,11 @@ export function NexusAgentReasoningStrip({
               : "Desk scout: market flow · TA · entry gate — not AI signal spam…"}
           </p>
         ) : (
-          <p className="text-sm leading-relaxed text-white/90">{narrative}</p>
+          <p className="text-sm leading-relaxed text-white/90">
+            {narrative ||
+              (agent?.whyAction ?? agent?.reasoning) ||
+              `${action} · ${confidence}% confidence · live desk rules (not a random signal).`}
+          </p>
         )}
 
         {isAlpha && coachLines.length > 0 && (

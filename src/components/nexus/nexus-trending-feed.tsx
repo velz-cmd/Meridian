@@ -223,9 +223,11 @@ export function NexusTrendingFeed({
       });
       return merged;
     });
-    if (!userPickedRef.current && !didInitialPick.current && tradable[0]) {
+    if (!userPickedRef.current && !didInitialPick.current && tradable.length > 0) {
       didInitialPick.current = true;
-      onSelectRef.current(tradable[0], { openChart: false });
+      const cake = tradable.find((t) => t.symbol.replace(/^\$/, "").trim().toUpperCase() === "CAKE");
+      const pick = cake ?? tradable.find((t) => t.symbol.replace(/^\$/, "").trim().toUpperCase() !== "BNB") ?? tradable[0];
+      onSelectRef.current(pick, { openChart: false });
     }
   }, []);
 

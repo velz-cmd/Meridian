@@ -164,7 +164,7 @@ export const ALPHA_LIST_INTRO =
 /** One-line agent verdict for list rows */
 export function agentVerdictLine(whyAction?: string, thesis?: string, reasoning?: string): string {
   const line = (whyAction || thesis || reasoning || "").trim();
-  if (!line) return "Agent is still gathering context for this token.";
+  if (!line) return "";
   const first = line.split(/[.!?]\s/)[0] ?? line;
   return first.length > 140 ? `${first.slice(0, 137)}…` : first;
 }

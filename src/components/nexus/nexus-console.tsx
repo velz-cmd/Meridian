@@ -93,7 +93,12 @@ function resolveFeedSelection(
     const handoffHit = findGateTokenInFeed(tradable, pendingHandoffSym);
     if (handoffHit) return handoffHit;
   }
-  if (!prev) return tradable[0] ? mergeGateBenchmarkRow(tradable[0]) : null;
+  if (!prev) {
+    const cake = findGateTokenInFeed(tradable, "CAKE");
+    if (cake) return cake;
+    const nonBnb = tradable.find((t) => normalizeSym(t.symbol) !== "BNB");
+    return nonBnb ? mergeGateBenchmarkRow(nonBnb) : tradable[0] ? mergeGateBenchmarkRow(tradable[0]) : null;
+  }
   if (isGateSymbol(prev.symbol)) {
     const symHit = findGateTokenInFeed(tradable, prev.symbol);
     if (symHit) return { ...symHit, intel: { ...(prev.intel ?? {}), ...(symHit.intel ?? {}) } };
@@ -112,6 +117,50 @@ function resolveFeedSelection(
   const symFallback = findGateTokenInFeed(tradable, prev.symbol);
   if (symFallback) {
     return { ...symFallback, intel: { ...(prev.intel ?? {}), ...(symFallback.intel ?? {}) } };
+  }
+  return prev;
+}
+
+function enrichSelectionFromFeed(
+  prev: TrendingMarketToken,
+  pool: TrendingMarketToken[],
+): TrendingMarketToken {
+  const sym = normalizeSym(prev.symbol);
+  if (isGateSymbol(sym)) {
+    const symHit = findGateTokenInFeed(pool, sym);
+    if (symHit) {
+      return {
+        ...symHit,
+        symbol: prev.symbol,
+        tokenAddress: prev.tokenAddress || symHit.tokenAddress,
+        chainId: prev.chainId || symHit.chainId,
+        intel: { ...(prev.intel ?? {}), ...(symHit.intel ?? {}) },
+        agent: symHit.agent ?? prev.agent,
+      };
+    }
+  }
+  const key = tokenKey(prev);
+  const keyHit = pool.find((t) => tokenKey(t) === key);
+  if (keyHit) {
+    return mergeGateBenchmarkRow({
+      ...keyHit,
+      symbol: prev.symbol,
+      intel: { ...(prev.intel ?? {}), ...(keyHit.intel ?? {}) },
+      agent: keyHit.agent ?? prev.agent,
+    });
+  }
+  const addrHit = pool.find(
+    (t) =>
+      t.tokenAddress.toLowerCase() === prev.tokenAddress.toLowerCase() &&
+      t.chainId === prev.chainId,
+  );
+  if (addrHit) {
+    return mergeGateBenchmarkRow({
+      ...addrHit,
+      symbol: prev.symbol,
+      intel: { ...(prev.intel ?? {}), ...(addrHit.intel ?? {}) },
+      agent: addrHit.agent ?? prev.agent,
+    });
   }
   return prev;
 }
@@ -196,6 +245,8 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
   const [gateHandoff, setGateHandoff] = useState<GateHandoff | null>(initialGateHandoff ?? null);
   const pendingHandoffSym = useRef<string | null>(initialGateHandoff?.symbol ?? null);
   const handoffToastShown = useRef(false);
+  /** Once the user picks a feed row, refresh must not jump back to BNB/CAKE default. */
+  const userPickedSelectionKey = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -371,6 +422,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         setIntelTier("feed");
         setAlphaThesis(undefined);
         setSelectedToken(mergeGateBenchmarkRow(feedHit));
+        userPickedSelectionKey.current = tokenKey(feedHit);
         if (tradable) {
           setTradeTab(tradeAction);
           if (isMobile) setMobilePanel("trade");
@@ -385,6 +437,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         void fetchCanonicalGateBenchmarkToken(sym).then((row) => {
           if (!row) return;
           setSelectedToken(row);
+          userPickedSelectionKey.current = tokenKey(row);
           if (isGateBenchmarkRowComplete(row)) pendingHandoffSym.current = null;
           if (tradable) {
             setTradeTab(tradeAction);
@@ -473,6 +526,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           : token,
       );
       setSelectedToken(merged);
+      userPickedSelectionKey.current = tokenKey(merged);
       pendingHandoffSym.current = null;
 
       const action = merged.agent?.action;
@@ -510,9 +564,16 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
       );
 
       const pending = pendingHandoffSym.current;
+      const pool = merged.length ? merged : tradable;
       setSelectedToken((prev) => {
-        const next = resolveFeedSelection(prev, merged.length ? merged : tradable, pending);
-        if (pending && findGateTokenInFeed(merged.length ? merged : tradable, pending)) {
+        if (prev && userPickedSelectionKey.current) {
+          const locked = enrichSelectionFromFeed(prev, pool);
+          if (tokenKey(locked) === userPickedSelectionKey.current || normalizeSym(locked.symbol) === normalizeSym(prev.symbol)) {
+            return locked;
+          }
+        }
+        const next = resolveFeedSelection(prev, pool, pending);
+        if (pending && findGateTokenInFeed(pool, pending)) {
           pendingHandoffSym.current = null;
         }
         if (
@@ -524,7 +585,8 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
             change24h: prev.change24h,
           })
         ) {
-          return tradable[0] ?? null;
+          const cake = findGateTokenInFeed(pool, "CAKE");
+          return cake ?? pool.find((t) => normalizeSym(t.symbol) !== "BNB") ?? pool[0] ?? null;
         }
         return next;
       });
@@ -676,6 +738,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         reasoningFactors: row.reasoningFactors ?? [],
       },
     });
+    userPickedSelectionKey.current = `${row.chainId}:${row.tokenAddress.toLowerCase()}`;
     openChartView();
   }
 
@@ -731,7 +794,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         <NexusCenterTokenHeader
           token={selectedToken}
           decision={displayDecision}
-          onOpenAutopilot={() => openTradePanel("agent")}
+          onOpenAutopilot={isMobile ? () => openTradePanel("agent") : undefined}
           actions={
             <NexusTokenChatButton
               token={selectedToken}
@@ -807,7 +870,16 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           token={selectedToken}
           payload={tokenDossier.payload}
           loading={tokenDossier.loading}
-          reasoningInStrip={!isGateSymbol(benchSym)}
+          reasoningInStrip
+        />
+        <NexusTokenDetectPanel
+          chainId={selectedToken.chainId}
+          tokenAddress={selectedToken.tokenAddress}
+          symbol={selectedToken.symbol}
+          txns24h={selectedToken.txns24h}
+          volume24h={selectedToken.volume24h}
+          agentAction={displayDecision?.action}
+          onIntelUpdate={handleBirdeyeIntel}
         />
         {!isGateSymbol(selectedToken.symbol) && (
           <>
@@ -819,15 +891,6 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
               holdersOnly
             />
             <NexusResearchDossierDeep dossier={tokenDossier.payload?.dossier} loading={tokenDossier.loading} />
-            <NexusTokenDetectPanel
-              chainId={selectedToken.chainId}
-              tokenAddress={selectedToken.tokenAddress}
-              symbol={selectedToken.symbol}
-              txns24h={selectedToken.txns24h}
-              volume24h={selectedToken.volume24h}
-              agentAction={displayDecision?.action}
-              onIntelUpdate={handleBirdeyeIntel}
-            />
           </>
         )}
         {communityPulse && communityPulse.items.length > 0 && (
@@ -872,6 +935,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         <NexusTradeHub
           embedded
           token={activeTradeToken}
+          displayToken={selectedToken}
           catalogTokens={testnetDeskTokens}
           activeTab={tradeTab}
           onTabChange={setTradeTab}

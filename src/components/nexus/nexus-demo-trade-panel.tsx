@@ -66,6 +66,7 @@ function normalizeTradeSym(symbol: string) {
 
 export function NexusTradeHub({
   token,
+  displayToken,
   catalogTokens = [],
   onTradeComplete,
   activeTab,
@@ -74,6 +75,8 @@ export function NexusTradeHub({
   gateAutoStart = false,
 }: {
   token: TradeToken;
+  /** Feed row the user selected — shown in headers; `token` is the chapel swap target when applicable. */
+  displayToken?: TrendingMarketToken | null;
   /** Live feed catalog for Autopilot token search */
   catalogTokens?: TrendingMarketToken[];
   onTradeComplete?: () => void;
@@ -102,6 +105,7 @@ export function NexusTradeHub({
   };
 
   const trade = asTradeToken(token);
+  const display = displayToken ?? (trade as TrendingMarketToken | null);
   const side = tradeTab === "sell" ? "sell" : "buy";
   const amountMode: AmountMode = side === "buy" ? "tbnb" : "token";
   const [amount, setAmount] = useState("0.01");
@@ -298,22 +302,27 @@ export function NexusTradeHub({
   }
 
   const marketToken =
-    token && "tokenAddress" in token
-      ? (token as TrendingMarketToken)
-      : token && "token" in token
-        ? ({
-            symbol: token.symbol,
-            name: token.name ?? token.symbol,
-            tokenAddress: token.token,
-            chainId: token.chainId,
-            priceUsd: token.priceUsd,
-            pairAddress: token.pairAddress ?? "",
-            change24h: token.change24h,
-            volume24h: token.volume24h ?? 0,
-            liquidityUsd: token.liquidityUsd ?? 0,
-            url: token.dexUrl ?? "",
-          } as TrendingMarketToken)
-        : null;
+    display && "tokenAddress" in display
+      ? display
+      : token && "tokenAddress" in token
+        ? (token as TrendingMarketToken)
+        : token && "token" in token
+          ? ({
+              symbol: token.symbol,
+              name: token.name ?? token.symbol,
+              tokenAddress: token.token,
+              chainId: token.chainId,
+              priceUsd: token.priceUsd,
+              pairAddress: token.pairAddress ?? "",
+              change24h: token.change24h,
+              volume24h: token.volume24h ?? 0,
+              liquidityUsd: token.liquidityUsd ?? 0,
+              url: token.dexUrl ?? "",
+            } as TrendingMarketToken)
+          : null;
+
+  const displayPrice = display?.priceUsd ?? trade?.priceUsd ?? 0;
+  const displaySymbol = display?.symbol ?? trade?.symbol ?? "—";
 
   const tradeConfirmFooter =
     tradeTab !== "agent" && trade ? (
@@ -464,10 +473,15 @@ export function NexusTradeHub({
           <div className="space-y-3 min-w-0">
             <div className="arc-glass-card arc-glass-card-nexus flex items-center justify-between gap-2 px-3 py-2.5">
               <div>
-                <span className="text-lg font-bold text-white">{trade.symbol}</span>
+                <span className="text-lg font-bold text-white">{displaySymbol}</span>
                 <span className="ml-2 font-mono text-sm tabular-nums text-cyan-100/90">
-                  {formatTokenPrice(livePrice)}
+                  {formatTokenPrice(displayPrice)}
                 </span>
+                {displaySymbol !== trade?.symbol && trade?.symbol && (
+                  <p className="mt-0.5 text-[10px] text-white/45">
+                    Chapel swap desk · {trade.symbol} on {BSC_CHAIN_LABEL}
+                  </p>
+                )}
               </div>
               {marketToken && <NexusTokenChatButton token={marketToken} onOpenTrade={setTab} />}
             </div>
