@@ -8,6 +8,13 @@ export function MeridianFooter({ className = "" }: { className?: string }) {
       {MERIDIAN_NAME} · {MERIDIAN_FOOTER_LINE}
       <span className="mx-1 text-white/25">·</span>
       <a
+        href="/analytics"
+        className="font-mono normal-case text-white/30 underline-offset-2 hover:text-cyan-200/70 hover:underline"
+      >
+        Analytics
+      </a>
+      <span className="mx-1 text-white/25">·</span>
+      <a
         href={BSC_EXPLORER}
         target="_blank"
         rel="noopener noreferrer"

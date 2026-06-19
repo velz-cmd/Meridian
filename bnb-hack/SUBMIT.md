@@ -31,6 +31,8 @@ We deliver exactly that. No execution layer required.
 | **Strategy engine** | `bnb-hack/engine/nexus-gate.mjs` |
 | **Backtest runner** | `bnb-hack/backtest/run.mjs` |
 | **Live demo (optional UI)** | https://trader-arc.vercel.app/gate |
+| **Public analytics** | https://trader-arc.vercel.app/analytics |
+| **Analytics API** | `GET /api/bnb/analytics` |
 
 ---
 

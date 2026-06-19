@@ -395,6 +395,7 @@ export async function GET(request: Request) {
               ok: false,
               configured: hasDuneKey(),
               queryConfigured: false,
+              dashboardUrl: null,
             }),
           },
       alphaLayers:

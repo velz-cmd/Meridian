@@ -341,6 +341,87 @@ export async function getDemoTrades(wallet: string, limit = 30) {
   return trades.slice(0, limit);
 }
 
+export type GlobalDemoTradeStats = {
+  totalTrades: number;
+  uniqueWallets: number;
+  tradesLast24h: number;
+  bscTestnetTrades: number;
+  buyCount: number;
+  sellCount: number;
+  recent: Array<{
+    symbol: string;
+    side: string;
+    wallet: string;
+    at: string;
+    txHash?: string;
+    tradeNetwork: string;
+  }>;
+};
+
+function aggregateTrades(trades: DemoTradeRecord[]): GlobalDemoTradeStats {
+  const wallets = new Set<string>();
+  const dayAgo = Date.now() - 86_400_000;
+  let tradesLast24h = 0;
+  let bscTestnetTrades = 0;
+  let buyCount = 0;
+  let sellCount = 0;
+
+  for (const t of trades) {
+    wallets.add(t.wallet.toLowerCase());
+    const at = new Date(t.timestamp).getTime();
+    if (at >= dayAgo) tradesLast24h += 1;
+    if (t.tradeNetwork === "bsc" || t.sourceChain === "bsc") bscTestnetTrades += 1;
+    if (t.side === "buy") buyCount += 1;
+    else sellCount += 1;
+  }
+
+  const sorted = [...trades].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  );
+
+  return {
+    totalTrades: trades.length,
+    uniqueWallets: wallets.size,
+    tradesLast24h,
+    bscTestnetTrades,
+    buyCount,
+    sellCount,
+    recent: sorted.slice(0, 12).map((t) => ({
+      symbol: t.symbol,
+      side: t.side,
+      wallet: t.wallet,
+      at: t.timestamp,
+      txHash: t.arcFeeTxHash?.startsWith("0x") ? t.arcFeeTxHash : undefined,
+      tradeNetwork: t.tradeNetwork,
+    })),
+  };
+}
+
+/** Aggregate demo trades across all wallets — Supabase first, then local JSON. */
+export async function getGlobalDemoTradeStats(): Promise<GlobalDemoTradeStats> {
+  const supabase = getSupabase();
+  const all: DemoTradeRecord[] = [];
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("demo_portfolios")
+      .select("trades")
+      .limit(200);
+    if (!error && data?.length) {
+      for (const row of data) {
+        const trades = (row.trades as DemoTradeRecord[]) ?? [];
+        all.push(...trades);
+      }
+    }
+  }
+
+  if (all.length === 0) {
+    all.push(...(await readJson<DemoTradeRecord[]>("demo-trades.json", [])));
+  }
+
+  return aggregateTrades(all);
+}
+
 export async function saveDemoTrade(trade: DemoTradeRecord, walletPositions: DemoPosition[]) {
   const { trades } = await readDemoPortfolio(trade.wallet);
   const nextTrades = [trade, ...trades].slice(0, 500);

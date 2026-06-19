@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArcBackground } from "@/components/layout/arc-background";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
@@ -16,6 +17,7 @@ import { GateSkillStack } from "@/components/gate/gate-skill-stack";
 import { GateTechnicalPanel } from "@/components/gate/gate-technical-panel";
 import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
 import { usePositionRoute } from "@/hooks/use-position-route";
+import { GateLiveStats } from "@/components/gate/gate-live-stats";
 import { GateOutputPanel } from "@/components/gate/gate-output-panel";
 import { NexusAgentPulseStrip } from "@/components/nexus/nexus-agent-pulse-strip";
 import { useMarketPulse } from "@/hooks/use-market-pulse";
@@ -159,6 +161,16 @@ export function GateConsole() {
       <ArcBackground theme="nexus" />
       <div className="relative z-10 mx-auto max-w-[1680px] px-4 pb-10 pt-1 sm:px-6">
         <GateDeskHero route={gateRoute} cmcLive={cmcLive} loading={gateRouteLoading} compact />
+
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <GateLiveStats route={gateRoute} loading={gateRouteLoading} cmcLive={cmcLive} className="flex-1" />
+          <Link
+            href="/analytics"
+            className="shrink-0 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-[11px] text-white/60 hover:border-cyan-400/30 hover:text-cyan-200"
+          >
+            Live analytics →
+          </Link>
+        </div>
 
         {routeError && (
           <div
