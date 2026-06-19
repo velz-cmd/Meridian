@@ -164,7 +164,7 @@ async function main() {
     DUNE_API_KEY: process.env.DUNE_API_KEY,
     ...dune,
     NEXT_PUBLIC_SITE_LAUNCH_DATE:
-      process.env.NEXT_PUBLIC_SITE_LAUNCH_DATE || "2025-03-01",
+      process.env.NEXT_PUBLIC_SITE_LAUNCH_DATE || "2026-05-26",
   };
 
   log("\n── Link Vercel project (trader-arc) ──");
