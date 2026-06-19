@@ -90,7 +90,11 @@ export type GateSkillsPayload = {
     constitutionSignal?: string;
     constitutionOnly?: boolean;
     longPct?: number;
+    holdPct?: number;
+    bearPct?: number;
     votes?: { long: number; hold: number; bear: number; total: number };
+    coreStack?: { long: number; required: number; passed: boolean };
+    permit?: { status: "GRANT" | "DENY"; execute: string; reason?: string };
   };
 };
 

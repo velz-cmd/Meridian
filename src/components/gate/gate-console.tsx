@@ -8,7 +8,9 @@ import { GateConfigPanel } from "@/components/gate/gate-config-panel";
 import { GateDeskHero } from "@/components/gate/gate-desk-hero";
 import { GateDeskTabs, type GateDeskTab } from "@/components/gate/gate-desk-tabs";
 import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
+import { GateConsensusPanel } from "@/components/gate/gate-consensus-panel";
 import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
+import { extractJudgeConsensus } from "@/lib/gate-consensus-payload";
 import { GateCmcSkillStrip } from "@/components/gate/gate-cmc-skill-strip";
 import { GateSkillStack } from "@/components/gate/gate-skill-stack";
 import { GateTechnicalPanel } from "@/components/gate/gate-technical-panel";
@@ -82,6 +84,7 @@ export function GateConsole() {
   );
 
   const skills = selected?.skills as GateSkillsPayload | undefined;
+  const judgeConsensus = useMemo(() => extractJudgeConsensus(selected?.skills as GateSkillsPayload), [selected?.skills]);
   const cmcLive = benchmarks.some((b) => b.cmcLive);
   const { pulse: marketPulse, loading: pulseLoading } = useMarketPulse(symbol, 90_000);
   const { route: positionRoute, loading: directionLoading } = usePositionRoute(symbol, { intervalMs: 90_000 });
@@ -197,8 +200,9 @@ export function GateConsole() {
                 <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact strategyOnly />
                 {selected && (
                   <>
+                    <GateConsensusPanel consensus={judgeConsensus} />
                     <GateCapitalRotation benchmarks={benchmarks} route={gateRoute} />
-                    <GateCmcSkillStrip selected={selected} cmcLive={selected.cmcLive} />
+                    <GateCmcSkillStrip selected={selected} cmcLive={selected.cmcLive} skills={skills} />
                     {skills && <GateSkillStack skills={skills} constitutionSignal={selected.gate.signal} />}
                   </>
                 )}

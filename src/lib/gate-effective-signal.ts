@@ -12,6 +12,7 @@ export function effectivePosition(gate: GateLike, skills?: GateSkillsPayload | n
 }
 
 export function effectiveCleared(gate: GateLike, skills?: GateSkillsPayload | null): boolean {
+  if (skills?.composite?.permit?.status) return skills.composite.permit.status === "GRANT";
   if (skills?.composite) return skills.composite.cleared;
   return gate.signal === "ENTER_LONG";
 }

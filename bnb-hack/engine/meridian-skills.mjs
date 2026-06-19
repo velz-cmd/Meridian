@@ -573,6 +573,37 @@ export function evaluateVolatilityCompressionSkill(t, vol) {
 }
 
 /**
+ * Published consensus thresholds — judge-facing, backtest-stable.
+ * @type {const}
+ */
+export const CONSENSUS_RULES = {
+  schema: "meridian-skill-consensus/v2",
+  /** Weighted long share required (constitution included). */
+  longWeightMinPct: 55,
+  /** Minimum layer count voting ENTER_LONG (of 9). */
+  minLongLayerCount: 4,
+  /** Minimum of core directional stack voting long. */
+  minCoreDirectionalCount: 2,
+  coreDirectionalIds: ["momentum", "regime", "trend", "relativeStrength"],
+  /** Max weighted bearish share for a cleared long. */
+  bearWeightMaxPct: 15,
+  /** Layer weights used in desk vote (sum ≈ 11.3). */
+  layerWeights: {
+    constitution: 2.5,
+    momentum: 1.2,
+    sentiment: 1,
+    regime: 1.5,
+    trend: 1.1,
+    liquidity: 1,
+    structural: 0.6,
+    relativeStrength: 1.4,
+    volatility: 1,
+  },
+};
+
+const CORE_IDS = CONSENSUS_RULES.coreDirectionalIds;
+
+/**
  * Weighted consensus — all layers must agree for ENTER_LONG; honest alignment %.
  * @param {object} input
  * @param {ReturnType<typeof import("./nexus-gate.mjs").evaluateNexusGate>} input.gate
@@ -580,16 +611,17 @@ export function evaluateVolatilityCompressionSkill(t, vol) {
  * @param {string[]} input.blockers
  */
 function resolveCompositeConsensus({ gate, skills, blockers }) {
+  const w = CONSENSUS_RULES.layerWeights;
   const layers = [
-    { id: "constitution", name: "Constitution", signal: gate.signal, weight: 2.5 },
-    { id: "momentum", name: "Momentum", signal: skills.momentum.signal, weight: 1.2 },
-    { id: "sentiment", name: "Sentiment", signal: skills.sentiment.signal, weight: 1 },
-    { id: "regime", name: "Regime", signal: skills.regime.signal, weight: 1.5 },
-    { id: "trend", name: "Trend", signal: skills.trend.signal, weight: 1.1 },
-    { id: "liquidity", name: "Liquidity", signal: skills.liquidity.signal, weight: 1 },
-    { id: "structural", name: "Structural", signal: skills.structural.signal, weight: 0.6 },
-    { id: "relativeStrength", name: "RS vs BNB", signal: skills.relativeStrength.signal, weight: 1.4 },
-    { id: "volatility", name: "Volatility", signal: skills.volatility.signal, weight: 1 },
+    { id: "constitution", name: "Constitution", signal: gate.signal, weight: w.constitution },
+    { id: "momentum", name: "Momentum", signal: skills.momentum.signal, weight: w.momentum },
+    { id: "sentiment", name: "Sentiment", signal: skills.sentiment.signal, weight: w.sentiment },
+    { id: "regime", name: "Regime", signal: skills.regime.signal, weight: w.regime },
+    { id: "trend", name: "Trend", signal: skills.trend.signal, weight: w.trend },
+    { id: "liquidity", name: "Liquidity", signal: skills.liquidity.signal, weight: w.liquidity },
+    { id: "structural", name: "Structural", signal: skills.structural.signal, weight: w.structural },
+    { id: "relativeStrength", name: "RS vs BNB", signal: skills.relativeStrength.signal, weight: w.relativeStrength },
+    { id: "volatility", name: "Volatility", signal: skills.volatility.signal, weight: w.volatility },
   ];
 
   const totalWeight = layers.reduce((s, l) => s + l.weight, 0);
@@ -604,20 +636,34 @@ function resolveCompositeConsensus({ gate, skills, blockers }) {
   }
 
   const longPct = longW / totalWeight;
+  const holdPct = holdW / totalWeight;
   const bearPct = bearW / totalWeight;
-  const LONG_MIN = 0.52;
+  const LONG_MIN = CONSENSUS_RULES.longWeightMinPct / 100;
+  const BEAR_MAX = CONSENSUS_RULES.bearWeightMaxPct / 100;
   const constitutionLong = gate.signal === "ENTER_LONG";
+
+  const longVotes = layers.filter((l) => l.signal === "ENTER_LONG").length;
+  const holdVotes = layers.filter((l) => l.signal === "HOLD").length;
+  const bearVotes = layers.filter((l) => l.signal === "EXIT" || l.signal === "AVOID").length;
+
+  const coreLong = layers.filter((l) => CORE_IDS.includes(l.id) && l.signal === "ENTER_LONG").length;
+  const coreStackPass = coreLong >= CONSENSUS_RULES.minCoreDirectionalCount;
+  const longLayerPass = longVotes >= CONSENSUS_RULES.minLongLayerCount;
 
   let compositeSignal = "HOLD";
 
   if (blockers.length > 0) {
     compositeSignal = bearPct >= 0.28 ? (layers.some((l) => l.signal === "EXIT") ? "EXIT" : "AVOID") : "HOLD";
-  } else if (constitutionLong && longPct >= LONG_MIN && bearPct < 0.18) {
+  } else if (
+    constitutionLong &&
+    longPct >= LONG_MIN &&
+    bearPct < BEAR_MAX &&
+    longLayerPass &&
+    coreStackPass
+  ) {
     compositeSignal = "ENTER_LONG";
   } else if (bearPct >= 0.32 && bearW > longW) {
     compositeSignal = layers.some((l) => l.signal === "EXIT") ? "EXIT" : "AVOID";
-  } else if (constitutionLong && longPct >= 0.42 && bearPct < 0.22) {
-    compositeSignal = "HOLD";
   } else {
     compositeSignal = "HOLD";
   }
@@ -625,26 +671,107 @@ function resolveCompositeConsensus({ gate, skills, blockers }) {
   let agreeWeight = 0;
   for (const layer of layers) {
     if (layer.signal === compositeSignal) agreeWeight += layer.weight;
-    else if (compositeSignal === "HOLD" && (layer.signal === "HOLD" || layer.signal === "AVOID" || layer.signal === "EXIT")) {
+    else if (
+      compositeSignal === "HOLD" &&
+      (layer.signal === "HOLD" || layer.signal === "AVOID" || layer.signal === "EXIT")
+    ) {
       agreeWeight += layer.weight * 0.85;
-    } else if (compositeSignal === "ENTER_LONG" && layer.signal === "ENTER_LONG") {
-      agreeWeight += layer.weight;
     }
   }
 
   const alignmentScore = Math.round(Math.min(100, Math.max(0, (agreeWeight / totalWeight) * 100)));
-  const longVotes = layers.filter((l) => l.signal === "ENTER_LONG").length;
-  const holdVotes = layers.filter((l) => l.signal === "HOLD").length;
-  const bearVotes = layers.filter((l) => l.signal === "EXIT" || l.signal === "AVOID").length;
+  const cleared =
+    blockers.length === 0 &&
+    compositeSignal === "ENTER_LONG" &&
+    constitutionLong &&
+    coreStackPass &&
+    longLayerPass;
+
+  let permitReason;
+  if (cleared) {
+    permitReason = `${longVotes}/${layers.length} layers long · ${Math.round(longPct * 100)}% weight · core stack ${coreLong}/${CONSENSUS_RULES.minCoreDirectionalCount}`;
+  } else if (blockers.length > 0) {
+    permitReason = `Blocked: ${blockers.join(", ")}`;
+  } else if (constitutionLong && !longLayerPass) {
+    permitReason = `Constitution clears but only ${longVotes}/${CONSENSUS_RULES.minLongLayerCount} layers long (need ${CONSENSUS_RULES.minLongLayerCount})`;
+  } else if (constitutionLong && !coreStackPass) {
+    permitReason = `Core directional stack ${coreLong}/${CONSENSUS_RULES.minCoreDirectionalCount} long (momentum/regime/trend/RS)`;
+  } else if (constitutionLong && longPct < LONG_MIN) {
+    permitReason = `Long weight ${Math.round(longPct * 100)}% < ${CONSENSUS_RULES.longWeightMinPct}% threshold`;
+  } else if (constitutionLong && bearPct >= BEAR_MAX) {
+    permitReason = `Bear weight ${Math.round(bearPct * 100)}% exceeds ${CONSENSUS_RULES.bearWeightMaxPct}% cap`;
+  } else if (!constitutionLong) {
+    permitReason = `Constitution ${gate.signal.replace(/_/g, " ")} — desk flat`;
+  } else {
+    permitReason = "Skill stack not aligned — hold flat";
+  }
 
   return {
     compositeSignal,
     alignmentScore,
     longPct: Math.round(longPct * 100),
+    holdPct: Math.round(holdPct * 100),
     bearPct: Math.round(bearPct * 100),
-    layers: layers.map((l) => ({ id: l.id, name: l.name, signal: l.signal, weight: l.weight })),
+    layers: layers.map((l) => ({
+      id: l.id,
+      name: l.name,
+      signal: l.signal,
+      weight: l.weight,
+      agreesWithDesk:
+        l.signal === compositeSignal ||
+        (compositeSignal === "HOLD" && l.signal !== "ENTER_LONG"),
+    })),
     votes: { long: longVotes, hold: holdVotes, bear: bearVotes, total: layers.length },
-    cleared: blockers.length === 0 && compositeSignal === "ENTER_LONG" && constitutionLong,
+    coreStack: {
+      ids: CORE_IDS,
+      long: coreLong,
+      required: CONSENSUS_RULES.minCoreDirectionalCount,
+      passed: coreStackPass,
+    },
+    longLayerPass,
+    rules: CONSENSUS_RULES,
+    permit: { status: cleared ? "GRANT" : "DENY", execute: cleared ? "LONG" : "FLAT", reason: permitReason },
+    cleared,
+  };
+}
+
+/**
+ * Judge-facing consensus audit — same object returned in /api/gate/skills.
+ * @param {string} symbol
+ * @param {ReturnType<typeof import("./nexus-gate.mjs").evaluateNexusGate>} gate
+ * @param {ReturnType<typeof resolveCompositeConsensus>} consensus
+ * @param {string[]} blockers
+ */
+export function buildJudgeConsensusBlock(symbol, gate, consensus, blockers) {
+  const sym = symbol.toUpperCase();
+  const constitutionOnly =
+    gate.signal === "ENTER_LONG" && consensus.compositeSignal !== "ENTER_LONG" && blockers.length === 0;
+
+  return {
+    schema: CONSENSUS_RULES.schema,
+    symbol: sym,
+    deskSignal: consensus.compositeSignal,
+    deskPosition: consensus.compositeSignal === "ENTER_LONG" ? "LONG" : "FLAT",
+    constitutionSignal: gate.signal,
+    constitutionTier: gate.tier,
+    constitutionChecks: `${gate.checksPassed}/${gate.checksTotal}`,
+    cleared: consensus.cleared,
+    permit: consensus.permit,
+    alignmentScore: consensus.alignmentScore,
+    weights: {
+      longPct: consensus.longPct,
+      holdPct: consensus.holdPct,
+      bearPct: consensus.bearPct,
+    },
+    votes: consensus.votes,
+    coreStack: consensus.coreStack,
+    longLayerPass: consensus.longLayerPass,
+    rules: consensus.rules,
+    layers: consensus.layers,
+    blockers,
+    constitutionOnly,
+    method:
+      "Weighted 9-layer vote (constitution 2.5×) · min 55% long weight · min 4/9 layers · min 2/4 core directional · bear cap 15%",
   };
 }
 
@@ -701,6 +828,7 @@ export function composeSkillVerdict(t, gate, macro = {}, ctx = {}) {
   const alignmentScore = consensus.alignmentScore;
 
   const sym = (t.symbol ?? "TOKEN").toUpperCase();
+  const judgeConsensus = buildJudgeConsensusBlock(sym, gate, consensus, blockers);
   const rsi = momentum.metrics.rsi;
   const alignLabel =
     alignmentScore >= 70 ? "skills aligned" : alignmentScore >= 50 ? "partial alignment" : "weak alignment";
@@ -722,12 +850,18 @@ export function composeSkillVerdict(t, gate, macro = {}, ctx = {}) {
       constitutionSignal: gate.signal,
       alignmentScore,
       longPct: consensus.longPct,
+      holdPct: consensus.holdPct,
       bearPct: consensus.bearPct,
       votes: consensus.votes,
       layers: consensus.layers,
+      coreStack: consensus.coreStack,
+      longLayerPass: consensus.longLayerPass,
+      permit: consensus.permit,
+      rules: consensus.rules,
       blockers,
       cleared: consensus.cleared,
       constitutionOnly,
+      judgeConsensus,
       thesis:
         blockers.length > 0
           ? `${sym}: blocked (${blockers.join(", ")}) — ${gate.gaps?.[0] ?? "constitution holds flat"}.`

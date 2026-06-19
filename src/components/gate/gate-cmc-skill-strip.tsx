@@ -5,18 +5,23 @@ import { BookOpen, ExternalLink, Terminal } from "lucide-react";
 import { GATE_SKILL_REPO } from "@/lib/gate-constants";
 import { GateDataProvenance } from "@/components/gate/gate-data-provenance";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
+import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
+import { extractJudgeConsensus } from "@/lib/gate-consensus-payload";
 import { cn } from "@/lib/utils";
 
 export function GateCmcSkillStrip({
   selected,
   cmcLive,
+  skills,
 }: {
   selected: GateBenchmarkFull;
   cmcLive?: boolean;
+  skills?: GateSkillsPayload | null;
 }) {
   const sym = selected.symbol;
   const skillsApi = `/api/gate/skills?symbol=${sym}`;
   const backtestApi = `/api/gate/backtest?symbol=${sym}&days=90`;
+  const consensus = extractJudgeConsensus(skills ?? (selected.skills as GateSkillsPayload | undefined));
 
   return (
     <section className="rounded-2xl border border-violet-400/20 bg-violet-950/20 overflow-hidden">
@@ -30,8 +35,15 @@ export function GateCmcSkillStrip({
               {sym} — live CoinMarketCap → 8 deterministic skills → backtest
             </h3>
             <p className="mt-1 text-xs text-white/55">
-              Momentum · Sentiment · Regime · Trend · Liquidity · Structure · RS vs BNB · Volatility — same engine in SKILL.md, CLI, desk, and NEXUS.
+              Momentum · Sentiment · Regime · Trend · Liquidity · Structure · RS vs BNB · Volatility → weighted consensus
+              (55% long · 4/9 layers · 2/4 core stack).
             </p>
+            {consensus && (
+              <p className="mt-2 font-mono text-[10px] text-cyan-200/80">
+                consensus.deskSignal={consensus.deskSignal} · permit={consensus.permit.status} ·{" "}
+                {consensus.weights.longPct}/{consensus.weights.holdPct}/{consensus.weights.bearPct} L/H/B
+              </p>
+            )}
           </div>
           <span
             className={cn(
@@ -63,7 +75,7 @@ export function GateCmcSkillStrip({
             </li>
             <li>
               <a href={skillsApi} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-cyan-300 hover:underline">
-                <Terminal className="h-3.5 w-3.5" /> GET {skillsApi}
+                <Terminal className="h-3.5 w-3.5" /> GET {skillsApi} · includes consensus block
                 <ExternalLink className="h-3 w-3 opacity-60" />
               </a>
             </li>

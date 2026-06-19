@@ -48,10 +48,15 @@ async function evaluateFromPack(
   const permit = agent ? issueConstitutionPermit(snapshot, agent) : null;
 
   const compositeCleared = skills.composite.cleared;
-  const stubPermit = {
-    status: compositeCleared ? ("GRANT" as const) : ("DENY" as const),
-    execute: compositeCleared ? ("LONG" as const) : ("FLAT" as const),
-  };
+  const stubPermit = skills.composite.permit?.status
+    ? {
+        status: skills.composite.permit.status as "GRANT" | "DENY",
+        execute: (skills.composite.permit.execute ?? (compositeCleared ? "LONG" : "FLAT")) as "LONG" | "FLAT",
+      }
+    : {
+        status: compositeCleared ? ("GRANT" as const) : ("DENY" as const),
+        execute: compositeCleared ? ("LONG" as const) : ("FLAT" as const),
+      };
 
   return {
     symbol,

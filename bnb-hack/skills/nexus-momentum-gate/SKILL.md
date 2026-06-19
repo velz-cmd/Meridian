@@ -92,6 +92,34 @@ npm run bnb:backtest -- --symbol BNB --days 90
 
 Live demo: https://trader-arc.vercel.app/gate
 
+## Skill consensus (desk permit)
+
+Eight skills + constitution vote with published weights (`meridian-skill-consensus/v2`):
+
+| Rule | Threshold |
+|------|-----------|
+| Long weight | ≥ 55% of total layer weight |
+| Long layer count | ≥ 4 of 9 layers ENTER_LONG |
+| Core directional stack | ≥ 2 of momentum · regime · trend · RS vs BNB |
+| Bear cap | &lt; 15% weighted bearish |
+
+**GRANT** only when all pass and no blockers. API: `GET /api/gate/skills?symbol=BNB` → `consensus` block.
+
+```json
+{
+  "consensus": {
+    "schema": "meridian-skill-consensus/v2",
+    "deskSignal": "HOLD",
+    "deskPosition": "FLAT",
+    "permit": { "status": "DENY", "reason": "Core directional stack 1/2 long" },
+    "weights": { "longPct": 44, "holdPct": 48, "bearPct": 8 },
+    "votes": { "long": 3, "hold": 5, "bear": 1, "total": 9 }
+  }
+}
+```
+
+Engine: `bnb-hack/engine/meridian-skills.mjs` → `buildJudgeConsensusBlock`
+
 ## Files
 
 | File | Purpose |

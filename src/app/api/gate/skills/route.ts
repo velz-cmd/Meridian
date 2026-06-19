@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateAllGateBenchmarks } from "@/lib/gate-benchmark-cache";
+import { extractJudgeConsensus } from "@/lib/gate-consensus-payload";
 import { GATE_SKILL_REPO, GATE_SYMBOLS, isGateSymbol } from "@/lib/gate-constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const PUBLIC_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "https://trader-arc.vercel.app";
 
 /**
  * Judge-facing CMC skills API — same engine as /gate desk (meridian-skills.mjs + nexus-gate.mjs).
@@ -25,6 +28,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No CMC evaluation for symbol" }, { status: 404 });
     }
 
+    const consensus = extractJudgeConsensus(ev.skills);
+
     return NextResponse.json(
       {
         ok: true,
@@ -40,15 +45,18 @@ export async function GET(req: NextRequest) {
           volume24h: ev.snapshot.volume24h,
           change1h: ev.snapshot.change1h,
           change24h: ev.snapshot.change24h,
+          change7d: ev.snapshot.change7d,
           rsi: ev.snapshot.rsi,
           macdSignal: ev.snapshot.macdSignal,
           fearGreed: ev.snapshot.fearGreed,
         },
         gate: ev.gate,
         skills: ev.skills,
+        consensus,
         engine: {
           gate: "bnb-hack/engine/nexus-gate.mjs",
           skills: "bnb-hack/engine/meridian-skills.mjs",
+          consensus: "bnb-hack/engine/meridian-skills.mjs → buildJudgeConsensusBlock",
           skillLayers: [
             "momentum",
             "sentiment-divergence",
@@ -62,6 +70,12 @@ export async function GET(req: NextRequest) {
           skillDoc: `${GATE_SKILL_REPO}/SKILL.md`,
           backtest: "/api/gate/backtest?symbol=" + sym + "&days=90",
           reproduce: `npm run bnb:backtest -- --symbol ${sym} --days 90`,
+        },
+        reproduce: {
+          skills: `${PUBLIC_ORIGIN}/api/gate/skills?symbol=${sym}`,
+          evaluate: `${PUBLIC_ORIGIN}/api/gate/evaluate?symbol=${sym}`,
+          route: `${PUBLIC_ORIGIN}/api/gate/route`,
+          backtest: `${PUBLIC_ORIGIN}/api/gate/backtest?symbol=${sym}&days=90`,
         },
         generatedAt: new Date().toISOString(),
       },
