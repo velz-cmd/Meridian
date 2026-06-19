@@ -27,6 +27,15 @@ export const AUTOPILOT_INTERVALS: Record<
 
 export type AutopilotAmountMode = "percent" | "custom_usdc" | "custom_token";
 
+export type AutopilotVenue = "spot" | "futures";
+
+export type AutopilotPolicyMode =
+  | "data_desk"
+  | "follow_agent"
+  | "follow_direction"
+  | "buy_only"
+  | "sell_only";
+
 export type AutopilotScheduleMode = "recurring" | "once";
 
 /** When desk signal is HOLD/WATCH — user decides whether to still trade */
@@ -51,7 +60,9 @@ export type AutopilotConfig = {
   customTokenSymbol: string;
   customTokenChain: string;
   customAmountUnit: "tokens" | "usdc";
-  mode: "follow_agent" | "follow_direction" | "buy_only" | "sell_only";
+  mode: AutopilotPolicyMode;
+  /** Spot = Chapel swaps; futures = signal desk only (funding/OI, no Chapel perp) */
+  venue: AutopilotVenue;
   /** If AI says HOLD — skip, or user override to buy/sell anyway */
   holdAction: AutopilotHoldAction;
   tokenKey?: string;
@@ -80,7 +91,8 @@ export function defaultAutopilot(): AutopilotConfig {
     customTokenSymbol: "",
     customTokenChain: "base",
     customAmountUnit: "tokens",
-    mode: "follow_agent",
+    mode: "data_desk",
+    venue: "spot",
     holdAction: "skip",
   };
 }
@@ -96,7 +108,8 @@ export function loadAutopilot(): AutopilotConfig {
     }
     if (!merged.scheduleMode) merged.scheduleMode = "recurring";
     if (!merged.onceRunWhen) merged.onceRunWhen = "now";
-    merged.mode = merged.mode ?? "follow_agent";
+    merged.mode = merged.mode ?? "data_desk";
+    if (!merged.venue) merged.venue = "spot";
     if (!merged.holdAction) merged.holdAction = "skip";
     return merged;
   } catch {

@@ -15,7 +15,7 @@ export const TRADING_TAGLINE =
 export const TRADING_WALLET_HINT = `Connect on ${BSC_CHAIN_LABEL} · fund tBNB · wallet signs each PancakeSwap tx.`;
 
 export const TRADING_AUTOPILOT_HINT =
-  "Autopilot uses wallet tBNB — one session signature, then confirm each cycle in your wallet.";
+  "Autopilot uses live CMC consensus + market pulse — not predictions. Spot = Chapel swaps; futures = signal desk only.";
 
 export const TRADING_PORTFOLIO_SUB =
   "BSC Testnet wallet · on-chain balances · marked with live feed prices";

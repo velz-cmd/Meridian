@@ -18,7 +18,10 @@ import {
   type AutopilotHoldAction,
   type AutopilotInterval,
   type AutopilotLog,
+  type AutopilotVenue,
 } from "@/lib/nexus-autopilot";
+import type { AutopilotDeskCycle } from "@/lib/autopilot-desk-engine";
+import { AutopilotDeskPreview } from "@/components/nexus/autopilot-desk-preview";
 import {
   autopilotSessionExpiryMs,
   buildSessionPayload,
@@ -32,6 +35,7 @@ import {
 import { readApiJson } from "@/lib/fetch-json";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
 import {
+  BarChart3,
   Bot,
   Calendar,
   ChevronDown,
@@ -189,7 +193,8 @@ export function NexusAutopilotPanel({
     const pct = Math.min(75, Math.max(20, lev * 15));
     persist({
       ...configRef.current,
-      mode: "follow_direction",
+      mode: "data_desk",
+      venue: "spot",
       percent: pct,
       scheduleMode: "recurring",
       interval: "15m",
@@ -415,8 +420,9 @@ export function NexusAutopilotPanel({
       } else if (cfg.mode === "sell_only") {
         side = "sell";
         setLastReasoning((prev) => prev ?? "Your schedule · sell only");
+      } else if (cfg.mode === "data_desk") {
+        /* resolved after portfolio + /api/nexus/autopilot/cycle */
       } else if (cfg.mode === "follow_direction") {
-        /* resolved after portfolio + /api/nexus/position-route */
       } else if (!signal) {
         pushLog("No signal — skipped", "error");
         return;
@@ -431,7 +437,7 @@ export function NexusAutopilotPanel({
         side = "sell";
         userOverride = true;
       }
-      if (!side && cfg.mode !== "follow_direction") {
+      if (!side && cfg.mode !== "follow_direction" && cfg.mode !== "data_desk") {
         const holdMsg = `AI ${signal?.action ?? "HOLD"} — no trade (open Trade rules → Buy anyway / Sell anyway on HOLD)`;
         pushLog(holdMsg, "info");
         toast({ type: "info", title: "No trade this cycle", message: holdMsg });
@@ -495,7 +501,44 @@ export function NexusAutopilotPanel({
         }
       }
 
-      if (cfg.mode === "follow_direction") {
+      if (cfg.mode === "data_desk") {
+        const cycleRes = await fetch(
+          `/api/nexus/autopilot/cycle?symbol=${encodeURIComponent(t.symbol)}&venue=${cfg.venue}&hasPosition=${positionAmount > 0 ? 1 : 0}`,
+          { cache: "no-store", signal: AbortSignal.timeout(15_000) },
+        );
+        const cycle = (await cycleRes.json()) as AutopilotDeskCycle & { error?: string };
+        if (!cycleRes.ok || !cycle.ok) {
+          pushLog(cycle.error ?? "Autopilot desk cycle failed", "error");
+          return;
+        }
+        setLastReasoning(cycle.thesis);
+        pushLog(`Desk ${cycle.action} · ${cycle.method}`, "info");
+
+        if (cfg.venue === "futures") {
+          const msg = `Futures signal: ${cycle.execute.futuresSignal.toUpperCase()} — ${cycle.thesis}`;
+          pushLog(msg, "info");
+          toast({
+            type: "info",
+            title: `Futures ${cycle.execute.futuresSignal}`,
+            message: cycle.execute.venueNote,
+          });
+          return;
+        }
+
+        if (!cycle.execute.tradeThisCycle) {
+          toast({ type: "info", title: "Hold this cycle", message: cycle.thesis });
+          return;
+        }
+
+        if (cycle.execute.spotSide === "buy") side = "buy";
+        else if (cycle.execute.spotSide === "sell") {
+          side = "sell";
+          hedgeToStable = cycle.execute.hedgeToStable;
+        } else {
+          pushLog(cycle.execute.venueNote, "info");
+          return;
+        }
+      } else if (cfg.mode === "follow_direction") {
         const agentQ = agent?.action ? `&agent=${encodeURIComponent(agent.action)}` : "";
         const routeRes = await fetch(
           `/api/nexus/position-route?symbol=${encodeURIComponent(t.symbol)}&hasPosition=${positionAmount > 0 ? 1 : 0}${agentQ}`,
@@ -935,10 +978,44 @@ export function NexusAutopilotPanel({
         <>
           <NexusExecutionPanel compact />
 
+          <p className="nexus-caption flex items-center gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Trading venue
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                { id: "spot" as AutopilotVenue, label: "Spot · Chapel", sub: "Wallet Buy/Sell on PancakeSwap" },
+                { id: "futures" as AutopilotVenue, label: "Futures · signals", sub: "Funding/OI desk — no Chapel perp" },
+              ] as const
+            ).map(({ id, label, sub }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => persist({ ...config, venue: id })}
+                className={`rounded-xl border px-3 py-2.5 text-left ${
+                  config.venue === id
+                    ? "border-cyan-400/40 bg-cyan-500/12 text-cyan-50"
+                    : "border-white/10 text-white/55"
+                }`}
+              >
+                <span className="text-xs font-bold">{label}</span>
+                <span className="mt-0.5 block text-[10px] text-white/45">{sub}</span>
+              </button>
+            ))}
+          </div>
+
+          {(token || resolvedToken) && (
+            <AutopilotDeskPreview
+              symbol={(token ?? resolvedToken)?.symbol ?? null}
+              venue={config.venue ?? "spot"}
+            />
+          )}
+
           {gateIntent && (
             <p className="rounded-xl border border-violet-400/25 bg-violet-500/10 px-3 py-2 text-[11px] leading-relaxed text-violet-100">
-              Gate signal · <strong>{gateIntent.direction}</strong> · {gateIntent.leverage}x thesis · mode{" "}
-              <strong>follow direction</strong> — each cycle signs real PancakeSwap txs on Chapel.
+              Gate signal · <strong>{gateIntent.direction}</strong> · {gateIntent.leverage}x thesis ·{" "}
+              <strong>data desk autopilot</strong> — rules from live CMC + pulse, not market prediction.
             </p>
           )}
 
@@ -1203,20 +1280,19 @@ export function NexusAutopilotPanel({
           {advancedOpen && (
             <div className="space-y-3 rounded-xl border border-violet-400/20 bg-violet-500/5 p-3">
               <p className="text-[11px] leading-relaxed text-white/65">
-                You pick the token in the desk. Autopilot follows AI{" "}
-                <strong className="text-emerald-300">BUY</strong> /{" "}
-                <strong className="text-rose-300">SELL</strong>, pulse-adjusted{" "}
-                <strong className="text-cyan-300">LONG / FLAT / SHORT hedge</strong>, or your override when the desk
-                says <strong className="text-white">HOLD</strong>.
+                Autopilot applies <strong className="text-cyan-300">live market data rules</strong> — CMC
+                consensus, volume/mcap pulse, funding/OI — not price predictions. Spot executes on Chapel;
+                futures returns signal-only for your perp venue.
               </p>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
-                Trading style
+                Policy
               </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {(
                   [
+                    { id: "data_desk" as const, label: "Data desk", icon: BarChart3 },
+                    { id: "follow_direction" as const, label: "Direction", icon: Route },
                     { id: "follow_agent" as const, label: "Follow AI", icon: Sparkles },
-                    { id: "follow_direction" as const, label: "Follow direction", icon: Route },
                     { id: "buy_only" as const, label: "Always buy", icon: TrendingUp },
                     { id: "sell_only" as const, label: "Always sell", icon: TrendingDown },
                   ] as const
@@ -1236,6 +1312,13 @@ export function NexusAutopilotPanel({
                   </button>
                 ))}
               </div>
+              {config.mode === "data_desk" && (
+                <p className="rounded-lg border border-emerald-400/20 bg-emerald-500/8 px-2.5 py-2 text-[10px] leading-relaxed text-emerald-100/85">
+                  <strong className="text-white">Data desk (recommended)</strong> — each cycle calls{" "}
+                  <code className="text-[9px]">/api/nexus/autopilot/cycle</code>: consensus permit, long/short/exit/hold
+                  from CMC + pulse + funding. Spot = Chapel tx; futures = signal only.
+                </p>
+              )}
               {config.mode === "follow_direction" && (
                 <p className="rounded-lg border border-cyan-400/20 bg-cyan-500/8 px-2.5 py-2 text-[10px] leading-relaxed text-cyan-100/85">
                   Routes each cycle from live pulse + gate + Binance funding/OI.{" "}
