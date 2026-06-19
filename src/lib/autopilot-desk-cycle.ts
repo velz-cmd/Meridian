@@ -17,6 +17,9 @@ export async function runAutopilotDeskCycle(input: {
   symbol: string;
   venue?: AutopilotVenue;
   hasPosition?: boolean;
+  spotThesisLeverage?: number;
+  futuresLeverage?: number;
+  marginPercent?: number;
 }): Promise<AutopilotDeskCycle> {
   const sym = input.symbol.toUpperCase();
   const venue = input.venue ?? "spot";
@@ -71,5 +74,8 @@ export async function runAutopilotDeskCycle(input: {
     pulse,
     consensus,
     derivatives,
+    spotThesisLeverage: input.spotThesisLeverage,
+    futuresLeverage: input.futuresLeverage,
+    marginPercent: input.marginPercent,
   });
 }

@@ -23,10 +23,16 @@ export function AutopilotDeskPreview({
   symbol,
   venue,
   hasPosition,
+  spotThesisLeverage = 1,
+  futuresLeverage = 3,
+  marginPercent = 25,
 }: {
   symbol: string | null;
   venue: AutopilotVenue;
   hasPosition?: boolean;
+  spotThesisLeverage?: number;
+  futuresLeverage?: number;
+  marginPercent?: number;
 }) {
   const [cycle, setCycle] = useState<AutopilotDeskCycle | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,6 +50,9 @@ export function AutopilotDeskPreview({
       symbol,
       venue,
       hasPosition: hasPosition ? "1" : "0",
+      spotLev: String(spotThesisLeverage),
+      futLev: String(futuresLeverage),
+      marginPct: String(marginPercent),
     });
     fetch(`/api/nexus/autopilot/cycle?${q}`, { cache: "no-store" })
       .then(async (r) => {
@@ -60,7 +69,7 @@ export function AutopilotDeskPreview({
     return () => {
       cancelled = true;
     };
-  }, [symbol, venue, hasPosition]);
+  }, [symbol, venue, hasPosition, spotThesisLeverage, futuresLeverage, marginPercent]);
 
   if (!symbol) return null;
 
@@ -69,7 +78,7 @@ export function AutopilotDeskPreview({
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-cyan-200/85">
           <Activity className="h-3.5 w-3.5" />
-          Autonomous desk · {venue} · not a forecast
+          Live desk · {venue} · real data rules
         </p>
         {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-300" />}
       </div>
@@ -85,9 +94,15 @@ export function AutopilotDeskPreview({
             <span className="text-xs text-white/45">
               {cycle.confidence}% · {cycle.execute.tradeThisCycle ? "trade this cycle" : "hold"}
             </span>
-            {venue === "futures" && (
+            {venue === "futures" && cycle.execute.futuresLeverage != null && (
               <span className="rounded border border-violet-400/30 bg-violet-500/10 px-1.5 py-0.5 text-[9px] text-violet-200">
-                signal · {cycle.execute.futuresSignal}
+                {cycle.execute.futuresSignal} · {cycle.execute.futuresLeverage}× · {cycle.execute.marginPercent}%
+                margin
+              </span>
+            )}
+            {venue === "spot" && (cycle.execute.spotThesisLeverage ?? 1) > 1 && (
+              <span className="rounded border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] text-emerald-200">
+                {cycle.execute.spotThesisLeverage}× thesis size
               </span>
             )}
           </div>

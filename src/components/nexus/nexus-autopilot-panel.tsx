@@ -8,6 +8,10 @@ import {
   AUTOPILOT_INTERVALS,
   autopilotIntervalMs,
   autopilotOnceDelayMs,
+  autopilotScheduleSummary,
+  clampFuturesLeverage,
+  clampSpotThesisLeverage,
+  effectiveMaxTrades,
   estimateRequiredUsdc,
   minVaultUsdcForAutopilot,
   onceScheduleLabel,
@@ -35,6 +39,7 @@ import {
 import { readApiJson } from "@/lib/fetch-json";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
 import {
+  Activity,
   BarChart3,
   Bot,
   Calendar,
@@ -67,10 +72,20 @@ import { useConstitution } from "@/contexts/nexus-constitution-context";
 import { NexusAgentProvider, type NexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
 import { NexusExecutionPanel } from "@/components/nexus/nexus-execution-panel";
 import { NexusTokenSearchPicker } from "@/components/nexus/nexus-token-search-picker";
-import type { GateExecutionIntent } from "@/lib/gate-execution-intent";
+import { clampGateLeverage, type GateExecutionIntent } from "@/lib/gate-execution-intent";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
 
 const PCT_OPTIONS = [25, 50, 75, 100] as const;
+const MARGIN_PCT_OPTIONS = [10, 25, 50, 75] as const;
+const MAX_TRADE_PRESETS = [
+  { value: 0, label: "∞" },
+  { value: 1, label: "1" },
+  { value: 3, label: "3" },
+  { value: 5, label: "5" },
+  { value: 10, label: "10" },
+  { value: 20, label: "20" },
+  { value: -1, label: "Custom" },
+] as const;
 const INTERVAL_KEYS = [
   "1m",
   "5m",
@@ -147,6 +162,8 @@ export function NexusAutopilotPanel({
   const [permissionIntent, setPermissionIntent] = useState<"recurring" | "once">("recurring");
   const [granting, setGranting] = useState(false);
   const gateAutoAppliedRef = useRef(false);
+  const tradesExecutedRef = useRef(0);
+  const [tradesExecuted, setTradesExecuted] = useState(0);
   const [awaitingWallet, setAwaitingWallet] = useState(false);
   const [agentRuntime, setAgentRuntime] = useState<NexusAgentRuntime>(defaultRuntime);
 
@@ -178,7 +195,8 @@ export function NexusAutopilotPanel({
 
   const walletUsd = walletTbnb * bnbSpotUsd;
   const requiredUsdc = minVaultUsdcForAutopilot(config, walletUsd, bnbSpotUsd);
-  const hasDeposit = config.mode === "sell_only" || walletUsd >= requiredUsdc;
+  const hasDeposit =
+    config.mode === "sell_only" || config.venue === "futures" || walletUsd >= requiredUsdc;
 
   const persist = useCallback((next: AutopilotConfig) => {
     configRef.current = next;
@@ -196,6 +214,7 @@ export function NexusAutopilotPanel({
       mode: "data_desk",
       venue: "spot",
       percent: pct,
+      spotThesisLeverage: clampGateLeverage(lev),
       scheduleMode: "recurring",
       interval: "15m",
       holdAction: "skip",
@@ -297,7 +316,10 @@ export function NexusAutopilotPanel({
           return { usdcAmount: tbnb * bnbSpotUsd };
         }
         const avail = Math.max(0, (buyBalanceUsdc ?? walletTbnbRef.current * bnbSpotUsd) - 0.01 * bnbSpotUsd);
-        return { usdcAmount: Math.max(0.05 * bnbSpotUsd, (avail * cfg.percent) / 100) };
+        const lev = clampSpotThesisLeverage(cfg.spotThesisLeverage ?? 1);
+        let usdcAmount = Math.max(0.05 * bnbSpotUsd, (avail * cfg.percent) / 100);
+        if (lev > 1) usdcAmount = Math.min(avail * 0.95, usdcAmount * lev);
+        return { usdcAmount };
       }
       if (cfg.amountMode === "custom_token") {
         if (cfg.customAmountUnit === "usdc" && priceUsd > 0) {
@@ -310,6 +332,26 @@ export function NexusAutopilotPanel({
     },
     [bnbSpotUsd],
   );
+
+  const recordExecutedTrade = useCallback(() => {
+    const cap = effectiveMaxTrades(configRef.current);
+    if (cap <= 0) return false;
+    tradesExecutedRef.current += 1;
+    setTradesExecuted(tradesExecutedRef.current);
+    if (tradesExecutedRef.current >= cap) {
+      if (recurringTimerRef.current) clearTimeout(recurringTimerRef.current);
+      startedRef.current = false;
+      persist({ ...configRef.current, recurringEnabled: false });
+      pushLog(`Max trades (${cap}) reached — agent stopped`, "info");
+      toast({
+        type: "info",
+        title: "Trade limit reached",
+        message: `Completed ${cap} trade${cap === 1 ? "" : "s"} on your schedule. Start again to continue.`,
+      });
+      return true;
+    }
+    return false;
+  }, [persist, pushLog, toast]);
 
   const runCycle = useCallback(async (trigger: "recurring" | "once" = "recurring") => {
     const t = activeToken();
@@ -502,10 +544,18 @@ export function NexusAutopilotPanel({
       }
 
       if (cfg.mode === "data_desk") {
-        const cycleRes = await fetch(
-          `/api/nexus/autopilot/cycle?symbol=${encodeURIComponent(t.symbol)}&venue=${cfg.venue}&hasPosition=${positionAmount > 0 ? 1 : 0}`,
-          { cache: "no-store", signal: AbortSignal.timeout(15_000) },
-        );
+        const deskQ = new URLSearchParams({
+          symbol: t.symbol,
+          venue: cfg.venue,
+          hasPosition: positionAmount > 0 ? "1" : "0",
+          spotLev: String(clampSpotThesisLeverage(cfg.spotThesisLeverage ?? 1)),
+          futLev: String(clampFuturesLeverage(cfg.futuresLeverage ?? 3)),
+          marginPct: String(cfg.marginPercent ?? 25),
+        });
+        const cycleRes = await fetch(`/api/nexus/autopilot/cycle?${deskQ}`, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(15_000),
+        });
         const cycle = (await cycleRes.json()) as AutopilotDeskCycle & { error?: string };
         if (!cycleRes.ok || !cycle.ok) {
           pushLog(cycle.error ?? "Autopilot desk cycle failed", "error");
@@ -515,13 +565,14 @@ export function NexusAutopilotPanel({
         pushLog(`Desk ${cycle.action} · ${cycle.method}`, "info");
 
         if (cfg.venue === "futures") {
-          const msg = `Futures signal: ${cycle.execute.futuresSignal.toUpperCase()} — ${cycle.thesis}`;
+          const msg = `Futures signal: ${cycle.execute.futuresSignal.toUpperCase()} · ${cycle.execute.futuresLeverage ?? cfg.futuresLeverage}× · ${cycle.execute.marginPercent ?? cfg.marginPercent}% — ${cycle.thesis}`;
           pushLog(msg, "info");
           toast({
             type: "info",
             title: `Futures ${cycle.execute.futuresSignal}`,
             message: cycle.execute.venueNote,
           });
+          if (cycle.execute.tradeThisCycle) recordExecutedTrade();
           return;
         }
 
@@ -711,6 +762,7 @@ export function NexusAutopilotPanel({
       }
 
       onTradeComplete?.();
+      recordExecutedTrade();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Autopilot failed";
       pushLog(msg, "error");
@@ -742,6 +794,7 @@ export function NexusAutopilotPanel({
     ensureBscNetwork,
     swapNativeForToken,
     swapTokenForNative,
+    recordExecutedTrade,
   ]);
 
   runCycleRef.current = runCycle;
@@ -784,7 +837,7 @@ export function NexusAutopilotPanel({
       const walletUsdNow = walletBal * bnbSpotUsd;
       const need = minVaultUsdcForAutopilot(cfgNow, walletUsdNow, bnbSpotUsd);
 
-      if (cfgNow.mode !== "sell_only" && walletUsdNow < need) {
+      if (cfgNow.mode !== "sell_only" && cfgNow.venue === "spot" && walletUsdNow < need) {
         toast({
           type: "error",
           title: "Fund wallet first",
@@ -825,18 +878,22 @@ export function NexusAutopilotPanel({
       }
 
       if (intent === "recurring") {
+        tradesExecutedRef.current = 0;
+        setTradesExecuted(0);
         const next = { ...cfg, recurringEnabled: true };
         persist(next);
         startedRef.current = true;
         if (recurringTimerRef.current) clearTimeout(recurringTimerRef.current);
+        const cap = effectiveMaxTrades(cfg);
+        const capLabel = cap <= 0 ? "unlimited trades" : `${cap} trade${cap === 1 ? "" : "s"} max`;
         pushLog(
-          `Recurring authorized · every ${sessionIntervalLabel(cfg)} · wallet ${walletBal.toFixed(4)} tBNB`,
+          `Recurring authorized · ${autopilotScheduleSummary(cfg)} · wallet ${walletBal.toFixed(4)} tBNB`,
           "info",
         );
         toast({
           type: "success",
-          title: "Recurring agent live",
-          message: `Cycles every ${sessionIntervalLabel(cfg)} — confirm each PancakeSwap tx in your wallet.`,
+          title: "Autopilot live",
+          message: `${cfg.venue === "futures" ? "Futures signals" : "Spot Chapel"} · ${capLabel} · confirm each cycle in wallet.`,
         });
         await runCycleRef.current("recurring");
         return;
@@ -976,17 +1033,56 @@ export function NexusAutopilotPanel({
         <p className="text-sm text-white/55">Select a token from the feed, or use Custom Token mode.</p>
       ) : (
         <>
-          <NexusExecutionPanel compact />
+          {/* ── Overview ── */}
+          <div className="rounded-xl border border-white/10 bg-gradient-to-br from-violet-500/8 to-cyan-500/5 px-3 py-2.5">
+            <p className="text-[11px] font-semibold text-white">Manual vs Autopilot</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-white/60">
+              <strong className="text-emerald-200">Buy / Sell tabs</strong> — you pick size and sign once per trade.{" "}
+              <strong className="text-cyan-200">Autopilot</strong> — configure steps 1→4 below; the agent reads live
+              CMC, volume, mcap, pulse, and funding each cycle — not price predictions.
+            </p>
+          </div>
 
+          {/* ── Wallet ── */}
+          <NexusExecutionPanel compact />
+          {!hasDeposit && (
+            <div className="rounded-xl border border-amber-400/35 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">
+              {config.mode === "sell_only" ? (
+                <>
+                  <strong className="text-amber-50">Sell mode.</strong> You need an open position in this token.
+                  Wallet will only sign once to authorize on {BSC_CHAIN_LABEL}.
+                </>
+              ) : config.venue === "futures" ? (
+                <>
+                  <strong className="text-amber-50">Futures signal mode.</strong> No Chapel wallet funding required
+                  — execute signals on your perp exchange.
+                </>
+              ) : (
+                <>
+                  <strong className="text-amber-50">Fund wallet on BSC Testnet.</strong> Need ~
+                  {(requiredUsdc / Math.max(bnbSpotUsd, 1)).toFixed(4)} tBNB (~${requiredUsdc.toFixed(2)}) for buys.
+                  Balance: {walletTbnb.toFixed(4)} tBNB (~${walletUsd.toFixed(2)}).
+                </>
+              )}
+            </div>
+          )}
+          {gateIntent && (
+            <p className="rounded-xl border border-violet-400/25 bg-violet-500/10 px-3 py-2 text-[11px] leading-relaxed text-violet-100">
+              Gate signal · <strong>{gateIntent.direction}</strong> · {gateIntent.leverage}x thesis ·{" "}
+              <strong>data desk autopilot</strong> — rules from live CMC + pulse, not market prediction.
+            </p>
+          )}
+
+          {/* ── Step 1 · Venue ── */}
           <p className="nexus-caption flex items-center gap-1.5">
             <BarChart3 className="h-3.5 w-3.5" />
-            Trading venue
+            Step 1 · Trading venue
           </p>
           <div className="grid grid-cols-2 gap-2">
             {(
               [
-                { id: "spot" as AutopilotVenue, label: "Spot · Chapel", sub: "Wallet Buy/Sell on PancakeSwap" },
-                { id: "futures" as AutopilotVenue, label: "Futures · signals", sub: "Funding/OI desk — no Chapel perp" },
+                { id: "spot" as AutopilotVenue, label: "Spot", sub: "Chapel swaps · wallet signs each tx" },
+                { id: "futures" as AutopilotVenue, label: "Futures", sub: "Leverage signals · funding/OI desk" },
               ] as const
             ).map(({ id, label, sub }) => (
               <button
@@ -1005,47 +1101,10 @@ export function NexusAutopilotPanel({
             ))}
           </div>
 
-          {(token || resolvedToken) && (
-            <AutopilotDeskPreview
-              symbol={(token ?? resolvedToken)?.symbol ?? null}
-              venue={config.venue ?? "spot"}
-            />
-          )}
-
-          {gateIntent && (
-            <p className="rounded-xl border border-violet-400/25 bg-violet-500/10 px-3 py-2 text-[11px] leading-relaxed text-violet-100">
-              Gate signal · <strong>{gateIntent.direction}</strong> · {gateIntent.leverage}x thesis ·{" "}
-              <strong>data desk autopilot</strong> — rules from live CMC + pulse, not market prediction.
-            </p>
-          )}
-
-          {!hasDeposit && (
-            <div className="rounded-xl border border-amber-400/35 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">
-              {config.mode === "sell_only" ? (
-                <>
-                  <strong className="text-amber-50">Sell mode.</strong> You need an open position in this
-                  token. Wallet will only sign once to authorize on {BSC_CHAIN_LABEL}.
-                </>
-              ) : (
-                <>
-                  <strong className="text-amber-50">Fund wallet on BSC Testnet.</strong> Need ~
-                  {(requiredUsdc / Math.max(bnbSpotUsd, 1)).toFixed(4)} tBNB (~${requiredUsdc.toFixed(2)}) for
-                  buys. Balance: {walletTbnb.toFixed(4)} tBNB (~${walletUsd.toFixed(2)}).
-                </>
-              )}
-            </div>
-          )}
-
-          {lastReasoning && (
-            <p className="rounded-xl border border-cyan-400/20 bg-cyan-500/5 px-3 py-2 text-xs leading-relaxed text-cyan-100/90">
-              <Bot className="mr-1 inline h-3.5 w-3.5" />
-              {lastReasoning}
-            </p>
-          )}
-
+          {/* ── Step 2 · Schedule & trade count ── */}
           <p className="nexus-caption flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5" />
-            Schedule
+            Step 2 · Schedule & trade count
           </p>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -1071,13 +1130,6 @@ export function NexusAutopilotPanel({
               Run once
             </button>
           </div>
-
-          {config.recurringEnabled && (
-            <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
-              <strong className="text-emerald-50">Recurring agent is live.</strong> You can still run one-time
-              trades — they will not stop the interval agent.
-            </p>
-          )}
 
           <p className="nexus-caption flex items-center gap-1.5">
             <Timer className="h-3.5 w-3.5" />
@@ -1151,10 +1203,106 @@ export function NexusAutopilotPanel({
             </>
           )}
 
+          {config.scheduleMode === "recurring" && (
+            <>
+              <p className="nexus-caption flex items-center gap-1.5">
+                <Play className="h-3.5 w-3.5" />
+                How many trades (then auto-stop)
+              </p>
+              <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+                {MAX_TRADE_PRESETS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => persist({ ...config, maxTrades: value })}
+                    className={`min-h-[40px] rounded-lg border text-[10px] font-bold ${
+                      config.maxTrades === value
+                        ? "border-emerald-400/45 bg-emerald-500/15 text-emerald-100"
+                        : "border-white/10 text-white/55"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {config.maxTrades === -1 && (
+                <div className="flex items-center gap-2">
+                  <input
+                    inputMode="numeric"
+                    value={config.customMaxTrades}
+                    onChange={(e) => persist({ ...config, customMaxTrades: e.target.value })}
+                    placeholder="Max trades"
+                    className="min-h-[44px] flex-1 rounded-xl border border-white/15 bg-black/30 px-3 text-white"
+                  />
+                  <span className="text-xs text-white/50">trades max</span>
+                </div>
+              )}
+              <p className="text-[10px] text-white/45">
+                Agent runs every {sessionIntervalLabel(config)} until{" "}
+                {effectiveMaxTrades(config) <= 0
+                  ? "you stop it"
+                  : `${effectiveMaxTrades(config)} executed trade${effectiveMaxTrades(config) === 1 ? "" : "s"}`}
+                .
+              </p>
+            </>
+          )}
+
+          {/* ── Step 3 · Size / leverage ── */}
           <p className="nexus-caption flex items-center gap-1.5">
             <Coins className="h-3.5 w-3.5" />
-            Trade size (simple)
+            Step 3 · {config.venue === "futures" ? "Leverage & margin" : "Spot size"}
           </p>
+
+          {config.venue === "futures" ? (
+            <div className="space-y-3 rounded-xl border border-violet-400/20 bg-violet-500/5 p-3">
+              <div>
+                <div className="mb-1 flex items-center justify-between text-[10px] text-white/55">
+                  <span>Perp leverage (your external venue)</span>
+                  <span className="font-bold text-violet-200">{clampFuturesLeverage(config.futuresLeverage)}×</span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={clampFuturesLeverage(config.futuresLeverage)}
+                  onChange={(e) =>
+                    persist({ ...config, futuresLeverage: clampFuturesLeverage(Number(e.target.value)) })
+                  }
+                  className="gate-leverage-slider w-full accent-violet-400"
+                />
+                <div className="mt-1 flex justify-between text-[9px] text-white/40">
+                  {[1, 3, 5, 10, 20].map((t) => (
+                    <span key={t}>{t}×</span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[10px] text-white/55">Margin budget per signal</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {MARGIN_PCT_OPTIONS.map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => persist({ ...config, marginPercent: pct })}
+                      className={`min-h-[40px] rounded-lg border text-sm font-bold ${
+                        config.marginPercent === pct
+                          ? "border-violet-400/45 bg-violet-500/15 text-violet-100"
+                          : "border-white/10 text-white/60"
+                      }`}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[10px] leading-relaxed text-white/50">
+                Futures autopilot emits <strong className="text-white">long / short / close</strong> from live
+                funding + OI + CMC consensus. You execute on Binance/Bybit/etc. — Chapel has no perp.
+              </p>
+            </div>
+          ) : (
+            <>
           <div className="grid grid-cols-3 gap-2">
             {(
               [
@@ -1265,6 +1413,37 @@ export function NexusAutopilotPanel({
             </div>
           )}
 
+          {config.amountMode === "percent" && (
+            <div className="mt-2 rounded-xl border border-emerald-400/15 bg-emerald-500/5 p-3">
+              <div className="mb-1 flex items-center justify-between text-[10px] text-white/55">
+                <span>Thesis size multiplier (spot only)</span>
+                <span className="font-bold text-emerald-200">
+                  {clampSpotThesisLeverage(config.spotThesisLeverage)}×
+                </span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={5}
+                step={1}
+                value={clampSpotThesisLeverage(config.spotThesisLeverage)}
+                onChange={(e) =>
+                  persist({
+                    ...config,
+                    spotThesisLeverage: clampSpotThesisLeverage(Number(e.target.value)),
+                  })
+                }
+                className="gate-leverage-slider w-full accent-emerald-400"
+              />
+              <p className="mt-1 text-[10px] text-white/45">
+                Scales buy size from wallet % — not Binance perp margin. Permit must still clear.
+              </p>
+            </div>
+          )}
+            </>
+          )}
+
+          {/* ── Optional · Desk policy ── */}
           <button
             type="button"
             onClick={() => setAdvancedOpen((o) => !o)}
@@ -1272,7 +1451,7 @@ export function NexusAutopilotPanel({
           >
             <span className="flex items-center gap-2">
               <Settings2 className="h-4 w-4 text-violet-300" />
-              Trade rules (AI BUY / SELL)
+              Optional · data desk policy
             </span>
             {advancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
@@ -1362,6 +1541,44 @@ export function NexusAutopilotPanel({
             </div>
           )}
 
+          {/* ── Step 4 · Live desk read (after config) ── */}
+          {(token || resolvedToken) && (
+            <>
+              <p className="nexus-caption flex items-center gap-1.5">
+                <Activity className="h-3.5 w-3.5" />
+                Step 4 · Live desk read
+              </p>
+              <AutopilotDeskPreview
+                symbol={(token ?? resolvedToken)?.symbol ?? null}
+                venue={config.venue ?? "spot"}
+                spotThesisLeverage={config.spotThesisLeverage}
+                futuresLeverage={config.futuresLeverage}
+                marginPercent={config.marginPercent}
+              />
+            </>
+          )}
+
+          {/* ── Runtime status ── */}
+          {config.recurringEnabled && (
+            <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+              <strong className="text-emerald-50">Autopilot is live.</strong>{" "}
+              {autopilotScheduleSummary(config)}
+              {effectiveMaxTrades(config) > 0 && (
+                <>
+                  {" "}
+                  · Trades {tradesExecuted}/{effectiveMaxTrades(config)}
+                </>
+              )}
+            </p>
+          )}
+          {lastReasoning && (
+            <p className="rounded-xl border border-cyan-400/20 bg-cyan-500/5 px-3 py-2 text-xs leading-relaxed text-cyan-100/90">
+              <Bot className="mr-1 inline h-3.5 w-3.5" />
+              {lastReasoning}
+            </p>
+          )}
+
+          {/* ── Start ── */}
           {permissionOpen && (
             <div
               className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 p-4 sm:items-center"
@@ -1377,17 +1594,32 @@ export function NexusAutopilotPanel({
                   Start NEXUS Autopilot?
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-white/70">
-                  You will <strong className="text-white">sign once</strong> on {BSC_CHAIN_LABEL} to unlock the
-                  session, then <strong className="text-cyan-200">confirm each cycle</strong> in your wallet via
-                  PancakeSwap
-                  {permissionIntent === "recurring"
-                    ? ` every ${sessionIntervalLabel(config)}`
-                    : ` — one trade ${onceScheduleLabel(config)}`}
-                  .
+                  {config.venue === "futures" ? (
+                    <>
+                      Autopilot will emit <strong className="text-violet-200">futures signals</strong> on your
+                      schedule — {autopilotScheduleSummary(config)}. No Chapel perp execution.
+                    </>
+                  ) : (
+                    <>
+                      You will <strong className="text-white">sign once</strong> on {BSC_CHAIN_LABEL} to unlock the
+                      session, then <strong className="text-cyan-200">confirm each cycle</strong> in your wallet via
+                      PancakeSwap — {autopilotScheduleSummary(config)}.
+                    </>
+                  )}
                 </p>
                 <ul className="mt-3 space-y-1 text-xs text-white/55">
-                  <li>· Keep tBNB on BSC Testnet for buy cycles</li>
-                  <li>· Constitution permit must clear before autopilot buys</li>
+                  <li>· Live CMC consensus + pulse — agent does not predict prices</li>
+                  {config.venue === "spot" ? (
+                    <>
+                      <li>· Constitution permit must clear before autopilot buys</li>
+                      <li>· Wallet signs each PancakeSwap swap on Chapel</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>· {clampFuturesLeverage(config.futuresLeverage)}× leverage · {config.marginPercent}% margin hint per signal</li>
+                      <li>· Execute long/short/close on your perp exchange</li>
+                    </>
+                  )}
                   <li>· Recurring and one-time runs are independent</li>
                 </ul>
                 <div className="mt-4 flex gap-2">
@@ -1471,9 +1703,11 @@ export function NexusAutopilotPanel({
                   : "Start recurring agent"}
           </button>
           <p className="text-center text-[10px] text-white/45">
-            {config.scheduleMode === "recurring"
-              ? `Recurring runs every ${sessionIntervalLabel(config)} — wallet signs each PancakeSwap tx.`
-              : `One-time: ${onceScheduleLabel(config)}. Won't stop recurring if it's already running.`}
+            {config.venue === "futures"
+              ? `${autopilotScheduleSummary(config)} — signal desk only.`
+              : config.scheduleMode === "recurring"
+                ? `${autopilotScheduleSummary(config)} — wallet signs each Chapel swap.`
+                : `One-time: ${onceScheduleLabel(config)}. Won't stop recurring if it's already running.`}
           </p>
         </>
       )}

@@ -33,6 +33,12 @@ export type AutopilotExecutePlan = {
   futuresSignal: FuturesDeskAction;
   executeOnChain: boolean;
   venueNote: string;
+  /** Spot thesis size multiplier applied this cycle */
+  spotThesisLeverage?: number;
+  /** Futures perp leverage hint for external venue */
+  futuresLeverage?: number;
+  /** Futures margin % of budget per signal */
+  marginPercent?: number;
 };
 
 export type AutopilotDeskCycle = {
@@ -69,16 +75,27 @@ export function buildAutopilotExecutePlan(input: {
   route: PositionRoute;
   hasPosition: boolean;
   consensus: GateJudgeConsensus | null;
+  spotThesisLeverage?: number;
+  futuresLeverage?: number;
+  marginPercent?: number;
 }): AutopilotExecutePlan {
   const sym = input.symbol.toUpperCase();
   const tradable = gateSymbolTradableOnTestnet(sym);
   const permitOk = input.consensus?.permit?.status === "GRANT";
+  const spotLev = input.spotThesisLeverage ?? 1;
+  const futLev = input.futuresLeverage ?? 1;
+  const marginPct = input.marginPercent ?? 25;
 
   if (input.venue === "futures") {
     let futuresSignal: FuturesDeskAction = "hold";
     if (input.action === "OPEN_LONG") futuresSignal = "long";
     else if (input.action === "OPEN_SHORT") futuresSignal = "short";
     else if (input.action === "EXIT") futuresSignal = "close";
+
+    const sizing =
+      futuresSignal !== "hold"
+        ? ` · ${futLev}× leverage · ${marginPct}% margin budget`
+        : "";
 
     return {
       tradeThisCycle: futuresSignal !== "hold",
@@ -87,8 +104,10 @@ export function buildAutopilotExecutePlan(input: {
       requiresPermit: false,
       futuresSignal,
       executeOnChain: false,
+      futuresLeverage: futLev,
+      marginPercent: marginPct,
       venueNote:
-        "Futures signals only — Binance USD-M funding/OI context. No perp on Chapel; execute on your perp venue.",
+        `Futures signal${sizing} — Binance USD-M funding/OI context. No perp on Chapel; execute on your perp venue.`,
     };
   }
 
@@ -100,12 +119,14 @@ export function buildAutopilotExecutePlan(input: {
       requiresPermit: false,
       futuresSignal: "hold",
       executeOnChain: false,
+      spotThesisLeverage: spotLev,
       venueNote: "Hold flat — no spot size change this cycle.",
     };
   }
 
   if (input.action === "OPEN_LONG") {
     const blocked = isGateSymbol(sym) && !permitOk;
+    const levNote = spotLev > 1 ? ` · ${spotLev}× thesis size` : "";
     return {
       tradeThisCycle: tradable && !blocked,
       spotSide: tradable && !blocked ? "buy" : "hold",
@@ -113,10 +134,11 @@ export function buildAutopilotExecutePlan(input: {
       requiresPermit: isGateSymbol(sym),
       futuresSignal: "hold",
       executeOnChain: tradable && !blocked,
+      spotThesisLeverage: spotLev,
       venueNote: blocked
         ? `Consensus permit DENY — ${input.consensus?.permit?.reason ?? "skill stack not aligned"}.`
         : tradable
-          ? "Spot long · wallet Buy tBNB → asset on PancakeSwap Chapel."
+          ? `Spot long${levNote} · wallet Buy tBNB → asset on PancakeSwap Chapel.`
           : `${sym} not on Chapel desk — evaluate only.`,
     };
   }
@@ -167,6 +189,9 @@ export function evaluateAutopilotDesk(input: {
   pulse: MarketPulse;
   consensus: GateJudgeConsensus | null;
   derivatives: BinanceDerivativesSnapshot | null;
+  spotThesisLeverage?: number;
+  futuresLeverage?: number;
+  marginPercent?: number;
 }): AutopilotDeskCycle {
   const sym = input.symbol.toUpperCase();
   const { route, pulse, consensus, derivatives, venue, hasPosition } = input;
@@ -261,6 +286,9 @@ export function evaluateAutopilotDesk(input: {
     route,
     hasPosition,
     consensus,
+    spotThesisLeverage: input.spotThesisLeverage,
+    futuresLeverage: input.futuresLeverage,
+    marginPercent: input.marginPercent,
   });
 
   const dataSources = [

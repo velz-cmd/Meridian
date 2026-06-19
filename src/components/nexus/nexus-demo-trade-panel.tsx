@@ -391,11 +391,11 @@ export function NexusTradeHub({
           <div className="nexus-trade-tabs grid grid-cols-3 gap-2">
             {(
               [
-                { id: "buy" as const, label: "Buy", icon: NEXUS_TRADE_ICONS.buy, theme: "nexus" as const },
-                { id: "sell" as const, label: "Sell", icon: NEXUS_TRADE_ICONS.sell, theme: "prism" as const },
-                { id: "agent" as const, label: "Autopilot", icon: NEXUS_TRADE_ICONS.autopilot, theme: "home" as const },
+                { id: "buy" as const, label: "Buy", sub: "Manual", icon: NEXUS_TRADE_ICONS.buy, theme: "nexus" as const },
+                { id: "sell" as const, label: "Sell", sub: "Manual", icon: NEXUS_TRADE_ICONS.sell, theme: "prism" as const },
+                { id: "agent" as const, label: "Autopilot", sub: "Agent", icon: NEXUS_TRADE_ICONS.autopilot, theme: "home" as const },
               ] as const
-            ).map(({ id, label, icon: Icon, theme: iconTheme }) => (
+            ).map(({ id, label, sub, icon: Icon, theme: iconTheme }) => (
               <button
                 key={id}
                 type="button"
@@ -406,7 +406,7 @@ export function NexusTradeHub({
                 className={nexusActionGlass(
                   id === "agent" ? "autopilot" : id,
                   tradeTab === id,
-                  "nexus-trade-tab relative z-[1] flex min-h-[52px] flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-2 active:scale-[0.98]",
+                  "nexus-trade-tab relative z-[1] flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 active:scale-[0.98]",
                 )}
               >
                 <ArcIcon3d
@@ -417,9 +417,20 @@ export function NexusTradeHub({
                   className="pointer-events-none scale-90"
                 />
                 <span className="text-[10px] font-bold">{label}</span>
+                <span className="text-[8px] font-medium text-white/40">{sub}</span>
               </button>
             ))}
           </div>
+          {tradeTab === "agent" && (
+            <p className="mt-2 text-center text-[10px] leading-relaxed text-white/45">
+              Set interval + max trades — agent applies live market data rules each cycle.
+            </p>
+          )}
+          {(tradeTab === "buy" || tradeTab === "sell") && (
+            <p className="mt-2 text-center text-[10px] leading-relaxed text-white/45">
+              Manual mode — you pick size; wallet signs one swap per click.
+            </p>
+          )}
         </div>
 
       <div
