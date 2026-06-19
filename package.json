@@ -25,6 +25,8 @@
     "bnb:live": "node bnb-hack/live/eval-live.mjs --symbol BNB --symbol CAKE",
     "dune:setup": "node scripts/dune-create-queries.mjs",
     "dune:sync-vercel": "node scripts/sync-dune-vercel.mjs",
+    "bootstrap:production": "node scripts/bootstrap-production.mjs",
+    "backfill:wallets": "node scripts/backfill-connected-wallets.mjs",
     "sync:cmc-vercel": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-cmc-vercel.ps1"
   },
   "dependencies": {

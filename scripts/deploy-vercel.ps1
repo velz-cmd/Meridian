@@ -14,7 +14,7 @@ npx vercel whoami
 
 if (-not (Test-Path (Join-Path $root ".vercel\project.json"))) {
   Write-Host "==> Linking to Vercel (trader-arc)"
-  npx vercel link --yes
+  npx vercel link --project trader-arc --yes
 }
 
 Write-Host "==> Syncing .env.local to Vercel (production, preview, development)"

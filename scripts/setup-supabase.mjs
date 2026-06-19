@@ -65,7 +65,13 @@ async function verifyTables() {
     process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return false;
   const sb = createClient(url, key);
-  const tables = ["demo_portfolios", "agent_vault_ledgers", "agent_vault_meta"];
+  const tables = [
+    "demo_portfolios",
+    "agent_vault_ledgers",
+    "agent_vault_meta",
+    "product_events",
+    "connected_wallets",
+  ];
   for (const table of tables) {
     const { error } = await sb.from(table).select("*").limit(1);
     if (error?.message?.includes("does not exist")) {

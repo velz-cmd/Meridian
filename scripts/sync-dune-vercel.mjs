@@ -12,8 +12,10 @@ const teamId = "team_apDtKK364C3BW1LjG3M93rhI";
 function getToken() {
   if (process.env.VERCEL_TOKEN?.trim()) return process.env.VERCEL_TOKEN.trim();
   const paths = [
+    join(process.env.APPDATA || "", "com.vercel.cli", "Data", "auth.json"),
     join(process.env.APPDATA || "", "com.vercel.cli", "auth.json"),
     join(process.env.USERPROFILE || "", ".vercel", "auth.json"),
+    join(process.env.APPDATA || "", "xdg.data", "com.vercel.cli", "auth.json"),
   ];
   for (const p of paths) {
     if (!existsSync(p)) continue;
