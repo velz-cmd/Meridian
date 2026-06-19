@@ -1,35 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Brain, Scale, TrendingUp } from "lucide-react";
+import { ArrowRight, Brain, Database, Layers, Scale } from "lucide-react";
+import { summarizeArchitectureCoverage } from "@/lib/meridian-architecture";
 
-const PIPELINE = [
-  { step: "Market Memory", desc: "Living genome library — every day encoded" },
-  { step: "Market Twin", desc: "Historical analog matching with differences" },
-  { step: "Narrative Flow", desc: "Capital migration across themes" },
-  { step: "Bull & Bear Court", desc: "Adversarial debate, not one AI voice" },
-  { step: "Counterfactual", desc: "What-if stress on conviction" },
-  { step: "Conviction Decay", desc: "When the thesis expires" },
-  { step: "Constitution", desc: "Rules before wallet — 6 articles" },
-  { step: "Evolution", desc: "Strategy mutates from backtest proof" },
+const STACK = [
+  { icon: Database, label: "CMC APIs", sub: "Price · Volume · F&G · Categories · Global metrics", color: "text-cyan-300 border-cyan-400/20" },
+  { icon: Layers, label: "8 CMC Skills", sub: "Momentum · RS · Regime · Liquidity · Vol · Sentiment · Trend · Structure", color: "text-cyan-200 border-cyan-400/15" },
+  { icon: Scale, label: "Bull & Bear Court", sub: "Weighted adversarial ensemble — not black-box AI", color: "text-amber-200 border-amber-400/20" },
+  { icon: Brain, label: "Memory + Stress", sub: "Twin · Analog · DNA · Counterfactual · Decay · Constitution", color: "text-violet-200 border-violet-400/20" },
 ] as const;
 
 export function MeridianIntelligencePipeline() {
+  const summary = summarizeArchitectureCoverage();
+
   return (
     <section className="relative z-10 mx-auto max-w-[1680px] px-4 py-10 sm:px-6 sm:py-14">
       <div className="rounded-3xl border border-violet-400/15 bg-gradient-to-b from-violet-950/30 to-black/40 p-5 sm:p-8">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-violet-300/90">
-              // MARKET MEMORY ENGINE
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300/90">
+              // CMC DATA → SKILLS → REASONING → OUTPUT
             </p>
             <h2 className="mt-2 max-w-2xl text-2xl font-semibold text-white sm:text-3xl">
-              Not another signal generator.{" "}
-              <span className="text-white/50">A system that remembers.</span>
+              CMC provides the data.{" "}
+              <span className="text-white/50">MERIDIAN provides the intelligence.</span>
             </h2>
             <p className="mt-3 max-w-xl text-sm text-white/55">
-              Professional traders ask why an opportunity exists, who disagrees, and what breaks the thesis. MERIDIAN
-              answers ten questions — regime, narrative, court, counterfactual, decay, constitution — as one pipeline.
+              ~{summary.coveragePct}% of the Track 2 stack is live: {summary.cmcSkillCount} deterministic CMC skills
+              feed Bull/Bear Court, Constitution, Market Twin, and counterfactual stress — not another RSI dashboard.
             </p>
           </div>
           <Link
@@ -37,38 +36,49 @@ export function MeridianIntelligencePipeline() {
             className="inline-flex items-center gap-2 rounded-xl border border-violet-400/35 bg-violet-500/10 px-4 py-2.5 text-sm text-violet-100 hover:bg-violet-500/20"
           >
             <Brain className="h-4 w-4" />
-            Open Intelligence desk
+            Open Strategy desk
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {PIPELINE.map((item, i) => (
-            <div
-              key={item.step}
-              className="rounded-xl border border-white/[0.07] bg-black/30 px-3 py-3"
-            >
-              <p className="font-mono text-[9px] text-violet-400/80">{String(i + 1).padStart(2, "0")}</p>
-              <p className="mt-1 text-sm font-semibold text-white">{item.step}</p>
-              <p className="mt-0.5 text-[11px] leading-snug text-white/45">{item.desc}</p>
+        <div className="mb-6 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+          {STACK.map((layer, i) => (
+            <div key={layer.label} className="flex items-center gap-2">
+              <div className={`rounded-xl border bg-black/30 px-4 py-3 ${layer.color.split(" ").slice(1).join(" ")}`}>
+                <div className="flex items-center gap-2">
+                  <layer.icon className={`h-4 w-4 ${layer.color.split(" ")[0]}`} />
+                  <div>
+                    <p className="text-sm font-semibold text-white">{layer.label}</p>
+                    <p className="text-[10px] text-white/45">{layer.sub}</p>
+                  </div>
+                </div>
+              </div>
+              {i < STACK.length - 1 && (
+                <span className="hidden text-white/25 sm:inline" aria-hidden>
+                  ↓
+                </span>
+              )}
             </div>
           ))}
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          <div className="flex items-start gap-2 rounded-xl border border-cyan-400/15 bg-cyan-500/5 p-3 text-xs text-white/60">
-            <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
-            <span>Market Twin — “Current market resembles October 2023” with outcome context</span>
-          </div>
-          <div className="flex items-start gap-2 rounded-xl border border-amber-400/15 bg-amber-500/5 p-3 text-xs text-white/60">
-            <Scale className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-            <span>Bull vs Bear Court — weighted adversarial layers, not black-box AI</span>
-          </div>
-          <div className="flex items-start gap-2 rounded-xl border border-emerald-400/15 bg-emerald-500/5 p-3 text-xs text-white/60">
-            <Brain className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-            <span>Constitution + backtest proof — 90-day replay vs naive agent</span>
-          </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { t: "Market Twin", d: "88% similar to Jan 2024 — your algorithm, not a CMC endpoint" },
+            { t: "Bull vs Bear Court", d: "9-layer weighted debate — architecture, not prompts" },
+            { t: "Constitution", d: "6/9 votes · bear cap 15% · risk-off half size" },
+            { t: "90-day Replay", d: "Constitution vs naive agent — backtest proof" },
+          ].map((item) => (
+            <div key={item.t} className="rounded-xl border border-white/[0.07] bg-black/30 px-3 py-3">
+              <p className="text-sm font-semibold text-white">{item.t}</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-white/45">{item.d}</p>
+            </div>
+          ))}
         </div>
+
+        <p className="mt-4 text-center font-mono text-[10px] text-white/35">
+          {summary.featureLive}/{summary.featureTotal} intelligence features live · Bloomberg remembers nothing · MERIDIAN does
+        </p>
       </div>
     </section>
   );

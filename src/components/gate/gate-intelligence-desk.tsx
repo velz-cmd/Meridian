@@ -96,9 +96,14 @@ export function GateIntelligenceDesk({
               {data.symbol} intelligence · <span className="text-white/50">{genome.id}</span>
             </h2>
             <p className="mt-2 max-w-2xl text-xs text-white/55">
-              Not “what to buy” — why the opportunity exists, who disagrees, what breaks the thesis, and how long it
-              stays valid. Memory-first market intelligence.
+              CMC skills → Bull/Bear Court → Memory & stress. Not “what to buy” — why, who disagrees, what breaks it.
             </p>
+            {data.architecture && (
+              <p className="mt-1 font-mono text-[10px] text-cyan-300/70">
+                {data.architecture.tagline} · {data.architecture.cmcSkillCount} CMC skills · breadth{" "}
+                {data.architecture.breadthPct}% · {data.architecture.featuresLive} features live
+              </p>
+            )}
           </div>
           {onReload && (
             <button
@@ -120,6 +125,7 @@ export function GateIntelligenceDesk({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Market Twin" icon={TrendingUp} accent="border-cyan-400/20">
+          <p className="mb-2 font-mono text-[8px] uppercase text-violet-300/60">MERIDIAN · historical analog</p>
           <p className="text-sm text-cyan-100">
             Resembles <span className="font-semibold">{marketTwin.label}</span> · {marketTwin.similarity}% similar ·{" "}
             {marketTwin.confidence} confidence
@@ -140,6 +146,7 @@ export function GateIntelligenceDesk({
         </Card>
 
         <Card title="Bull vs Bear Court" icon={Scale} accent="border-amber-400/20">
+          <p className="mb-2 font-mono text-[8px] uppercase text-amber-300/60">MERIDIAN · 9 CMC skill layers as attorneys</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-3">
               <p className="text-[10px] uppercase text-emerald-300">Bull Attorney</p>
@@ -171,6 +178,7 @@ export function GateIntelligenceDesk({
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Narrative Flow" icon={GitBranch}>
+          <p className="mb-2 font-mono text-[8px] uppercase text-cyan-300/60">CMC + MERIDIAN · category rotation</p>
           <div className="space-y-2">
             {narrativeFlow.radar.slice(0, 6).map((n) => (
               <div key={n.id} className="flex items-center gap-2 text-xs">

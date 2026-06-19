@@ -127,4 +127,13 @@ export type MeridianIntelligencePayload = {
   constitution: MeridianConstitutionArticle[];
   marketMemory: MeridianMemoryMatch[];
   evolution: MeridianEvolutionHint | null;
+  architecture: {
+    tagline: string;
+    coveragePct: number;
+    cmcSkillCount: number;
+    featuresLive: number;
+    breadthPct: number;
+    breadthLabel: string;
+    dataSource: string;
+  };
 };

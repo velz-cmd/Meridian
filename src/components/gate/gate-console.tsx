@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArcBackground } from "@/components/layout/arc-background";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
+import { GateCmcArchitecturePanel } from "@/components/gate/gate-cmc-architecture-panel";
 import { GateConfigPanel } from "@/components/gate/gate-config-panel";
 import { GateDeskHero } from "@/components/gate/gate-desk-hero";
 import { GateDeskTabs, type GateDeskTab } from "@/components/gate/gate-desk-tabs";
@@ -260,12 +261,15 @@ export function GateConsole() {
             )}
 
             {tab === "memory" && (
-              <GateIntelligenceDesk
-                data={intelligence}
-                loading={intelLoading}
-                error={intelError}
-                onReload={() => void reloadIntel()}
-              />
+              <div className="space-y-4">
+                <GateCmcArchitecturePanel compact />
+                <GateIntelligenceDesk
+                  data={intelligence}
+                  loading={intelLoading}
+                  error={intelError}
+                  onReload={() => void reloadIntel()}
+                />
+              </div>
             )}
 
             {tab === "technical" && selected && (
@@ -278,18 +282,21 @@ export function GateConsole() {
             )}
 
             {tab === "rules" && (
-              <GateOutputPanel
-                selected={selected}
-                route={gateRoute}
-                skills={skills ?? null}
-                loading={gateRouteLoading}
-                backtest={backtest}
-                backtestLoading={btLoading}
-                backtestRequested={btRequested}
-                onQuickSelect={handleSelectSymbol}
-                onRunBacktest={() => void runBacktest(symbol)}
-                section="rules"
-              />
+              <div className="space-y-4">
+                <GateCmcArchitecturePanel />
+                <GateOutputPanel
+                  selected={selected}
+                  route={gateRoute}
+                  skills={skills ?? null}
+                  loading={gateRouteLoading}
+                  backtest={backtest}
+                  backtestLoading={btLoading}
+                  backtestRequested={btRequested}
+                  onQuickSelect={handleSelectSymbol}
+                  onRunBacktest={() => void runBacktest(symbol)}
+                  section="rules"
+                />
+              </div>
             )}
 
             {tab === "replay" && (

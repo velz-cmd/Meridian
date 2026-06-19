@@ -9,6 +9,7 @@ import {
   NARRATIVE_BUCKETS,
   SYMBOL_NARRATIVES,
 } from "@/lib/meridian-intelligence-data";
+import { summarizeArchitectureCoverage } from "@/lib/meridian-architecture";
 import type {
   MeridianBullBearCourt,
   MeridianConstitutionArticle,
@@ -80,6 +81,16 @@ function clamp(n: number, lo = 0, hi = 100) {
   return Math.max(lo, Math.min(hi, n));
 }
 
+function computeBreadth(ranked: IntelligenceInput["ranked"]): { pct: number; label: string } {
+  if (!ranked?.length) return { pct: 50, label: "Awaiting benchmark scan" };
+  const above = ranked.filter((r) => (r.conviction ?? 0) >= 55).length;
+  const pct = Math.round((above / ranked.length) * 100);
+  return {
+    pct,
+    label: `${above}/${ranked.length} benchmarks above conviction threshold`,
+  };
+}
+
 function genomeId(date: string, symbol: string, regime: string): string {
   const d = date.replace(/-/g, "").slice(2);
   return `G-${d}-${symbol.slice(0, 3)}-${regime.slice(0, 3).toUpperCase()}`;
@@ -103,9 +114,10 @@ function buildGenome(input: IntelligenceInput): MeridianGenome {
   const regime = input.regime ?? "neutral";
   const fg = m.fearGreed ?? 50;
   const rsi = m.rsi ?? 50;
+  const breadthInfo = computeBreadth(input.ranked);
   const ranked = input.ranked ?? [];
   const longCount = ranked.filter((r) => (r.conviction ?? 0) >= 55).length;
-  const breadth = ranked.length ? Math.round((longCount / ranked.length) * 100) : 50;
+  const breadth = ranked.length ? Math.round((longCount / ranked.length) * 100) : breadthInfo.pct;
   const volExp = m.volume24h && m.marketCap ? Math.round((m.volume24h / m.marketCap) * 1000) / 10 : 1;
   const rs = (input.skills as { relativeStrength?: { role?: string } })?.relativeStrength?.role ?? "neutral";
   const vol = (input.skills as { volatility?: { label?: string; state?: string } })?.volatility?.state ?? "medium";
@@ -437,6 +449,9 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     price: input.market?.price ?? 1,
   };
 
+  const breadthInfo = computeBreadth(input.ranked);
+  const arch = summarizeArchitectureCoverage();
+
   return {
     schema: "meridian-intelligence/v1",
     symbol: sym,
@@ -458,6 +473,15 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     }),
     marketMemory: memory,
     evolution: buildEvolution(input.backtest),
+    architecture: {
+      tagline: arch.tagline,
+      coveragePct: arch.coveragePct,
+      cmcSkillCount: arch.cmcSkillCount,
+      featuresLive: arch.featureLive,
+      breadthPct: breadthInfo.pct,
+      breadthLabel: breadthInfo.label,
+      dataSource: "coinmarketcap/quotes + fear-and-greed + global-metrics",
+    },
   };
 }
 
