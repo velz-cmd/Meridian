@@ -83,8 +83,8 @@ export function buildDemoQuote(input: {
     pnlUsd: pnl,
     label:
       input.side === "swap_to_usdc"
-        ? `Swap ${tokens.toFixed(6)} → ${usdcOut.toFixed(2)} tBNB (demo)`
-        : `Sell ${tokens.toFixed(6)} for ${usdcOut.toFixed(2)} tBNB (demo)`,
+        ? `Swap ${tokens.toFixed(6)} → ${usdcOut.toFixed(4)} tBNB`
+        : `Sell ${tokens.toFixed(6)} for ${usdcOut.toFixed(4)} tBNB`,
   };
 }
 

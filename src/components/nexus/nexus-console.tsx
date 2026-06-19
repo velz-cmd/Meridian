@@ -49,7 +49,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
 import { BscTestnetTradingBanner } from "@/components/shared/bsc-testnet-trading-banner";
 import { meridianClientHeaders } from "@/lib/circle-agents";
-import { buildBscTestnetTradeTokens, isTestnetDeskToken, matchTestnetDeskBySymbol } from "@/lib/testnet-onchain";
+import { buildBscTestnetTradeTokens } from "@/lib/testnet-onchain";
 import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
 import { useSwapTokenQuotes } from "@/hooks/use-swap-token-quotes";
 import { NexusGateBanner, type GateHandoff } from "@/components/nexus/nexus-gate-banner";
@@ -71,8 +71,11 @@ import {
   findGateTokenInFeed,
   isGateBenchmarkRowComplete,
   mergeGateBenchmarkRow,
-  overlayGateMarketOnDesk,
 } from "@/lib/gate-benchmark-token";
+import {
+  defaultChapelDeskToken,
+  resolveChapelExecution,
+} from "@/lib/chapel-execution-router";
 
 function normalizeSym(symbol: string): string {
   return symbol.replace(/^\$/, "").trim().toUpperCase();
@@ -165,29 +168,15 @@ function enrichSelectionFromFeed(
   return prev;
 }
 
-/** Trade hub token: live feed row for analysis; chapel desk + live quote when swappable on testnet. */
+/** Chapel swap target for wallet; null when discovery-only with no route. */
 function resolveActiveTradeToken(
   selected: TrendingMarketToken | null,
   deskTokens: TrendingMarketToken[],
   bnbSpotUsd: number,
 ): TrendingMarketToken | null {
-  if (!selected) {
-    return deskTokens.find((t) => t.symbol === "CAKE") ?? deskTokens[0] ?? null;
-  }
-
-  const sym = normalizeSym(selected.symbol);
-  const marketRow = isGateSymbol(sym) ? mergeGateBenchmarkRow(selected) : selected;
-
-  if (gateSymbolTradableOnTestnet(sym) || isTestnetDeskToken(selected)) {
-    const desk = isTestnetDeskToken(selected)
-      ? selected
-      : matchTestnetDeskBySymbol(sym, bnbSpotUsd);
-    if (desk) {
-      return isGateSymbol(sym) ? overlayGateMarketOnDesk(desk, marketRow) : desk;
-    }
-  }
-
-  return marketRow;
+  if (!selected) return defaultChapelDeskToken(deskTokens);
+  const route = resolveChapelExecution(selected, bnbSpotUsd);
+  return route?.swap ?? route?.display ?? null;
 }
 
 function tokenToDecision(token: TrendingMarketToken): NexusDecision | null {
@@ -267,6 +256,11 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
   const activeTradeToken = useMemo(
     () => resolveActiveTradeToken(selectedToken, testnetDeskTokens, bnbSpotUsd),
     [selectedToken, testnetDeskTokens, bnbSpotUsd],
+  );
+
+  const chapelRoute = useMemo(
+    () => (selectedToken ? resolveChapelExecution(selectedToken, bnbSpotUsd) : null),
+    [selectedToken, bnbSpotUsd],
   );
 
   useEffect(() => {
@@ -936,6 +930,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           embedded
           token={activeTradeToken}
           displayToken={selectedToken}
+          chapelRouteNote={chapelRoute?.routeNote}
           catalogTokens={testnetDeskTokens}
           activeTab={tradeTab}
           onTabChange={setTradeTab}

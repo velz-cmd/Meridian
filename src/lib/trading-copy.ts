@@ -10,18 +10,18 @@ export const TRADING_SETTLEMENT = {
 } as const;
 
 export const TRADING_TAGLINE =
-  "Gate benchmarks use live CMC skills · Chapel swaps (BNB/CAKE/BUSD/USDC) sign in your wallet on BSC Testnet.";
+  "Live CMC gate data · FLOKI/XVS route to Chapel proxies · wallet signs each PancakeSwap tx on BSC Testnet.";
 
 export const TRADING_WALLET_HINT = `Connect on ${BSC_CHAIN_LABEL} · fund tBNB · wallet signs each PancakeSwap tx.`;
 
 export const TRADING_AUTOPILOT_HINT =
-  "Autopilot checks live CMC + pulse on your interval — executes only when rules align. Manual Buy/Sell in Wallet tab.";
+  "Autopilot checks live CMC + pulse on your interval — spot & futures modes sign real Chapel swaps when rules pass.";
 
 export const TRADING_MANUAL_HINT =
   "Manual mode — you pick size; wallet signs one Chapel swap per click.";
 
 export const TRADING_PORTFOLIO_SUB =
-  "BSC Testnet wallet · on-chain balances · marked with live feed prices";
+  "BSC Testnet wallet · on-chain balances · tx history verified on Chapel";
 
 export function formatTbnbWithUsd(tbnb: number, bnbSpotUsd: number): string {
   const usd = tbnb * bnbSpotUsd;

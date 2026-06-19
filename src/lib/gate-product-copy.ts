@@ -1,5 +1,8 @@
 /** User-facing /gate copy — product tone, no hackathon or vendor labels. */
 
+import { hasChapelExecutionRoute } from "@/lib/chapel-execution-router";
+import { isGateSymbol } from "@/lib/gate-constants";
+
 export const GATE_PRODUCT = {
   kicker: "MERIDIAN",
   title: "Strategy skill desk",
@@ -26,5 +29,7 @@ export const GATE_PRODUCT = {
 
 export function gateSymbolTradableOnTestnet(symbol: string): boolean {
   const s = symbol.replace(/^\$/, "").trim().toUpperCase();
-  return s === "BNB" || s === "CAKE" || s === "BUSD" || s === "USDC";
+  if (s === "BNB" || s === "CAKE" || s === "BUSD" || s === "USDC") return true;
+  if (isGateSymbol(s)) return hasChapelExecutionRoute(s);
+  return false;
 }

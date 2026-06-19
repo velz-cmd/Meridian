@@ -105,6 +105,7 @@ const defaultRuntime: NexusAgentRuntime = {
 
 export function NexusAutopilotPanel({
   token,
+  analysisToken,
   catalogTokens = [],
   onTradeComplete,
   embedded = false,
@@ -112,7 +113,10 @@ export function NexusAutopilotPanel({
   gateAutoStart = false,
   gateIntent = null,
 }: {
+  /** Chapel swap token (chain 97) — used for wallet execution */
   token: TrendingMarketToken | null;
+  /** Feed/gate row for desk API (FLOKI thesis while swapping CAKE) */
+  analysisToken?: TrendingMarketToken | null;
   /** Live feed tokens for unified name/CA search */
   catalogTokens?: TrendingMarketToken[];
   onTradeComplete?: () => void;
@@ -145,6 +149,7 @@ export function NexusAutopilotPanel({
   const onceRunningRef = useRef(false);
   const configRef = useRef(config);
   const tokenRef = useRef(token);
+  const analysisTokenRef = useRef(analysisToken);
   const resolvedRef = useRef(resolvedToken);
   const runCycleRef = useRef<(trigger?: "recurring" | "once") => Promise<void>>(async () => {});
   const agentUsdcRef = useRef(agentUsdc);
@@ -172,6 +177,9 @@ export function NexusAutopilotPanel({
   useEffect(() => {
     tokenRef.current = token;
   }, [token]);
+  useEffect(() => {
+    analysisTokenRef.current = analysisToken ?? token;
+  }, [analysisToken, token]);
   useEffect(() => {
     resolvedRef.current = resolvedToken;
   }, [resolvedToken]);
@@ -341,13 +349,14 @@ export function NexusAutopilotPanel({
   }, [persist, pushLog, toast]);
 
   const runCycle = useCallback(async (trigger: "recurring" | "once" = "recurring") => {
-    const t = activeToken();
+    const swapT = activeToken();
+    const analysisRow = analysisTokenRef.current ?? swapT;
     const cfg = configRef.current;
     if (!address) {
       toast({ type: "error", title: "Connect wallet", message: "Connect your wallet to run the agent." });
       return;
     }
-    if (!t) {
+    if (!swapT) {
       toast({
         type: "error",
         title: "Select a token",
@@ -369,18 +378,20 @@ export function NexusAutopilotPanel({
     setRunning(true);
     try {
       let agent: { action?: string; confidence?: number; whyAction?: string; reasoning?: string } | null =
-        t.agent ?? null;
+        analysisRow?.agent ?? swapT.agent ?? null;
 
       if (cfg.mode === "follow_agent" || cfg.mode === "follow_direction") {
-        if (t.agent?.action) {
-          agent = t.agent;
+        if (analysisRow?.agent?.action) {
+          agent = analysisRow.agent;
+        } else if (swapT.agent?.action) {
+          agent = swapT.agent;
         } else {
           const analyzeRes = await fetch("/api/nexus/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              chainId: t.chainId,
-              tokenAddress: t.tokenAddress,
+              chainId: analysisRow?.chainId ?? swapT.chainId,
+              tokenAddress: analysisRow?.tokenAddress ?? swapT.tokenAddress,
               quick: true,
               deep: false,
               save: false,
@@ -408,7 +419,7 @@ export function NexusAutopilotPanel({
       let pulse: MarketPulse | null = null;
       try {
         const pulseRes = await fetch(
-          `/api/nexus/market-pulse?symbol=${encodeURIComponent(t.symbol)}`,
+          `/api/nexus/market-pulse?symbol=${encodeURIComponent(analysisRow?.symbol ?? swapT.symbol)}`,
           { cache: "no-store", signal: AbortSignal.timeout(12_000) },
         );
         if (pulseRes.ok) pulse = (await pulseRes.json()) as MarketPulse;
@@ -518,21 +529,25 @@ export function NexusAutopilotPanel({
       if (portOk) {
         const position = (portData.positions ?? []).find(
           (p: { tokenAddress: string; tokenAmount?: number }) =>
-            p.tokenAddress.toLowerCase() === t.tokenAddress.toLowerCase(),
+            p.tokenAddress.toLowerCase() === swapT.tokenAddress.toLowerCase(),
         );
         positionAmount = position?.tokenAmount ?? 0;
       }
-      if (side === "sell" && address) {
-        try {
-          positionAmount = await fetchDeskTokenBalance(address, t);
-        } catch {
-          /* keep ledger fallback */
+      if (side === "sell" || cfg.mode === "data_desk") {
+        if (address) {
+          try {
+            positionAmount = await fetchDeskTokenBalance(address, swapT);
+          } catch {
+            /* keep ledger fallback */
+          }
         }
       }
 
+      const deskSymbol = analysisRow?.symbol ?? swapT.symbol;
+
       if (cfg.mode === "data_desk") {
         const deskQ = new URLSearchParams({
-          symbol: t.symbol,
+          symbol: deskSymbol,
           venue: cfg.venue,
           hasPosition: positionAmount > 0 ? "1" : "0",
           futLev: String(clampFuturesLeverage(cfg.futuresLeverage ?? 3)),
@@ -550,15 +565,13 @@ export function NexusAutopilotPanel({
         setLastReasoning(cycle.thesis);
         pushLog(`Desk ${cycle.action} · ${cycle.method}`, "info");
 
-        if (cfg.venue === "futures") {
-          const msg = `Futures signal: ${cycle.execute.futuresSignal.toUpperCase()} · ${cycle.execute.futuresLeverage ?? cfg.futuresLeverage}× · ${cycle.execute.marginPercent ?? cfg.marginPercent}% — ${cycle.thesis}`;
-          pushLog(msg, "info");
+        if (cfg.venue === "futures" && !cycle.execute.tradeThisCycle) {
+          pushLog(`Futures check — ${cycle.thesis}`, "info");
           toast({
             type: "info",
             title: `Futures ${cycle.execute.futuresSignal}`,
             message: cycle.execute.venueNote,
           });
-          if (cycle.execute.tradeThisCycle) recordExecutedTrade();
           return;
         }
 
@@ -576,10 +589,17 @@ export function NexusAutopilotPanel({
           pushLog(cycle.execute.venueNote, "info");
           return;
         }
+
+        if (cfg.venue === "futures") {
+          pushLog(
+            `Futures ${cycle.execute.futuresSignal.toUpperCase()} → Chapel ${side}${hedgeToStable ? " → USDC" : ""}`,
+            "info",
+          );
+        }
       } else if (cfg.mode === "follow_direction") {
         const agentQ = agent?.action ? `&agent=${encodeURIComponent(agent.action)}` : "";
         const routeRes = await fetch(
-          `/api/nexus/position-route?symbol=${encodeURIComponent(t.symbol)}&hasPosition=${positionAmount > 0 ? 1 : 0}${agentQ}`,
+          `/api/nexus/position-route?symbol=${encodeURIComponent(deskSymbol)}&hasPosition=${positionAmount > 0 ? 1 : 0}${agentQ}`,
           { cache: "no-store", signal: AbortSignal.timeout(12_000) },
         );
         const dr = (await routeRes.json()) as PositionRoute & { error?: string };
@@ -610,7 +630,7 @@ export function NexusAutopilotPanel({
         cfg,
         side,
         positionAmount,
-        t.priceUsd,
+        swapT.priceUsd,
         buyFundingUsd,
       );
 
@@ -627,8 +647,8 @@ export function NexusAutopilotPanel({
         return;
       }
 
-      if (!canSwapOnBscTestnet(t)) {
-        const msg = `${t.symbol} is not on the BSC Testnet desk — pick BNB, CAKE, BUSD, or USDC.`;
+      if (!canSwapOnBscTestnet(swapT)) {
+        const msg = `${deskSymbol} has no Chapel route — pick BNB, CAKE, BUSD, or USDC.`;
         pushLog(msg, "error");
         toast({ type: "error", title: "Not swappable", message: msg });
         return;
@@ -651,11 +671,11 @@ export function NexusAutopilotPanel({
           toast({ type: "error", title: "Insufficient tBNB", message: msg });
           return;
         }
-        pushLog(`Signing buy ~${tbnbSpend.toFixed(4)} tBNB → ${t.symbol}…`, "info");
+        pushLog(`Signing buy ~${tbnbSpend.toFixed(4)} tBNB → ${swapT.symbol} (${deskSymbol} thesis)…`, "info");
         const result = await swapNativeForToken({
-          symbol: t.symbol,
-          tokenAddress: t.tokenAddress,
-          chainId: t.chainId,
+          symbol: swapT.symbol,
+          tokenAddress: swapT.tokenAddress,
+          chainId: swapT.chainId,
           tbnbAmount: String(tbnbSpend),
         });
         const outAmt = parseFloat(result.amountOutFormatted) || 0;
@@ -666,13 +686,14 @@ export function NexusAutopilotPanel({
             body: JSON.stringify({
               wallet: address,
               side: "buy",
-              symbol: t.symbol,
-              tokenAddress: t.tokenAddress,
-              sourceChain: t.chainId,
+              symbol: swapT.symbol,
+              thesisSymbol: deskSymbol,
+              tokenAddress: swapT.tokenAddress,
+              sourceChain: swapT.chainId,
               tradeNetwork: "bsc",
               usdcAmount: tbnbSpend * bnbSpotUsd,
               tokenAmount: outAmt,
-              priceUsd: t.priceUsd,
+              priceUsd: swapT.priceUsd,
               arcFeeTxHash: result.hash,
             }),
           });
@@ -684,17 +705,17 @@ export function NexusAutopilotPanel({
         appendMeridianActivity({
           kind: "trade",
           level: "success",
-          message: `Autopilot BUY ${t.symbol} · ${result.summary}`,
-          symbol: t.symbol,
+          message: `Autopilot BUY ${deskSymbol} via ${swapT.symbol} · ${result.summary}`,
+          symbol: deskSymbol,
           txHash: result.hash,
         });
       } else if (hedgeToStable) {
         const usdc = BSC_TESTNET_CATALOG.find((c) => c.symbol === "USDC")!;
-        pushLog(`Short hedge · ${tokenAmount?.toFixed(4) ?? "0"} ${t.symbol} → USDC…`, "info");
+        pushLog(`Short hedge · ${tokenAmount?.toFixed(4) ?? "0"} ${swapT.symbol} → USDC…`, "info");
         const result = await swapTokenForToken({
-          paySymbol: t.symbol,
-          payAddress: t.tokenAddress,
-          payChainId: t.chainId,
+          paySymbol: swapT.symbol,
+          payAddress: swapT.tokenAddress,
+          payChainId: swapT.chainId,
           receiveSymbol: "USDC",
           receiveAddress: usdc.tokenAddress,
           receiveChainId: String(BSC_CHAIN_ID),
@@ -705,15 +726,15 @@ export function NexusAutopilotPanel({
         appendMeridianActivity({
           kind: "trade",
           level: "success",
-          message: `Autopilot SHORT hedge ${t.symbol} · ${result.summary}`,
-          symbol: t.symbol,
+          message: `Autopilot SHORT ${deskSymbol} via ${swapT.symbol} · ${result.summary}`,
+          symbol: deskSymbol,
           txHash: result.hash,
         });
       } else {
         const result = await swapTokenForNative({
-          symbol: t.symbol,
-          tokenAddress: t.tokenAddress,
-          chainId: t.chainId,
+          symbol: swapT.symbol,
+          tokenAddress: swapT.tokenAddress,
+          chainId: swapT.chainId,
           tokenAmount: String(tokenAmount),
         });
         const outAmt = parseFloat(result.amountOutFormatted) || 0;
@@ -724,13 +745,14 @@ export function NexusAutopilotPanel({
             body: JSON.stringify({
               wallet: address,
               side: "sell",
-              symbol: t.symbol,
-              tokenAddress: t.tokenAddress,
-              sourceChain: t.chainId,
+              symbol: swapT.symbol,
+              thesisSymbol: deskSymbol,
+              tokenAddress: swapT.tokenAddress,
+              sourceChain: swapT.chainId,
               tradeNetwork: "bsc",
               usdcAmount: outAmt * bnbSpotUsd,
               tokenAmount: tokenAmount ?? 0,
-              priceUsd: t.priceUsd,
+              priceUsd: swapT.priceUsd,
               arcFeeTxHash: result.hash,
             }),
           });
@@ -742,8 +764,8 @@ export function NexusAutopilotPanel({
         appendMeridianActivity({
           kind: "trade",
           level: "success",
-          message: `Autopilot SELL ${t.symbol} · ${result.summary}`,
-          symbol: t.symbol,
+          message: `Autopilot SELL ${deskSymbol} via ${swapT.symbol} · ${result.summary}`,
+          symbol: deskSymbol,
           txHash: result.hash,
         });
       }
@@ -937,7 +959,7 @@ export function NexusAutopilotPanel({
   const displaySymbol =
     config.amountMode === "custom_token" && config.customTokenAddress
       ? config.customTokenSymbol || "Custom"
-      : token?.symbol ?? "—";
+      : analysisToken?.symbol ?? token?.symbol ?? "—";
 
   /** Resume agent after page reload (Run Agent sets startedRef so this does not double-fire) */
   useEffect(() => {
@@ -1042,8 +1064,8 @@ export function NexusAutopilotPanel({
                 </>
               ) : config.venue === "futures" ? (
                 <>
-                  <strong className="text-amber-50">Futures signal mode.</strong> No Chapel wallet funding required
-                  — execute signals on your perp exchange.
+                  <strong className="text-amber-50">Futures mode (Chapel).</strong> Long/short/close maps to
+                  real PancakeSwap txs on {BSC_CHAIN_LABEL} — fund tBNB for longs.
                 </>
               ) : (
                 <>
@@ -1070,7 +1092,7 @@ export function NexusAutopilotPanel({
             {(
               [
                 { id: "spot" as AutopilotVenue, label: "Spot", sub: "Chapel swaps · wallet signs each tx" },
-                { id: "futures" as AutopilotVenue, label: "Futures", sub: "Leverage signals · funding/OI desk" },
+                { id: "futures" as AutopilotVenue, label: "Futures", sub: "Spot-as-futures · Chapel on-chain" },
               ] as const
             ).map(({ id, label, sub }) => (
               <button
@@ -1286,7 +1308,7 @@ export function NexusAutopilotPanel({
               </div>
               <p className="text-[10px] leading-relaxed text-white/50">
                 Futures autopilot emits <strong className="text-white">long / short / close</strong> from live
-                funding + OI + CMC consensus. You execute on Binance/Bybit/etc. — Chapel has no perp.
+                funding + OI + CMC consensus. Long/short/close execute as Chapel spot swaps on {BSC_CHAIN_LABEL}.
               </p>
             </div>
           ) : (
@@ -1463,8 +1485,9 @@ export function NexusAutopilotPanel({
                 <p className="mt-2 text-sm leading-relaxed text-white/70">
                   {config.venue === "futures" ? (
                     <>
-                      Autopilot will emit <strong className="text-violet-200">futures signals</strong> on your
-                      schedule — {autopilotScheduleSummary(config)}. No Chapel perp execution.
+                      Autopilot will run <strong className="text-violet-200">futures checks</strong> on your
+                      schedule — {autopilotScheduleSummary(config)}. Long/short/close sign as Chapel swaps on{" "}
+                      {BSC_CHAIN_LABEL}.
                     </>
                   ) : (
                     <>
@@ -1483,8 +1506,8 @@ export function NexusAutopilotPanel({
                     </>
                   ) : (
                     <>
-                      <li>· {clampFuturesLeverage(config.futuresLeverage)}× leverage · {config.marginPercent}% margin hint per signal</li>
-                      <li>· Execute long/short/close on your perp exchange</li>
+                      <li>· {clampFuturesLeverage(config.futuresLeverage)}× leverage · {config.marginPercent}% margin sizing</li>
+                      <li>· Long = buy Chapel proxy · Short = sell → USDC · Close = exit on Chapel</li>
                     </>
                   )}
                   <li>· Recurring and one-time runs are independent</li>

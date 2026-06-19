@@ -67,6 +67,7 @@ function normalizeTradeSym(symbol: string) {
 export function NexusTradeHub({
   token,
   displayToken,
+  chapelRouteNote,
   catalogTokens = [],
   onTradeComplete,
   activeTab,
@@ -77,6 +78,8 @@ export function NexusTradeHub({
   token: TradeToken;
   /** Feed row the user selected — shown in headers; `token` is the chapel swap target when applicable. */
   displayToken?: TrendingMarketToken | null;
+  /** FLOKI→CAKE etc. — shown above trade controls */
+  chapelRouteNote?: string | null;
   /** Live feed catalog for Autopilot token search */
   catalogTokens?: TrendingMarketToken[];
   onTradeComplete?: () => void;
@@ -458,7 +461,12 @@ export function NexusTradeHub({
                 </div>
               )}
               <NexusAutopilotPanel
-                token={marketToken}
+                token={
+                  token && typeof token === "object" && "tokenAddress" in token
+                    ? (token as TrendingMarketToken)
+                    : null
+                }
+                analysisToken={displayToken ?? marketToken}
                 catalogTokens={catalogTokens}
                 onTradeComplete={onTradeComplete}
                 embedded
@@ -493,6 +501,12 @@ export function NexusTradeHub({
               {tradeOnChainHint && (
                 <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
                   {tradeOnChainHint}
+                </p>
+              )}
+
+              {chapelRouteNote && (
+                <p className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
+                  {chapelRouteNote}
                 </p>
               )}
 

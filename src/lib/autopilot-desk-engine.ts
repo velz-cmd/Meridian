@@ -5,6 +5,7 @@
 
 import { fundingDirectionBias } from "@/lib/binance-derivatives-context";
 import type { BinanceDerivativesSnapshot } from "@/lib/binance-derivatives-context";
+import { hasChapelExecutionRoute } from "@/lib/chapel-execution-router";
 import type { GateJudgeConsensus } from "@/lib/gate-consensus-payload";
 import { isGateSymbol } from "@/lib/gate-constants";
 import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
@@ -92,22 +93,33 @@ export function buildAutopilotExecutePlan(input: {
     else if (input.action === "OPEN_SHORT") futuresSignal = "short";
     else if (input.action === "EXIT") futuresSignal = "close";
 
+    const routed = hasChapelExecutionRoute(sym);
+    const blocked = isGateSymbol(sym) && !permitOk;
+    const canLong = futuresSignal === "long" && routed && !blocked;
+    const canShort = futuresSignal === "short" && input.hasPosition && routed;
+    const canClose = futuresSignal === "close" && input.hasPosition && routed;
+    const tradeThisCycle = canLong || canShort || canClose;
     const sizing =
       futuresSignal !== "hold"
         ? ` · ${futLev}× leverage · ${marginPct}% margin budget`
         : "";
 
     return {
-      tradeThisCycle: futuresSignal !== "hold",
-      spotSide: "hold",
-      hedgeToStable: false,
-      requiresPermit: false,
+      tradeThisCycle,
+      spotSide: canLong ? "buy" : canShort || canClose ? "sell" : "hold",
+      hedgeToStable: futuresSignal === "short" && input.route.execution.kind === "short_stable",
+      requiresPermit: isGateSymbol(sym) && futuresSignal === "long",
       futuresSignal,
-      executeOnChain: false,
+      executeOnChain: tradeThisCycle,
       futuresLeverage: futLev,
       marginPercent: marginPct,
-      venueNote:
-        `Futures signal${sizing} — Binance USD-M funding/OI context. No perp on Chapel; execute on your perp venue.`,
+      venueNote: !routed
+        ? `${sym} has no Chapel route — futures signals only.`
+        : blocked
+          ? `Futures long blocked — ${input.consensus?.permit?.reason ?? "consensus DENY"}.`
+          : !tradeThisCycle
+            ? `Futures ${futuresSignal}${sizing} — no on-chain position to act on this cycle.`
+            : `Chapel spot-as-futures on BSC Testnet — ${futuresSignal.toUpperCase()} via wallet-signed PancakeSwap (funding/OI from Binance USD-M).`,
     };
   }
 
@@ -138,8 +150,10 @@ export function buildAutopilotExecutePlan(input: {
       venueNote: blocked
         ? `Consensus permit DENY — ${input.consensus?.permit?.reason ?? "skill stack not aligned"}.`
         : tradable
-          ? `Spot long${levNote} · wallet Buy tBNB → asset on PancakeSwap Chapel.`
-          : `${sym} not on Chapel desk — evaluate only.`,
+          ? `Spot long${levNote} · wallet signs tBNB → asset on PancakeSwap Chapel.`
+          : hasChapelExecutionRoute(sym)
+            ? `${sym} routes to Chapel proxy — wallet signs on BSC Testnet.`
+            : `${sym} not on Chapel desk — discovery analysis only.`,
     };
   }
 

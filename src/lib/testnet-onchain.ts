@@ -88,14 +88,6 @@ export function buildBscTestnetTradeTokens(bnbSpotUsd = 0): TrendingMarketToken[
     demoTradeable: true,
     discoveryTag: "bsc-testnet-desk",
     sourceTags: ["BSC Testnet", "PancakeSwap"],
-    agent: {
-      action: row.symbol === "CAKE" ? "BUY" : "HOLD",
-      confidence: row.symbol === "CAKE" ? 78 : 65,
-      riskScore: 40,
-      reasoning: `${row.symbol} on BSC Testnet — wallet-signed PancakeSwap swaps.`,
-      whyAction: "Real on-chain desk token on Chapel (chain 97).",
-      reasoningFactors: [],
-    },
   }));
 
   return [native, ...rows];
@@ -149,6 +141,11 @@ export function testnetSwapHint(input: {
   chainId: string;
 }): string | null {
   if (canSwapOnBscTestnet(input)) return null;
+  const sym = input.symbol.replace(/^\$/, "").trim().toUpperCase();
+  const proxy = sym === "FLOKI" ? "CAKE" : sym === "XVS" ? "BNB" : null;
+  if (proxy && proxy !== sym) {
+    return `${sym} routes to ${proxy} on BSC Testnet Chapel — wallet signs a real PancakeSwap tx.`;
+  }
   return `${input.symbol} is not on the BSC Testnet desk — select BNB, CAKE, BUSD, or USDC to trade on-chain.`;
 }
 
@@ -161,7 +158,8 @@ export function matchTestnetDeskBySymbol(
   if (sym === "BNB" || sym === "TBNB" || sym === "WBNB") {
     return createBscNativeBnbSwapToken(bnbSpotUsd);
   }
-  return buildBscTestnetTradeTokens(bnbSpotUsd).find((t) => t.symbol.toUpperCase() === sym) ?? null;
+  const proxy = sym === "FLOKI" ? "CAKE" : sym === "XVS" ? "BNB" : sym;
+  return buildBscTestnetTradeTokens(bnbSpotUsd).find((t) => t.symbol.toUpperCase() === proxy) ?? null;
 }
 
 export function testnetMarketChainForQuote(symbol: string): string {
