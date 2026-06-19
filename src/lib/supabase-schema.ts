@@ -8,6 +8,7 @@ export const SUPABASE_TABLES = [
   "agent_vault_ledgers",
   "agent_vault_meta",
   "product_events",
+  "connected_wallets",
 ] as const;
 
 export type SupabaseTableName = (typeof SUPABASE_TABLES)[number];

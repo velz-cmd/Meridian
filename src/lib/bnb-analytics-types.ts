@@ -71,25 +71,55 @@ export type BnbAnalyticsPayload = {
   product: {
     configured: boolean;
     storage: "supabase" | "local" | "none";
+    tableReady: boolean;
+    siteLiveSince: string | null;
     visitors24h: number;
     visitors7d: number;
     visitorsAllTime: number;
     pageViews24h: number;
     pageViews7d: number;
+    pageViewsAllTime: number;
     actions24h: number;
+    actionsAllTime: number;
     activeVisitors1h: number;
     sessions24h: number;
     topPages: { path: string; views: number }[];
     topActions: { kind: string; count: number }[];
     hourlyPageViews: { hour: string; count: number }[];
+    dailyTrend: Array<{
+      date: string;
+      pageViews: number;
+      visitors: number;
+      walletConnects: number;
+      actions: number;
+    }>;
     recent: Array<{
       at: string;
       kind: string;
       path: string | null;
       action: string | null;
       symbol: string | null;
+      wallet: string | null;
       visitorShort: string;
     }>;
+    wallets: {
+      connectedAllTime: number;
+      connected24h: number;
+      connected7d: number;
+      tradingWallets: number;
+      vaultWallets: number;
+      recentConnects: Array<{ wallet: string; at: string; path: string | null; connects: number }>;
+    };
+    allTime: {
+      pageViews: number;
+      visitors: number;
+      actions: number;
+      walletConnectEvents: number;
+      trades: number;
+      nexusDecisions: number;
+      prismPredictions: number;
+      gateApiCalls: number;
+    };
     derived: {
       demoWallets: number;
       totalDemoTrades: number;

@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     trackServerProductEvent(request, "nexus_trade", {
       symbol: body.symbol,
       action: body.side,
-      meta: { tradeNetwork: body.tradeNetwork },
+      meta: { tradeNetwork: body.tradeNetwork, wallet: body.wallet.toLowerCase() },
     });
 
     let agentBalanceUsdc: number | undefined;

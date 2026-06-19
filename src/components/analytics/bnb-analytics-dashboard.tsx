@@ -50,9 +50,16 @@ function kindLabel(kind: string): string {
   return kind.replace(/^api_/, "API · ").replace(/_/g, " ");
 }
 
+function formatLiveSince(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 export function BnbAnalyticsDashboard() {
   const { data, loading, error, reload } = useBnbAnalytics(30_000);
   const product = data?.product;
+  const allTime = product?.allTime;
+  const wallets = product?.wallets;
 
   const duneMetrics = Object.entries(data?.dune.metrics ?? {}).slice(0, 8);
   const refreshed = data?.generatedAt
@@ -60,6 +67,16 @@ export function BnbAnalyticsDashboard() {
     : "—";
 
   const maxHour = Math.max(1, ...(product?.hourlyPageViews.map((h) => h.count) ?? [1]));
+  const maxDaily = Math.max(
+    1,
+    ...(product?.dailyTrend.map((d) => d.pageViews + d.actions + d.walletConnects) ?? [1]),
+  );
+
+  const storageLabel = product?.tableReady
+    ? product.storage
+    : product?.storage === "supabase"
+      ? "supabase (events pending)"
+      : "needs migration";
 
   const handleRefresh = () => {
     trackMeridianEvent({ kind: "analytics_refresh", path: "/analytics" });
@@ -80,12 +97,17 @@ export function BnbAnalyticsDashboard() {
               MERIDIAN <span className="text-white/55">analytics</span>
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-white/55">
-              Real product traction on trader-arc.vercel.app — unique visitors, page views, user actions, and
-              API usage. Auto-refreshes every 30s.
+              Full product telemetry — visitors, wallet connects, trades, and API usage from public launch to now.
+              Refreshes every 30s.
             </p>
             <p className="mt-1 font-mono text-[10px] text-emerald-400/80">
-              Live · storage {product?.storage ?? "—"} · last sync {refreshed}
+              Live since {formatLiveSince(product?.siteLiveSince)} · {storageLabel} · sync {refreshed}
             </p>
+            {!product?.tableReady && product?.storage !== "local" && (
+              <p className="mt-1 text-[10px] text-amber-300/90">
+                Run Supabase schema (product_events) — events will populate after next deploy + browsing.
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -113,9 +135,117 @@ export function BnbAnalyticsDashboard() {
           </div>
         )}
 
-        <p className="mb-4 font-mono text-[10px] text-white/35">Live product metrics · updates every 30s</p>
+        <p className="mb-4 font-mono text-[10px] text-white/35">All-time + live metrics · trader-arc.vercel.app</p>
 
-        {/* ── Live product traction ── */}
+        {/* ── All-time since public launch ── */}
+        <section className="mb-6 rounded-2xl border border-violet-400/20 bg-violet-500/5 p-4 sm:p-5">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-violet-300" />
+            <h2 className="text-sm font-semibold">All-time · since public launch</h2>
+            <span className="font-mono text-[9px] text-white/40">{formatLiveSince(product?.siteLiveSince)}</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+            <StatCard
+              label="Total visitors"
+              value={loading ? "…" : String(allTime?.visitors ?? wallets?.tradingWallets ?? 0)}
+              sub={`${product?.visitorsAllTime ?? 0} tracked sessions`}
+              accent="text-violet-200"
+            />
+            <StatCard
+              label="Page views"
+              value={loading ? "…" : String(allTime?.pageViews ?? 0)}
+              sub={`${product?.pageViewsAllTime ?? 0} all-time`}
+              accent="text-cyan-200"
+            />
+            <StatCard
+              label="Wallet connects"
+              value={loading ? "…" : String(wallets?.connectedAllTime ?? allTime?.walletConnectEvents ?? 0)}
+              sub={`${wallets?.connected24h ?? 0} today · ${wallets?.connected7d ?? 0} this week`}
+              accent="text-amber-200"
+            />
+            <StatCard
+              label="Trading wallets"
+              value={loading ? "…" : String(wallets?.tradingWallets ?? data?.execution.uniqueWallets ?? 0)}
+              sub={`${allTime?.trades ?? data?.execution.totalTrades ?? 0} Chapel swaps total`}
+              accent="text-emerald-200"
+            />
+            <StatCard
+              label="NEXUS decisions"
+              value={loading ? "…" : String(allTime?.nexusDecisions ?? 0)}
+              sub={`${allTime?.prismPredictions ?? 0} PRISM forecasts`}
+              accent="text-white"
+            />
+            <StatCard
+              label="User actions"
+              value={loading ? "…" : String(allTime?.actions ?? 0)}
+              sub={`${allTime?.gateApiCalls ?? 0} gate API calls`}
+              accent="text-rose-200"
+            />
+          </div>
+        </section>
+
+        {/* ── Wallet analytics ── */}
+        <section className="mb-6">
+          <div className="mb-3 flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-amber-400" />
+            <h2 className="text-sm font-semibold">Wallet analytics</h2>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2 lg:grid-cols-4">
+              <StatCard
+                label="Unique connects"
+                value={loading ? "…" : String(wallets?.connectedAllTime ?? 0)}
+                sub="Distinct wallets that connected"
+                accent="text-amber-200"
+              />
+              <StatCard
+                label="Active traders"
+                value={loading ? "…" : String(wallets?.tradingWallets ?? 0)}
+                sub={`${data?.execution.tradesLast24h ?? 0} swaps last 24h`}
+                accent="text-emerald-200"
+              />
+              <StatCard
+                label="Vault wallets"
+                value={loading ? "…" : String(wallets?.vaultWallets ?? 0)}
+                sub="Agent vault funded"
+                accent="text-violet-200"
+              />
+              <StatCard
+                label="Buy / sell ratio"
+                value={
+                  loading
+                    ? "…"
+                    : `${data?.execution.buyCount ?? 0} / ${data?.execution.sellCount ?? 0}`
+                }
+                sub="All recorded demo trades"
+                accent="text-white"
+              />
+            </div>
+            <section className="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <h3 className="mb-2 text-xs font-semibold text-white/70">Recent wallet connects</h3>
+              {!wallets?.recentConnects.length ? (
+                <p className="text-xs text-white/45">
+                  Connect on NEXUS or /gate — tracked automatically.
+                  {wallets?.tradingWallets ? ` ${wallets.tradingWallets} wallet(s) traded historically.` : ""}
+                </p>
+              ) : (
+                <ul className="max-h-36 space-y-1.5 overflow-y-auto">
+                  {wallets.recentConnects.map((w) => (
+                    <li key={w.wallet} className="flex items-center justify-between text-[11px]">
+                      <span className="font-mono text-amber-200/90">{w.wallet}</span>
+                      <span className="text-white/35">
+                        {new Date(w.at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        {w.connects > 1 ? ` · ×${w.connects}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        </section>
+
+        {/* ── Live product traction (24h) ── */}
         <section className="mb-6">
           <div className="mb-3 flex items-center gap-2">
             <Users className="h-4 w-4 text-cyan-400" />
@@ -145,8 +275,8 @@ export function BnbAnalyticsDashboard() {
             />
             <StatCard
               label="Connected wallets trading"
-              value={loading ? "…" : String(product?.derived.demoWallets ?? 0)}
-              sub={`${product?.derived.totalDemoTrades ?? 0} Chapel swaps recorded`}
+              value={loading ? "…" : String(wallets?.tradingWallets ?? product?.derived.demoWallets ?? 0)}
+              sub={`${product?.derived.totalDemoTrades ?? data?.execution.totalTrades ?? 0} swaps all-time`}
               accent="text-emerald-200"
             />
           </div>
@@ -206,9 +336,39 @@ export function BnbAnalyticsDashboard() {
                 />
               ))}
             </div>
-            <p className="mt-2 font-mono text-[9px] text-white/35">Hourly buckets · hover bars for count</p>
+            <p className="mt-2 font-mono text-[9px] text-white/35">Hourly buckets · last 24h</p>
           </section>
         </div>
+
+        {/* ── 30-day trend ── */}
+        <section className="mb-6 rounded-2xl border border-white/10 bg-black/30 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-violet-400" />
+            <h2 className="text-sm font-semibold">30-day activity trend</h2>
+          </div>
+          <div className="flex h-28 items-end gap-1">
+            {(product?.dailyTrend ?? []).map((d) => {
+              const total = d.pageViews + d.actions + d.walletConnects;
+              return (
+                <div
+                  key={d.date}
+                  className="group relative flex flex-1 flex-col justify-end"
+                  title={`${d.date}: ${d.pageViews} views · ${d.walletConnects} connects · ${d.actions} actions`}
+                >
+                  <div
+                    className="rounded-t bg-violet-500/50 transition-all group-hover:bg-violet-400/70"
+                    style={{ height: `${Math.max(4, (total / maxDaily) * 100)}%` }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-2 flex justify-between font-mono text-[8px] text-white/30">
+            <span>{product?.dailyTrend[0]?.date ?? "—"}</span>
+            <span>views + actions + wallet connects</span>
+            <span>{product?.dailyTrend.at(-1)?.date ?? "—"}</span>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border border-cyan-400/15 bg-cyan-500/5 p-4">
           <div className="mb-3 flex items-center gap-2">
@@ -230,7 +390,8 @@ export function BnbAnalyticsDashboard() {
                   <span className="font-medium capitalize text-cyan-200/90">{kindLabel(ev.kind)}</span>
                   {ev.path && <span className="font-mono text-white/50">{ev.path}</span>}
                   {ev.symbol && <span className="text-amber-200/80">{ev.symbol}</span>}
-                  {ev.action && <span className="text-white/40">{ev.action}</span>}
+                  {ev.wallet && <span className="font-mono text-amber-300/80">{ev.wallet}</span>}
+                  {ev.action && !ev.wallet && <span className="text-white/40">{ev.action}</span>}
                   <span className="ml-auto font-mono text-white/25">{ev.visitorShort}</span>
                 </li>
               ))}

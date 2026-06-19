@@ -16,11 +16,21 @@ const ALLOWED_KINDS = new Set([
   "analytics_refresh",
 ]);
 
+async function parseTrackBody(request: Request): Promise<ProductEventInput | null> {
+  const text = await request.text();
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text) as ProductEventInput;
+  } catch {
+    return null;
+  }
+}
+
 /** Ingest client + lightweight product events (beacon-friendly). */
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as ProductEventInput;
-    if (!body.visitor_id || !body.kind) {
+    const body = await parseTrackBody(request);
+    if (!body?.visitor_id || !body.kind) {
       return NextResponse.json({ error: "visitor_id and kind required" }, { status: 400 });
     }
     if (body.visitor_id.length > 80 || body.kind.length > 64) {
@@ -32,12 +42,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "kind not allowed" }, { status: 400 });
     }
 
+    const wallet =
+      typeof body.meta?.wallet === "string" ? body.meta.wallet.toLowerCase().slice(0, 42) : null;
+
     await recordProductEvent({
       visitor_id: body.visitor_id,
       session_id: body.session_id,
       kind,
       path: body.path?.slice(0, 200) ?? null,
-      action: body.action?.slice(0, 120) ?? null,
+      action: wallet ?? body.action?.slice(0, 120) ?? null,
       symbol: body.symbol?.slice(0, 20) ?? null,
       meta: body.meta ?? {},
     });

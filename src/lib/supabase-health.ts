@@ -102,6 +102,7 @@ export async function probeSupabaseTables(): Promise<SupabaseHealthStatus> {
         "agent_vault_ledgers",
         "agent_vault_meta",
         "product_events",
+        "connected_wallets",
       ] as SupabaseTableName[]
     ).map(probeTable),
   );
