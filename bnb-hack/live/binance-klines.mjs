@@ -51,9 +51,14 @@ export async function fetchBinanceDailySeries(symbol, days = 90) {
         const change24h = prev > 0 ? ((close - prev) / prev) * 100 : 0;
         const change7d = p7 && p7 > 0 ? ((close - p7) / p7) * 100 : 0;
         const ch1 = open > 0 ? ((close - open) / open) * 100 : 0;
+        const high = parseFloat(row[2]);
+        const low = parseFloat(row[3]);
         return {
           time: new Date(row[0]).toISOString().slice(0, 10),
           price: close,
+          high,
+          low,
+          open,
           volume24h: volume * close,
           marketCap: 0,
           change24h,

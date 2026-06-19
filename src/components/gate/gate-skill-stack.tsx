@@ -69,6 +69,23 @@ export type GateSkillsPayload = {
   trend?: SkillTrend;
   liquidity?: SkillLiquidity;
   structural?: SkillStructural;
+  relativeStrength?: SkillSignal & {
+    role?: string;
+    rotationScore?: number;
+    metrics?: { rs24h?: number; rs7d?: number; benchmark?: string };
+    thesis?: string;
+    checksPassed?: number;
+    checksTotal?: number;
+  };
+  volatility?: SkillSignal & {
+    state?: string;
+    squeeze?: boolean;
+    expansion?: boolean;
+    metrics?: { atrPct?: number; compressionRatio?: number };
+    thesis?: string;
+    checksPassed?: number;
+    checksTotal?: number;
+  };
   composite: SkillComposite;
 };
 
@@ -137,6 +154,30 @@ export function GateSkillStack({ skills, constitutionSignal }: { skills: GateSki
           },
         ]
       : []),
+    ...(skills.relativeStrength
+      ? [
+          {
+            title: "Relative strength",
+            subtitle: `${skills.relativeStrength.role ?? "inline"} · ${skills.relativeStrength.rotationScore ?? "—"}/100`,
+            signal: skills.relativeStrength.signal,
+            detail: skills.relativeStrength.metrics
+              ? `RS 24h ${(skills.relativeStrength.metrics.rs24h ?? 0) >= 0 ? "+" : ""}${skills.relativeStrength.metrics.rs24h?.toFixed(2)}% vs ${skills.relativeStrength.metrics.benchmark}`
+              : skills.relativeStrength.thesis,
+          },
+        ]
+      : []),
+    ...(skills.volatility
+      ? [
+          {
+            title: "Volatility regime",
+            subtitle: skills.volatility.state ?? "neutral",
+            signal: skills.volatility.signal,
+            detail: skills.volatility.metrics
+              ? `ATR ${skills.volatility.metrics.atrPct}% · ${skills.volatility.metrics.compressionRatio}× compression`
+              : skills.volatility.thesis,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -147,7 +188,7 @@ export function GateSkillStack({ skills, constitutionSignal }: { skills: GateSki
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/45">
               CMC skill stack · {layers.length} layers · live
             </p>
-            <h2 className="mt-1 text-lg font-semibold text-white">Six deterministic skills → constitution</h2>
+            <h2 className="mt-1 text-lg font-semibold text-white">Eight deterministic skills → constitution</h2>
             {blocked && (
               <p className="mt-1 text-xs text-amber-200/90">
                 Constitution says LONG but composite blocked: {skills.composite.blockers.join(", ")}

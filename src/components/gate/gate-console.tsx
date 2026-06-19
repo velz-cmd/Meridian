@@ -7,6 +7,7 @@ import { MeridianFooter } from "@/components/layout/meridian-footer";
 import { GateConfigPanel } from "@/components/gate/gate-config-panel";
 import { GateDeskHero } from "@/components/gate/gate-desk-hero";
 import { GateDeskTabs, type GateDeskTab } from "@/components/gate/gate-desk-tabs";
+import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
 import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
 import { GateCmcSkillStrip } from "@/components/gate/gate-cmc-skill-strip";
 import { GateSkillStack } from "@/components/gate/gate-skill-stack";
@@ -191,6 +192,7 @@ export function GateConsole() {
                 <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact />
                 {selected && (
                   <>
+                    <GateCapitalRotation benchmarks={benchmarks} route={gateRoute} />
                     <GateCmcSkillStrip selected={selected} cmcLive={selected.cmcLive} />
                     {skills && <GateSkillStack skills={skills} constitutionSignal={selected.gate.signal} />}
                   </>

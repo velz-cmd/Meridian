@@ -27,15 +27,24 @@ const PUBLIC_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "https://trader-arc.ver
 
 async function evaluateFromPack(
   symbol: string,
-  pack: { snapshot: Record<string, unknown>; sources: Record<string, string | number | null>; cmcLive: boolean },
+  pack: {
+    snapshot: Record<string, unknown>;
+    sources: Record<string, string | number | null>;
+    cmcLive: boolean;
+    volatility?: Record<string, unknown> | null;
+  },
   agent: AgentInput | null,
   macro: Awaited<ReturnType<typeof fetchGlobalMacro>> | null,
   oracle: Awaited<ReturnType<typeof fetchBoracleUsdPrice>> | null,
+  bnbSnapshot: Record<string, unknown> | null = null,
 ) {
   const snapshot = pack.snapshot as Parameters<typeof evaluateNexusGate>[0];
   const gateRaw = evaluateNexusGate(snapshot);
   const gate = toStructuredOutput(snapshot, gateRaw);
-  const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {});
+  const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {}, {
+    benchmark: bnbSnapshot,
+    volatility: pack.volatility ?? null,
+  });
   const permit = agent ? issueConstitutionPermit(snapshot, agent) : null;
 
   const stubPermit = {
@@ -80,9 +89,15 @@ async function evaluateSymbol(
   agent: AgentInput | null,
   macro: Awaited<ReturnType<typeof fetchGlobalMacro>> | null = null,
 ) {
-  const { snapshot, sources, cmcLive } = await fetchGateSnapshot(symbol);
+  const sym = symbol.toUpperCase();
+  const resolvedMacro = macro ?? (await fetchGlobalMacro());
+  const [pack, bnbPack] = await Promise.all([
+    fetchGateSnapshot(sym),
+    sym !== "BNB" ? fetchGateSnapshot("BNB").catch(() => null) : fetchGateSnapshot("BNB"),
+  ]);
   const oracle = isBoracleGateSymbol(symbol) ? await fetchBoracleUsdPrice(symbol) : null;
-  return evaluateFromPack(symbol, { snapshot, sources, cmcLive }, agent, macro, oracle);
+  const bnbSnapshot = bnbPack?.snapshot ?? (sym === "BNB" ? pack.snapshot : null);
+  return evaluateFromPack(symbol, pack, agent, resolvedMacro, oracle, bnbSnapshot);
 }
 
 function buildArbitration(
@@ -170,16 +185,23 @@ export async function buildGateRouteResponse(input: { agent?: AgentInput | null 
   );
   const oracleBySym = Object.fromEntries(oracles.map((o) => [o.sym, o.oracle]));
 
+  const bnbSnapshot = (batch.BNB?.snapshot ?? null) as Record<string, unknown> | null;
   const results = await Promise.all(
     GATE_SYMBOLS.map((sym) => {
       const pack = batch[sym];
       if (!pack) throw new Error(`No CMC batch quote for ${sym}`);
       return evaluateFromPack(
         sym,
-        pack as { snapshot: Record<string, unknown>; sources: Record<string, string | number | null>; cmcLive: boolean },
+        pack as {
+          snapshot: Record<string, unknown>;
+          sources: Record<string, string | number | null>;
+          cmcLive: boolean;
+          volatility?: Record<string, unknown> | null;
+        },
         agent,
         macro,
         oracleBySym[sym] ?? null,
+        bnbSnapshot,
       );
     }),
   );

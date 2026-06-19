@@ -24,7 +24,7 @@ allowed-tools:
 ## What this Skill produces
 
 1. **Strategy rules** — entry, exit, position sizing (see `STRATEGY_SPEC.md`)
-2. **Six CMC skills** — momentum, sentiment, regime, trend alignment, liquidity depth, structural quality
+ 1. **Eight CMC skills** — momentum, sentiment, regime, trend alignment, liquidity depth, structural quality, relative strength vs BNB, volatility compression
 3. **Structured signal** — LONG / FLAT / EXIT for today’s bar (`OUTPUT_SCHEMA.json`)
 4. **Backtest reference** — same rules in `bnb-hack/engine/nexus-gate.mjs`
 

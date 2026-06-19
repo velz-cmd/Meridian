@@ -38,13 +38,22 @@ export type GateBenchmarkBatchResult = {
 
 function evaluatePack(
   sym: string,
-  pack: { snapshot: Record<string, unknown>; sources: Record<string, string | number | null>; cmcLive: boolean },
+  pack: {
+    snapshot: Record<string, unknown>;
+    sources: Record<string, string | number | null>;
+    cmcLive: boolean;
+    volatility?: Record<string, unknown> | null;
+  },
   macro: Awaited<ReturnType<typeof fetchGlobalMacro>> | null,
+  bnbSnapshot: Record<string, unknown> | null,
 ): GateBenchmarkEval {
   const snapshot = pack.snapshot as Parameters<typeof evaluateNexusGate>[0];
   const gateRaw = evaluateNexusGate(snapshot);
   const gate = toStructuredOutput(snapshot, gateRaw);
-  const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {});
+  const skills = composeSkillVerdict(snapshot, gateRaw, macro ?? {}, {
+    benchmark: bnbSnapshot,
+    volatility: pack.volatility ?? null,
+  });
   return { sym, snapshot: pack.snapshot, gate, gateRaw, skills, sources: pack.sources, cmcLive: pack.cmcLive };
 }
 
@@ -61,6 +70,7 @@ export async function evaluateAllGateBenchmarks(force = false): Promise<GateBenc
         fetchGateSnapshotsBatch([...GATE_SYMBOLS]),
       ]);
       const evals = new Map<string, GateBenchmarkEval>();
+      const bnbSnapshot = (batch.BNB?.snapshot ?? null) as Record<string, unknown> | null;
       for (const sym of GATE_SYMBOLS) {
         const pack = batch[sym];
         if (pack) {
@@ -72,8 +82,10 @@ export async function evaluateAllGateBenchmarks(force = false): Promise<GateBenc
                 snapshot: Record<string, unknown>;
                 sources: Record<string, string | number | null>;
                 cmcLive: boolean;
+                volatility?: Record<string, unknown> | null;
               },
               macro,
+              bnbSnapshot,
             ),
           );
         }

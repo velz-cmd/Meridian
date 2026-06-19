@@ -56,6 +56,8 @@ export async function GET(req: NextRequest) {
             "trend-alignment",
             "liquidity-depth",
             "structural-quality",
+            "relative-strength-benchmark",
+            "volatility-compression",
           ],
           skillDoc: `${GATE_SKILL_REPO}/SKILL.md`,
           backtest: "/api/gate/backtest?symbol=" + sym + "&days=90",

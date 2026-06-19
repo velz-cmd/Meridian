@@ -27,10 +27,10 @@ export function GateCmcSkillStrip({
               CMC strategy skill · judge path
             </p>
             <h3 className="mt-1 text-base font-semibold text-white">
-              {sym} — live CoinMarketCap → 6 deterministic skills → backtest
+              {sym} — live CoinMarketCap → 8 deterministic skills → backtest
             </h3>
             <p className="mt-1 text-xs text-white/55">
-              Momentum · Sentiment · Regime · Trend · Liquidity · Structure — same engine in SKILL.md, CLI, desk, and NEXUS.
+              Momentum · Sentiment · Regime · Trend · Liquidity · Structure · RS vs BNB · Volatility — same engine in SKILL.md, CLI, desk, and NEXUS.
             </p>
           </div>
           <span

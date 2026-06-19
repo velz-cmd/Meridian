@@ -4,10 +4,12 @@
  */
 
 import { fetchBinanceDailySeries } from "./binance-klines.mjs";
+import {
+  computeVolatilityFromCloses,
+  computeVolatilityFromOhlcBars,
+} from "../engine/volatility-metrics.mjs";
 
-const API = "https://pro-api.coinmarketcap.com";
-
-/** Live RSI/MACD from Binance daily when CMC historical tier blocks. */
+/** Live RSI/MACD + volatility compression from Binance daily when CMC historical tier blocks. */
 async function hydrateTechnicalsFromBinance(symbol, quotes) {
   try {
     const bars = await fetchBinanceDailySeries(symbol, 30);
@@ -18,17 +20,22 @@ async function hydrateTechnicalsFromBinance(symbol, quotes) {
     const prev = bars[bars.length - 2];
     const ch1 =
       prev?.price && last?.price ? ((last.price - prev.price) / prev.price) * 100 : quotes.change1h;
+    const volatility = computeVolatilityFromOhlcBars(bars);
     return {
       rsi: rsi ?? quotes.rsi,
       macdSignal: macdProxy(ch1, quotes.change24h),
       sourceRsi: "binance-spot-daily-14rsi",
       sourceMacd: "binance-spot-daily-derived",
+      sourceVolatility: volatility?.source ?? "binance-spot-daily-ohlc",
       bars: bars.length,
+      volatility,
     };
   } catch {
     return null;
   }
 }
+
+const API = "https://pro-api.coinmarketcap.com";
 
 const TTL_MS = { fearGreed: 120_000, quotes: 90_000, map: 600_000, batch: 90_000 };
 /** @type {Map<string, { at: number; data: unknown }>} */
@@ -180,6 +187,8 @@ export async function fetchGateSnapshot(symbol) {
       sources.rsi = "computed-14d-from-cmc-historical-daily";
       sources.macd = "derived-from-cmc-historical-daily";
       sources.historicalBars = bars.length;
+      const volatility = computeVolatilityFromCloses(closes);
+      if (volatility) sources.volatility = volatility.source;
 
       return {
         snapshot: {
@@ -189,6 +198,7 @@ export async function fetchGateSnapshot(symbol) {
         },
         sources,
         cmcLive: true,
+        volatility,
       };
     }
   } catch {
@@ -201,6 +211,7 @@ export async function fetchGateSnapshot(symbol) {
       sources.rsi = venue.sourceRsi;
       sources.macd = venue.sourceMacd;
       sources.historicalBars = venue.bars;
+      if (venue.sourceVolatility) sources.volatility = venue.sourceVolatility;
       return {
         snapshot: {
           ...quotes,
@@ -209,6 +220,7 @@ export async function fetchGateSnapshot(symbol) {
         },
         sources,
         cmcLive: true,
+        volatility: venue.volatility ?? null,
       };
     }
   } catch {
@@ -291,10 +303,12 @@ export async function fetchGateSnapshotsBatch(symbols) {
           sources.rsi = venue.sourceRsi;
           sources.macd = venue.sourceMacd;
           sources.historicalBars = venue.bars;
+          if (venue.sourceVolatility) sources.volatility = venue.sourceVolatility;
           out[sym] = {
             snapshot: { ...base, rsi: venue.rsi, macdSignal: venue.macdSignal },
             sources,
             cmcLive: true,
+            volatility: venue.volatility ?? null,
           };
           return;
         }

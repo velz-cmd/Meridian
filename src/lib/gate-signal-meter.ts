@@ -65,6 +65,18 @@ export function buildGateSignalMeter(
 
   const alignment = skills?.composite.alignmentScore ?? agreementPct;
 
+  const rs24 = skills?.relativeStrength?.metrics?.rs24h ?? 0;
+  const rsScore = clamp(50 + rs24 * 2.2, 0, 100);
+  const volState = skills?.volatility?.state ?? "unknown";
+  const volScore =
+    volState === "squeeze"
+      ? 72
+      : volState === "expansion"
+        ? 28
+        : volState === "neutral"
+          ? 52
+          : 50;
+
   return [
     {
       name: "Fear & Greed",
@@ -114,6 +126,20 @@ export function buildGateSignalMeter(
       max: 100,
       direction: (skills?.momentum.signal ?? selected.gate.signal).replace(/_/g, " "),
       bull: skills?.momentum.signal === "ENTER_LONG",
+    },
+    {
+      name: "RS vs BNB",
+      value: Math.round(rsScore),
+      max: 100,
+      direction: `${(skills?.relativeStrength?.role ?? "inline").toUpperCase()} · ${rs24 >= 0 ? "+" : ""}${rs24.toFixed(1)}%`,
+      bull: (skills?.relativeStrength?.signal ?? "HOLD") === "ENTER_LONG",
+    },
+    {
+      name: "Vol regime",
+      value: volScore,
+      max: 100,
+      direction: volState.toUpperCase(),
+      bull: volState === "squeeze" || (skills?.volatility?.signal === "ENTER_LONG"),
     },
   ];
 }

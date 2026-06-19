@@ -51,6 +51,22 @@ export function convictionScore(gate, permit, skills = null) {
     score -= skills.composite.blockers.length * 11;
   }
 
+  if (skills?.relativeStrength) {
+    const rs = skills.relativeStrength;
+    if (rs.role === "leader") score += 10;
+    else if (rs.role === "outperform") score += 5;
+    else if (rs.role === "laggard") score -= 18;
+    else if (rs.role === "fade") score -= 12;
+    score += ((rs.rotationScore ?? 50) - 50) * 0.12;
+  }
+
+  if (skills?.volatility) {
+    const v = skills.volatility;
+    if (v.squeeze) score += 6;
+    if (v.expansion) score -= 8;
+    if (v.signal === "AVOID") score -= 14;
+  }
+
   const cleared = permit?.status === "GRANT" || gate.signal === "ENTER_LONG";
   if (!cleared || gate.signal === "HOLD" || gate.signal === "AVOID" || gate.signal === "EXIT") {
     score *= gate.signal === "HOLD" ? 0.52 : 0.32;
@@ -74,6 +90,12 @@ function rankRationale(asset) {
   }
   if (skills?.regime?.signal && skills.regime.signal !== "ENTER_LONG") {
     parts.push(`regime ${skills.regime.signal.replace("_", " ").toLowerCase()}`);
+  }
+  if (skills?.relativeStrength?.role && skills.relativeStrength.role !== "inline") {
+    parts.push(`RS ${skills.relativeStrength.role}`);
+  }
+  if (skills?.volatility?.state && skills.volatility.state !== "unknown" && skills.volatility.state !== "neutral") {
+    parts.push(`vol ${skills.volatility.state}`);
   }
   return `${symbol}: ${parts.join(" · ")}`;
 }

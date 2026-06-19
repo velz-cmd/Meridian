@@ -7,6 +7,8 @@
  *  4. Trend alignment — multi-timeframe CMC quote deltas (1h/24h/7d/30d)
  *  5. Liquidity depth — turnover, volume USD, volume trend
  *  6. Structural quality — cap tier, CMC rank, FDV dilution
+ *  7. Relative strength — vs BNB router benchmark (CMC quote deltas)
+ *  8. Volatility compression — ATR squeeze / expansion (daily OHLC venue)
  */
 
 /** @typedef {import("./nexus-gate.mjs").CmcTokenSnapshot} CmcTokenSnapshot */
@@ -398,18 +400,193 @@ export function evaluateStructuralQualitySkill(t) {
 }
 
 /**
+ * Skill 7 — Relative strength vs BNB (BSC router benchmark).
+ * Uses same CMC quotes batch — capital rotation, not generic RS indicator.
+ * @param {CmcTokenSnapshot} t
+ * @param {CmcTokenSnapshot | null} benchmark BNB snapshot from batch
+ * @param {object} [macro]
+ */
+export function evaluateRelativeStrengthSkill(t, benchmark, macro = {}) {
+  const sym = (t.symbol ?? "TOKEN").toUpperCase();
+  const ch1 = t.change1h ?? 0;
+  const ch24 = t.change24h ?? 0;
+  const ch7 = t.change7d ?? 0;
+
+  let benchLabel = "BNB";
+  let b1 = benchmark?.change1h ?? 0;
+  let b24 = benchmark?.change24h ?? 0;
+  let b7 = benchmark?.change7d ?? 0;
+
+  if (sym === "BNB" || !benchmark) {
+    benchLabel = "alt basket";
+    b24 = macro.altcoinMarketCapChange24h ?? macro.totalMarketChange24h ?? 0;
+    b7 = 0;
+    b1 = 0;
+  }
+
+  const rs1 = ch1 - b1;
+  const rs24 = ch24 - b24;
+  const rs7 = ch7 - b7;
+  const rotationScore = Math.round(Math.min(100, Math.max(0, 50 + rs24 * 2.2 + rs7 * 0.8 + rs1 * 0.6)));
+
+  const leader = rs24 >= 2 && rs7 >= -1;
+  const laggard = rs24 <= -4 && rs7 <= -2;
+  const fadingLeader = rs7 > 4 && rs24 < -2;
+
+  const checks = [
+    {
+      id: "rs24",
+      label: `RS 24h vs ${benchLabel} ${rs24 >= 0 ? "+" : ""}${rs24.toFixed(2)}%`,
+      pass: rs24 >= -2.5,
+    },
+    {
+      id: "rs7",
+      label: `RS 7d vs ${benchLabel} ${rs7 >= 0 ? "+" : ""}${rs7.toFixed(2)}%`,
+      pass: rs7 >= -4 || rs24 > 1.5,
+    },
+    {
+      id: "no_fade",
+      label: "Not fading vs benchmark",
+      pass: !fadingLeader,
+    },
+  ];
+
+  const passed = checks.filter((c) => c.pass).length;
+  let signal = "HOLD";
+  let role = "inline";
+  if (laggard) {
+    signal = "AVOID";
+    role = "laggard";
+  } else if (fadingLeader) {
+    signal = "EXIT";
+    role = "fade";
+  } else if (leader && passed >= 2) {
+    signal = "ENTER_LONG";
+    role = "leader";
+  } else if (rs24 > 0 && passed >= 2) {
+    signal = "ENTER_LONG";
+    role = "outperform";
+  }
+
+  return {
+    id: "relative-strength",
+    name: "Relative strength",
+    signal,
+    role,
+    rotationScore,
+    checks,
+    checksPassed: passed,
+    checksTotal: checks.length,
+    metrics: { rs1h: rs1, rs24h: rs24, rs7d: rs7, benchmark: benchLabel },
+    thesis: laggard
+      ? `Underperforming ${benchLabel} on 24h/7d — deprioritize for BSC capital rotation.`
+      : fadingLeader
+        ? `Was strong vs ${benchLabel} on 7d but rolling over intraday — rotation fade.`
+        : leader
+          ? `Leading ${benchLabel} — priority for marginal BSC desk capital.`
+          : rs24 >= 0
+            ? `Inline vs ${benchLabel} — acceptable for bench allocation.`
+            : `Slight lag vs ${benchLabel} — size conservatively.`,
+    dataSource: "coinmarketcap/quotes/latest",
+  };
+}
+
+/**
+ * Skill 8 — Volatility compression / expansion (ATR from daily OHLC).
+ * @param {CmcTokenSnapshot} t
+ * @param {ReturnType<import("./volatility-metrics.mjs").computeVolatilityFromOhlcBars>} vol
+ */
+export function evaluateVolatilityCompressionSkill(t, vol) {
+  if (!vol) {
+    return {
+      id: "volatility-compression",
+      name: "Volatility regime",
+      signal: "HOLD",
+      state: "unknown",
+      checks: [{ id: "data", label: "Daily OHLC unavailable", pass: true }],
+      checksPassed: 1,
+      checksTotal: 1,
+      thesis: "Volatility skill waits for daily bars (Binance venue or CMC historical).",
+      dataSource: "pending",
+    };
+  }
+
+  const ch1 = Math.abs(t.change1h ?? 0);
+  const rsi = t.rsi ?? 50;
+
+  const checks = [
+    {
+      id: "atr_sane",
+      label: `ATR ${vol.atrPct}% of price`,
+      pass: vol.atrPct <= 11,
+    },
+    {
+      id: "no_whip",
+      label: "No expansion whip (ATR spike + 1h shock)",
+      pass: !(vol.expansion && ch1 > 7),
+    },
+    {
+      id: "squeeze_ok",
+      label: vol.squeeze ? "Coiled squeeze — favorable setup" : "Not in squeeze",
+      pass: vol.squeeze || !vol.expansion,
+    },
+    {
+      id: "rsi_expansion",
+      label: "Expansion not at overbought RSI",
+      pass: !(vol.expansion && rsi > 72),
+    },
+  ];
+
+  const passed = checks.filter((c) => c.pass).length;
+  let signal = "HOLD";
+  if (vol.expansion && (ch1 > 7 || rsi > 72)) signal = "AVOID";
+  else if (vol.expansion && ch1 > 5) signal = "EXIT";
+  else if (vol.squeeze && rsi >= 35 && rsi <= 68) signal = "ENTER_LONG";
+  else if (vol.squeeze) signal = "HOLD";
+
+  return {
+    id: "volatility-compression",
+    name: "Volatility regime",
+    signal,
+    state: vol.state,
+    squeeze: vol.squeeze,
+    expansion: vol.expansion,
+    checks,
+    checksPassed: passed,
+    checksTotal: checks.length,
+    metrics: {
+      atrPct: vol.atrPct,
+      compressionRatio: vol.compressionRatio,
+      rangePct: vol.rangePct,
+      rangePercentile: vol.rangePercentile,
+    },
+    thesis: vol.squeeze
+      ? `ATR coiled (${vol.compressionRatio}×) — compression favors tactical breakout long when gate clears.`
+      : vol.expansion
+        ? `Volatility expanding (${vol.compressionRatio}×) — reduce size or wait for stabilization.`
+        : `Neutral vol regime · ATR ${vol.atrPct}% · range ${vol.rangePct}%.`,
+    dataSource: vol.source,
+  };
+}
+
+/**
  * Compose skills + base gate into one auditable verdict.
  * @param {CmcTokenSnapshot} t
  * @param {ReturnType<typeof import("./nexus-gate.mjs").evaluateNexusGate>} gate
  * @param {object} [macro]
  */
-export function composeSkillVerdict(t, gate, macro = {}) {
+export function composeSkillVerdict(t, gate, macro = {}, ctx = {}) {
+  const benchmark = ctx.benchmark ?? null;
+  const volatility = ctx.volatility ?? null;
+
   const momentum = evaluateMomentumSkill(t);
   const sentiment = evaluateSentimentDivergenceSkill(t);
   const regime = evaluateRegimeSkill(t, macro);
   const trend = evaluateTrendAlignmentSkill(t);
   const liquidity = evaluateLiquidityDepthSkill(t);
   const structural = evaluateStructuralQualitySkill(t);
+  const relativeStrength = evaluateRelativeStrengthSkill(t, benchmark, macro);
+  const volRegime = evaluateVolatilityCompressionSkill(t, volatility);
 
   const blockers = [];
   if (momentum.signal === "EXIT") blockers.push("momentum-exit");
@@ -427,6 +604,10 @@ export function composeSkillVerdict(t, gate, macro = {}) {
   if (liquidity.signal === "AVOID") blockers.push("liquidity-thin");
   if (liquidity.signal === "EXIT") blockers.push("volume-collapse");
   if (structural.signal === "AVOID") blockers.push("structural-weak");
+  if (relativeStrength.signal === "AVOID") blockers.push("rs-laggard");
+  if (relativeStrength.signal === "EXIT") blockers.push("rs-fade");
+  if (volRegime.signal === "AVOID") blockers.push("vol-whip");
+  if (volRegime.signal === "EXIT") blockers.push("vol-expansion");
 
   const skillsAligned =
     momentum.signal === "ENTER_LONG" ||
@@ -440,18 +621,22 @@ export function composeSkillVerdict(t, gate, macro = {}) {
   }
 
   const skillLayerScore =
-    (trend.checksPassed / trend.checksTotal) * 10 +
-    (liquidity.checksPassed / liquidity.checksTotal) * 10 +
-    (structural.checksPassed / structural.checksTotal) * 8;
+    (trend.checksPassed / trend.checksTotal) * 8 +
+    (liquidity.checksPassed / liquidity.checksTotal) * 8 +
+    (structural.checksPassed / structural.checksTotal) * 6 +
+    (relativeStrength.checksPassed / relativeStrength.checksTotal) * 8 +
+    (volRegime.checksPassed / Math.max(volRegime.checksTotal, 1)) * 6;
 
   const alignmentScore = Math.round(
-    (momentum.checksPassed / momentum.checksTotal) * 20 +
-      (sentiment.flagged ? 0 : 14) +
-      (sentiment.state === "BULLISH_DIVERGE" ? 12 : sentiment.state === "BEARISH_DIVERGE" ? 0 : 8) +
-      (gate.checksPassed / Math.max(gate.checksTotal, 1)) * 22 +
+    (momentum.checksPassed / momentum.checksTotal) * 18 +
+      (sentiment.flagged ? 0 : 12) +
+      (sentiment.state === "BULLISH_DIVERGE" ? 10 : sentiment.state === "BEARISH_DIVERGE" ? 0 : 6) +
+      (gate.checksPassed / Math.max(gate.checksTotal, 1)) * 20 +
       skillLayerScore +
-      Math.min(10, Math.abs(momentum.metrics.change24h ?? 0) * 0.6) +
-      (regime.regime === "risk-off" ? (t.change7d > 3 ? 6 : t.change24h > -2 ? 3 : 0) : 8),
+      Math.min(8, Math.abs(momentum.metrics.change24h ?? 0) * 0.5) +
+      (regime.regime === "risk-off" ? (t.change7d > 3 ? 5 : t.change24h > -2 ? 2 : 0) : 6) +
+      (relativeStrength.role === "leader" ? 6 : relativeStrength.role === "laggard" ? -8 : 0) +
+      (volRegime.squeeze ? 5 : volRegime.expansion ? -4 : 0),
   );
 
   const sym = (t.symbol ?? "TOKEN").toUpperCase();
@@ -465,6 +650,8 @@ export function composeSkillVerdict(t, gate, macro = {}) {
     trend,
     liquidity,
     structural,
+    relativeStrength,
+    volatility: volRegime,
     composite: {
       signal: compositeSignal,
       alignmentScore,
@@ -474,7 +661,7 @@ export function composeSkillVerdict(t, gate, macro = {}) {
         blockers.length > 0
           ? `${sym}: blocked (${blockers.join(", ")}) — ${gate.gaps?.[0] ?? "constitution holds flat"}.`
           : compositeSignal === "ENTER_LONG"
-            ? `${sym}: ${rsi.toFixed(1)} RSI · ${trend.metrics.change24h?.toFixed?.(1) ?? "—"}% 24h · ${liquidity.turnover} turnover · ${structural.grade} · ${gate.checksPassed}/${gate.checksTotal} checks · ${alignLabel} (${alignmentScore}/100).`
+            ? `${sym}: ${rsi.toFixed(1)} RSI · RS ${relativeStrength.metrics.rs24h >= 0 ? "+" : ""}${relativeStrength.metrics.rs24h.toFixed(1)}% vs ${relativeStrength.metrics.benchmark} · ${volRegime.state} vol · ${liquidity.turnover} turnover · ${gate.checksPassed}/${gate.checksTotal} · ${alignLabel} (${alignmentScore}/100).`
             : gate.thesis?.startsWith(sym)
               ? gate.thesis
               : `${sym}: ${gate.thesis}`,

@@ -66,8 +66,16 @@ export type GateBenchmarkFull = {
     momentum?: { signal?: string; metrics?: { rsi?: number; macd?: string } };
     sentiment?: { state?: string; signal?: string };
     regime?: { regime?: string; signal?: string };
-    composite?: { signal?: string; alignmentScore?: number; thesis?: string };
+    relativeStrength?: {
+      role?: string;
+      rotationScore?: number;
+      signal?: string;
+      metrics?: { rs24h?: number; rs7d?: number; benchmark?: string };
+    };
+    volatility?: { state?: string; signal?: string; squeeze?: boolean; expansion?: boolean };
+    composite?: { signal?: string; alignmentScore?: number; thesis?: string; blockers?: string[] };
   };
+  conviction?: number;
 };
 
 export type GateRouteResponse = {
