@@ -71,7 +71,7 @@ npm run bnb:backtest -- --symbol BNB --days 90
 |-------|--------|
 | **Live demo** | https://trader-arc.vercel.app/gate |
 | **Public analytics dashboard** | https://trader-arc.vercel.app/analytics |
-| **Dune (on-chain SQL)** | Set `NEXT_PUBLIC_DUNE_DASHBOARD_URL` on Vercel — embeds on `/analytics` when configured |
+| **Dune (on-chain SQL)** | https://dune.com/queries/7760806 (BSC CAKE/BNB dex stats) · https://dune.com/queries/7760807 (recent trades) |
 | **GitHub skill** | https://github.com/ibrahim0-cursor/cursor-arc-circle/tree/main/bnb-hack/skills/nexus-momentum-gate |
 | **Team / X** | MERIDIAN · @Meridian_AIO |
 

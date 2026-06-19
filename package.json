@@ -23,6 +23,8 @@
     "bnb:evaluate": "node bnb-hack/evaluate.mjs",
     "bnb:report": "node bnb-hack/backtest/run.mjs --write-report",
     "bnb:live": "node bnb-hack/live/eval-live.mjs --symbol BNB --symbol CAKE",
+    "dune:setup": "node scripts/dune-create-queries.mjs",
+    "dune:sync-vercel": "node scripts/sync-dune-vercel.mjs",
     "sync:cmc-vercel": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-cmc-vercel.ps1"
   },
   "dependencies": {

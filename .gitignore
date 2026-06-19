@@ -22,6 +22,7 @@
 
 # local agent storage
 /.data
+scripts/dune-env.generated.json
 
 # local grant deck (not for repo)
 MERIDIAN-Grant-Deck.html

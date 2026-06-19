@@ -173,11 +173,11 @@ export function BnbAnalyticsDashboard() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-white/45">
-                {data?.dune.configured
-                  ? "Dune API connected — set DUNE_BNB_STATS_QUERY_ID for aggregated metrics."
-                  : "Set DUNE_API_KEY + dashboard URL on Vercel for SQL-backed traction."}
-              </p>
+            <p className="text-xs text-white/45">
+              {data?.dune.configured
+                ? "BSC mainnet CAKE/BNB dex.trades (Dune has no Chapel testnet catalog) — Chapel demo txs on /analytics on-chain scan."
+                : "Set DUNE_API_KEY + dashboard URL on Vercel for SQL-backed traction."}
+            </p>
             )}
           </section>
         )}
