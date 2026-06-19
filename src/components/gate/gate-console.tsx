@@ -22,6 +22,8 @@ import { GateOutputPanel } from "@/components/gate/gate-output-panel";
 import { NexusAgentPulseStrip } from "@/components/nexus/nexus-agent-pulse-strip";
 import { useMarketPulse } from "@/hooks/use-market-pulse";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
+import { GateIntelligenceDesk } from "@/components/gate/gate-intelligence-desk";
+import { useMeridianIntelligence } from "@/hooks/use-meridian-intelligence";
 import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { trackMeridianEvent } from "@/lib/product-analytics-client";
 import { type GateSymbol } from "@/lib/gate-constants";
@@ -91,6 +93,7 @@ export function GateConsole() {
   const judgeConsensus = useMemo(() => extractJudgeConsensus(selected?.skills as GateSkillsPayload), [selected?.skills]);
   const cmcLive = benchmarks.some((b) => b.cmcLive);
   const { pulse: marketPulse, loading: pulseLoading } = useMarketPulse(symbol, 90_000);
+  const { data: intelligence, loading: intelLoading, error: intelError, reload: reloadIntel } = useMeridianIntelligence(symbol, 120_000);
   const { route: positionRoute, loading: directionLoading } = usePositionRoute(symbol, { intervalMs: 90_000 });
 
   const runBacktest = useCallback(async (sym: GateSymbol) => {
@@ -254,6 +257,15 @@ export function GateConsole() {
                   section="overview"
                 />
               </div>
+            )}
+
+            {tab === "memory" && (
+              <GateIntelligenceDesk
+                data={intelligence}
+                loading={intelLoading}
+                error={intelError}
+                onReload={() => void reloadIntel()}
+              />
             )}
 
             {tab === "technical" && selected && (

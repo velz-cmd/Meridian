@@ -4,6 +4,7 @@ import {
   ArcHomeFooter,
   ArcSystemsShowcase,
 } from "@/components/landing/arc-home-sections";
+import { MeridianIntelligencePipeline } from "@/components/shared/meridian-intelligence-pipeline";
 import { MeridianSkillArchitectureHero } from "@/components/shared/meridian-skill-architecture-hero";
 
 export default function HomePage() {
@@ -12,6 +13,7 @@ export default function HomePage() {
       <ArcBackground theme="home" />
       <div className="relative">
         <ArcEcosystemHero />
+        <MeridianIntelligencePipeline />
         <MeridianSkillArchitectureHero />
         <ArcSystemsShowcase />
         <ArcHomeFooter />

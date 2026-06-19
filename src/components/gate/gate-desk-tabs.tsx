@@ -1,12 +1,13 @@
 "use client";
 
-import { BarChart3, BookOpen, LayoutDashboard, LineChart } from "lucide-react";
+import { BarChart3, BookOpen, Brain, LayoutDashboard, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type GateDeskTab = "overview" | "technical" | "rules" | "replay";
+export type GateDeskTab = "overview" | "memory" | "technical" | "rules" | "replay";
 
 const TABS: { id: GateDeskTab; label: string; shortLabel: string; icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Overview", shortLabel: "Overview", icon: LayoutDashboard },
+  { id: "memory", label: "Market Memory", shortLabel: "Memory", icon: Brain },
   { id: "technical", label: "Technical & reasoning", shortLabel: "Technical", icon: BarChart3 },
   { id: "rules", label: "Rules & spec", shortLabel: "Rules", icon: BookOpen },
   { id: "replay", label: "90-day replay", shortLabel: "Replay", icon: LineChart },
@@ -20,7 +21,7 @@ export function GateDeskTabs({
   onChange: (tab: GateDeskTab) => void;
 }) {
   return (
-    <div className="gate-desk-tabs arc-tab-bar arc-tab-bar--grid-4 mb-3 w-full">
+    <div className="gate-desk-tabs arc-tab-bar arc-tab-bar--grid-5 mb-3 w-full">
       {TABS.map(({ id, label, shortLabel, icon: Icon }) => (
         <button
           key={id}
