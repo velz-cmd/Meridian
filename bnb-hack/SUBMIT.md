@@ -51,10 +51,31 @@ We deliver exactly that. No execution layer required.
 ## Reproduce
 
 ```powershell
+# Strategy skill (live CMC gate)
 curl "https://trader-arc.vercel.app/api/gate/evaluate?symbol=BNB"
 curl "https://trader-arc.vercel.app/api/gate/backtest?symbol=BNB&days=90"
+curl "https://trader-arc.vercel.app/api/gate/status"
+
+# Public traction / analytics (judges)
+curl "https://trader-arc.vercel.app/api/bnb/analytics"
+
+# CLI backtest (same engine as API)
 npm run bnb:backtest -- --symbol BNB --days 90
 ```
+
+---
+
+## Application forms (copy-paste)
+
+| Field | Value |
+|-------|--------|
+| **Live demo** | https://trader-arc.vercel.app/gate |
+| **Public analytics dashboard** | https://trader-arc.vercel.app/analytics |
+| **Dune (on-chain SQL)** | Set `NEXT_PUBLIC_DUNE_DASHBOARD_URL` on Vercel — embeds on `/analytics` when configured |
+| **GitHub skill** | https://github.com/ibrahim0-cursor/cursor-arc-circle/tree/main/bnb-hack/skills/nexus-momentum-gate |
+| **Team / X** | MERIDIAN · @Meridian_AIO |
+
+**One-line traction proof for reviewers:** Open `/analytics` → gate permits + Chapel swap count + BscScan vault link; reproduce any metric via `GET /api/bnb/analytics`.
 
 ---
 
@@ -73,6 +94,7 @@ npm run bnb:backtest -- --symbol BNB --days 90
 | **Title** | MERIDIAN Momentum Constitution — CMC Strategy Skill |
 | **Tagline** | CoinMarketCap data → entry/exit rules → Quantopian-style backtest |
 | **Demo** | https://trader-arc.vercel.app/gate |
+| **Analytics** | https://trader-arc.vercel.app/analytics |
 | **Track** | Strategy Skills |
 
 ---

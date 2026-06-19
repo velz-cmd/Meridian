@@ -19,6 +19,7 @@ Two production-grade AI agents for the **Agora Agents Hackathon** (Circle × Arc
 - `/prism` — Forecasting oracle
 - `/arc` — Counter deploy / increment (wallet on Arc testnet)
 - `/bnb` — **BNB Hack Track 2** — NEXUS Momentum Gate demo (CMC Strategy Skill)
+- `/analytics` — **BNB Hack traction** — live stats, Dune, Chapel swaps
 
 ## BNB Hack — Strategy Skills (Track 2)
 
