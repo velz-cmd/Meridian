@@ -7,6 +7,7 @@ import {
   GitBranch,
   Loader2,
   Scale,
+  Shield,
   Sparkles,
   TrendingUp,
   Zap,
@@ -81,8 +82,17 @@ export function GateIntelligenceDesk({
 
   if (!data) return null;
 
-  const { genome, marketTwin, bullBearCourt, narrativeFlow, timeMachine, thesisDna, convictionDecay, counterfactuals, constitution, marketMemory, evolution } = data;
+  const { genome, marketTwin, bullBearCourt, narrativeFlow, timeMachine, thesisDna, convictionDecay, counterfactuals, constitution, marketMemory, evolution, verdict, verdictReason, confidence, explainability, provenance, skillEvidence, tradeAutopsy } = data;
   const maxDecay = Math.max(1, ...convictionDecay.curve.map((c) => c.value));
+
+  const verdictColor =
+    verdict === "GRANT"
+      ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-100"
+      : verdict === "DENY"
+        ? "border-rose-400/40 bg-rose-500/10 text-rose-100"
+        : verdict === "WAIT"
+          ? "border-amber-400/40 bg-amber-500/10 text-amber-100"
+          : "border-white/20 bg-white/5 text-white/70";
 
   return (
     <div className="space-y-4">
@@ -101,8 +111,16 @@ export function GateIntelligenceDesk({
             {data.architecture && (
               <p className="mt-1 font-mono text-[10px] text-cyan-300/70">
                 {data.architecture.tagline} · {data.architecture.cmcSkillCount} CMC skills · breadth{" "}
-                {data.architecture.breadthPct}% · {data.architecture.featuresLive} features live
+                {data.architecture.breadthPct ?? "UNKNOWN"} · {data.architecture.featuresLive} features live
               </p>
+            )}
+            <p className="mt-2 font-mono text-[10px] text-white/40">
+              Source: {provenance.source} · updated {provenance.freshnessLabel} · completeness{" "}
+              {provenance.dataCompletenessPct}% · quality {provenance.dataQuality}
+              {provenance.cmcLive ? " · CMC live" : " · venue/cached"}
+            </p>
+            {provenance.staleWarning && (
+              <p className="mt-1 text-[10px] text-amber-300/90">{provenance.staleWarning}</p>
             )}
           </div>
           {onReload && (
@@ -115,11 +133,21 @@ export function GateIntelligenceDesk({
             </button>
           )}
         </div>
+        <div className={cn("mt-4 rounded-xl border px-4 py-3", verdictColor)}>
+          <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">Final verdict · evidence engine</p>
+          <p className="mt-1 text-lg font-bold">{verdict}</p>
+          <p className="mt-1 text-xs opacity-90">{verdictReason}</p>
+        </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <StatPill label="Regime" value={genome.regime} sub={`F&G ${genome.fearGreed}`} />
-          <StatPill label="Breadth" value={`${genome.breadth}%`} sub={`Narrative · ${genome.narrative}`} />
-          <StatPill label="Conviction" value={String(convictionDecay.current)} sub={`Thesis ${convictionDecay.status}`} />
-          <StatPill label="Market twin" value={`${marketTwin.similarity}%`} sub={marketTwin.period} />
+          <StatPill label="Regime" value={genome.regime} sub={`F&G ${genome.fearGreed ?? "UNKNOWN"}`} />
+          <StatPill label="Breadth" value={genome.breadth != null ? `${genome.breadth}%` : "UNKNOWN"} sub={genome.breadthLabel} />
+          <StatPill label="Conviction" value={String(confidence.conviction)} sub={`Thesis ${convictionDecay.status}`} />
+          <StatPill label="Twin similarity" value={`${confidence.historicalSimilarity}%`} sub={marketTwin.period} />
+        </div>
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          <StatPill label="Bull–Bear spread" value={String(confidence.bullBearSpread)} sub="Not probability" />
+          <StatPill label="Data completeness" value={`${confidence.dataCompletenessPct}%`} sub={confidence.note} />
+          <StatPill label="Net court conviction" value={String(bullBearCourt.netConviction)} sub={bullBearCourt.conflictNote} />
         </div>
       </div>
 
@@ -136,6 +164,11 @@ export function GateIntelligenceDesk({
             ))}
           </ul>
           <p className="mt-2 text-xs text-white/70">{marketTwin.implication}</p>
+          <p className="mt-2 text-[10px] italic text-white/40">{marketTwin.disclaimer}</p>
+          <p className="mt-2 text-xs text-white/55">
+            Avg historical return {marketTwin.avgHistoricalReturnPct}% · max drawdown {marketTwin.maxDrawdownPct}% · n=
+            {marketTwin.sampleSize}
+          </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {marketTwin.outcomes.map((o) => (
               <span key={o.symbol} className="rounded-lg border border-white/10 bg-black/40 px-2 py-1 font-mono text-[10px]">
@@ -168,8 +201,10 @@ export function GateIntelligenceDesk({
             </div>
           </div>
           <p className="mt-3 text-sm font-semibold text-white">
-            Verdict: <span className="text-amber-200">{bullBearCourt.verdict}</span> · Permit {bullBearCourt.permit}
+            Verdict: <span className="text-amber-200">{bullBearCourt.verdict}</span> · Net {bullBearCourt.netConviction}{" "}
+            · Permit {bullBearCourt.permit}
           </p>
+          <p className="mt-1 text-[10px] text-white/45">{bullBearCourt.conflictNote}</p>
           {bullBearCourt.dissent.length > 0 && (
             <p className="mt-1 text-[11px] text-amber-200/80">Dissent: {bullBearCourt.dissent.join(" · ")}</p>
           )}
@@ -197,7 +232,7 @@ export function GateIntelligenceDesk({
             </p>
           )}
           <p className="mt-1 text-[10px] text-white/45">
-            Likely leader: {narrativeFlow.likelyNextLeader.narrative} ({narrativeFlow.likelyNextLeader.confidence}%)
+            Likely leader: {narrativeFlow.likelyNextLeader.narrative} (conviction {narrativeFlow.likelyNextLeader.conviction})
           </p>
         </Card>
 
@@ -232,6 +267,46 @@ export function GateIntelligenceDesk({
         </Card>
       </div>
 
+      <Card title="Skill Evidence (8 calculators)" icon={Shield} accent="border-cyan-400/15">
+        <p className="mb-3 text-[10px] text-white/45">Skills provide evidence only — Constitution decides. No BUY/SELL from skills.</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {skillEvidence.map((s) => (
+            <div
+              key={s.skill}
+              className={cn(
+                "rounded-xl border px-3 py-2 text-[11px]",
+                s.dataUnavailable ? "border-amber-400/30 bg-amber-500/5" : "border-white/[0.06] bg-black/25",
+              )}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-white">{s.skill}</span>
+                <span className="font-mono text-cyan-200">{s.score}</span>
+              </div>
+              <p className="mt-0.5 font-mono text-[9px] text-white/40">
+                stance {s.stance} · conf {s.confidence} · {s.dataSource}
+                {s.dataUnavailable ? " · DATA UNAVAILABLE" : ""}
+              </p>
+              <ul className="mt-1 space-y-0.5 text-[10px] text-white/50">
+                {s.evidence.slice(0, 4).map((e) => (
+                  <li key={e}>· {e}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card title="Explainability" icon={Brain}>
+        <dl className="space-y-2 text-[11px]">
+          <div><dt className="text-white/40">Why</dt><dd className="text-white/80">{explainability.why}</dd></div>
+          <div><dt className="text-white/40">Why now</dt><dd className="text-white/80">{explainability.whyNow}</dd></div>
+          <div><dt className="text-white/40">Who disagrees</dt><dd className="text-amber-200/90">{explainability.whoDisagrees.length ? explainability.whoDisagrees.join(" · ") : "No active dissent"}</dd></div>
+          <div><dt className="text-white/40">What breaks the thesis</dt><dd className="text-rose-200/80">{explainability.thesisBreakers.join(" · ")}</dd></div>
+          <div><dt className="text-white/40">Validity</dt><dd>{explainability.validityHours}h review window</dd></div>
+          <div><dt className="text-white/40">Seen before</dt><dd>{explainability.seenBefore}</dd></div>
+        </dl>
+      </Card>
+
       {timeMachine && (
         <Card title="Time Machine · forward analog" icon={Sparkles} accent="border-emerald-400/15">
           <div className="grid gap-2 sm:grid-cols-4">
@@ -248,16 +323,45 @@ export function GateIntelligenceDesk({
           {counterfactuals.map((c) => (
             <div key={c.scenario} className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-2 text-xs">
               <p className="font-medium text-white/80">{c.scenario}</p>
-              <p className="mt-1 font-mono text-[11px]">
-                <span className="text-white/50">{c.convictionBefore}</span>
-                {" → "}
-                <span className={c.delta >= 0 ? "text-emerald-300" : "text-rose-300"}>{c.convictionAfter}</span>
-                <span className="text-white/40"> ({c.delta >= 0 ? "+" : ""}{c.delta})</span>
-              </p>
+              {c.status === "recompute_failed" ? (
+                <p className="mt-1 font-mono text-[11px] text-amber-300">Recompute failed — no synthetic delta</p>
+              ) : (
+                <p className="mt-1 font-mono text-[11px]">
+                  <span className="text-white/50">{c.convictionBefore}</span>
+                  {" → "}
+                  <span className={(c.delta ?? 0) >= 0 ? "text-emerald-300" : "text-rose-300"}>{c.convictionAfter}</span>
+                  <span className="text-white/40">
+                    {" "}
+                    ({(c.delta ?? 0) >= 0 ? "+" : ""}
+                    {c.delta}) · {c.sensitivity} sensitivity
+                  </span>
+                </p>
+              )}
             </div>
           ))}
         </div>
       </Card>
+
+      {tradeAutopsy.length > 0 && (
+        <Card title="Trade Autopsy" icon={Scale} accent="border-violet-400/20">
+          <p className="mb-2 text-[10px] text-white/45">Expected vs actual — suggestions only, no auto-mutation.</p>
+          <ul className="space-y-2">
+            {tradeAutopsy.map((t) => (
+              <li key={t.tradeId} className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2 text-[11px]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono text-violet-200">{t.tradeId.slice(0, 8)}</span>
+                  <span className="uppercase text-white/50">{t.outcome}</span>
+                </div>
+                <p className="mt-1 text-white/70">{t.lesson}</p>
+                {t.failedSkills.length > 0 && (
+                  <p className="mt-1 text-rose-300/80">Failed skills: {t.failedSkills.join(", ")}</p>
+                )}
+                <p className="mt-1 text-white/40">{t.suggestedImprovement}</p>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Market Constitution" icon={Scale}>
@@ -311,8 +415,13 @@ export function GateIntelligenceDesk({
       </div>
 
       <details className="rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
-        <summary className="cursor-pointer text-xs font-semibold text-white/60">10 questions MERIDIAN answers</summary>
+        <summary className="cursor-pointer text-xs font-semibold text-white/60">Golden rules · explainability questions</summary>
         <ol className="mt-2 list-decimal space-y-1 pl-4 text-[11px] text-white/45">
+          {data.goldenRules?.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ol>
+        <ol className="mt-3 list-decimal space-y-1 pl-4 text-[11px] text-white/45">
           {data.philosophy.map((p) => (
             <li key={p}>{p}</li>
           ))}

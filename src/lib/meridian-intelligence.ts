@@ -1,5 +1,6 @@
 /**
- * MERIDIAN Market Memory Engine — builds unified intelligence from Gate + skills + backtest.
+ * MERIDIAN Market Memory Engine — evidence-first intelligence from Gate + skills + backtest.
+ * CMC provides data; MERIDIAN provides reasoning. Never invent numbers.
  */
 import { evaluateNexusGate, toStructuredOutput } from "../../bnb-hack/engine/nexus-gate.mjs";
 import type { GateJudgeConsensus } from "@/lib/gate-consensus-payload";
@@ -10,12 +11,28 @@ import {
   SYMBOL_NARRATIVES,
 } from "@/lib/meridian-intelligence-data";
 import { summarizeArchitectureCoverage } from "@/lib/meridian-architecture";
+import {
+  MERIDIAN_EXPLAINABILITY_QUESTIONS,
+  MERIDIAN_GOLDEN_RULES,
+  assessDataQuality,
+  resolveMeridianVerdict,
+} from "@/lib/meridian-philosophy";
+import {
+  countDataCompleteness,
+  extractSkillEvidenceBundle,
+  type MeridianSkillEvidence,
+} from "@/lib/meridian-skill-evidence";
+import { buildTradeAutopsies } from "@/lib/meridian-trade-autopsy";
+import type { DemoTradeRecord } from "@/lib/demo-trading";
 import type {
   MeridianBullBearCourt,
+  MeridianConfidenceBreakdown,
   MeridianConstitutionArticle,
   MeridianConvictionDecay,
   MeridianCounterfactual,
+  MeridianDataProvenance,
   MeridianEvolutionHint,
+  MeridianExplainability,
   MeridianGenome,
   MeridianIntelligencePayload,
   MeridianMarketTwin,
@@ -28,6 +45,10 @@ import type {
 export type IntelligenceInput = {
   symbol: string;
   regime?: string;
+  cmcLive?: boolean;
+  degraded?: boolean;
+  fieldSources?: Record<string, string | number | null>;
+  fetchedAt?: string;
   market?: {
     price?: number;
     fearGreed?: number;
@@ -43,14 +64,18 @@ export type IntelligenceInput = {
     confidence?: number;
     tier?: string;
     thesis?: string;
+    gaps?: string[];
   };
-  skills?: {
+  skills?: Record<string, unknown> & {
     composite?: {
       alignmentScore?: number;
       relativeStrength?: { role?: string; vsBnbPct?: number };
       volatility?: { label?: string; compression?: boolean };
       liquidity?: { pass?: boolean; turnover?: number };
+      thesis?: string;
+      blockers?: string[];
     };
+    skillEvidence?: MeridianSkillEvidence[];
   };
   consensus?: GateJudgeConsensus | null;
   conviction?: number;
@@ -62,27 +87,26 @@ export type IntelligenceInput = {
     roundTrips?: number;
     compare?: { edge?: { returnDeltaPct?: number; drawdownSavedPct?: number } };
   } | null;
+  trades?: DemoTradeRecord[];
 };
 
-const PHILOSOPHY = [
-  "What market are we in? → Regime Engine",
-  "Where is capital moving? → Narrative Flow",
-  "Why does this opportunity exist? → Bull Court",
-  "Who disagrees? → Bear Court",
-  "What would invalidate the thesis? → Counterfactual Engine",
-  "How long is the thesis valid? → Conviction Decay",
-  "Have we seen this before? → Market Twin",
-  "Which patterns are similar? → Market Memory",
-  "Why was I wrong? → Trade Autopsy (NEXUS)",
-  "Should capital deploy? → Constitution",
-];
+const PHILOSOPHY = MERIDIAN_EXPLAINABILITY_QUESTIONS.map((q) => `${q}`);
 
 function clamp(n: number, lo = 0, hi = 100) {
   return Math.max(lo, Math.min(hi, n));
 }
 
-function computeBreadth(ranked: IntelligenceInput["ranked"]): { pct: number; label: string } {
-  if (!ranked?.length) return { pct: 50, label: "Awaiting benchmark scan" };
+function freshnessLabel(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.round(ms / 60_000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} minute${min === 1 ? "" : "s"} ago`;
+  const hr = Math.round(min / 60);
+  return `${hr} hour${hr === 1 ? "" : "s"} ago`;
+}
+
+function computeBreadth(ranked: IntelligenceInput["ranked"]): { pct: number | null; label: string } {
+  if (!ranked?.length) return { pct: null, label: "Awaiting benchmark scan — breadth UNKNOWN" };
   const above = ranked.filter((r) => (r.conviction ?? 0) >= 55).length;
   const pct = Math.round((above / ranked.length) * 100);
   return {
@@ -112,15 +136,16 @@ function buildGenome(input: IntelligenceInput): MeridianGenome {
   const sym = input.symbol.toUpperCase();
   const m = input.market ?? {};
   const regime = input.regime ?? "neutral";
-  const fg = m.fearGreed ?? 50;
-  const rsi = m.rsi ?? 50;
   const breadthInfo = computeBreadth(input.ranked);
   const ranked = input.ranked ?? [];
   const longCount = ranked.filter((r) => (r.conviction ?? 0) >= 55).length;
   const breadth = ranked.length ? Math.round((longCount / ranked.length) * 100) : breadthInfo.pct;
-  const volExp = m.volume24h && m.marketCap ? Math.round((m.volume24h / m.marketCap) * 1000) / 10 : 1;
+  const volExp =
+    m.volume24h != null && m.marketCap != null && m.marketCap > 0
+      ? Math.round((m.volume24h / m.marketCap) * 1000) / 10
+      : null;
   const rs = (input.skills as { relativeStrength?: { role?: string } })?.relativeStrength?.role ?? "neutral";
-  const vol = (input.skills as { volatility?: { label?: string; state?: string } })?.volatility?.state ?? "medium";
+  const vol = (input.skills as { volatility?: { label?: string; state?: string } })?.volatility?.state ?? "unknown";
   const narrative = SYMBOL_NARRATIVES[sym]?.narrative ?? "Mixed";
   const date = new Date().toISOString().slice(0, 10);
 
@@ -129,31 +154,39 @@ function buildGenome(input: IntelligenceInput): MeridianGenome {
     date,
     symbol: sym,
     regime,
-    fearGreed: fg,
+    fearGreed: m.fearGreed ?? null,
     breadth,
+    breadthLabel: breadthInfo.label,
     narrative,
     volumeExpansion: volExp,
     relativeStrength: rs,
     volatility: vol,
-    rsi,
+    rsi: m.rsi ?? null,
     conviction: input.conviction ?? input.gate?.confidence ?? 50,
   };
 }
 
-function buildMarketTwin(genome: MeridianGenome, symbol: string): MeridianMarketTwin {
+function buildMarketTwin(genome: MeridianGenome, _symbol: string): MeridianMarketTwin {
+  const breadth = genome.breadth ?? 50;
   const live = {
-    fearGreed: genome.fearGreed,
-    rsi: genome.rsi,
+    fearGreed: genome.fearGreed ?? 50,
+    rsi: genome.rsi ?? 50,
     change7d: 0,
-    breadth: genome.breadth,
+    breadth,
     regime: genome.regime,
   };
-  const scored = HISTORICAL_ANALOGS.map((a) => ({ a, score: analogSimilarity(live, a) }))
-    .sort((x, y) => y.score - x.score);
+  const scored = HISTORICAL_ANALOGS.map((a) => ({ a, score: analogSimilarity(live, a) })).sort(
+    (x, y) => y.score - x.score,
+  );
   const best = scored[0]!.a;
   const score = scored[0]!.score;
   const confidence: MeridianMarketTwin["confidence"] =
     score >= 82 ? "High" : score >= 68 ? "Medium" : "Low";
+
+  const symOutcomes = Object.values(best.outcomes);
+  const avgHistoricalReturnPct =
+    Math.round((symOutcomes.reduce((s, v) => s + v, 0) / symOutcomes.length) * 10) / 10;
+  const maxDrawdownPct = Math.min(...symOutcomes, 0);
 
   return {
     label: best.label,
@@ -162,37 +195,46 @@ function buildMarketTwin(genome: MeridianGenome, symbol: string): MeridianMarket
     confidence,
     outcomes: Object.entries(best.outcomes).map(([s, returnPct]) => ({ symbol: s, returnPct })),
     differences: best.differencesTemplate.map((d) =>
-      d.replace("today", `F&G ${genome.fearGreed}`).replace("then", `F&G ${best.fearGreed}`),
+      d.replace("today", `F&G ${genome.fearGreed ?? "?"}`).replace("then", `F&G ${best.fearGreed}`),
     ),
     implication: best.implication,
+    disclaimer: "Historical analog — reference only, not a prediction or guarantee.",
+    avgHistoricalReturnPct,
+    maxDrawdownPct,
+    sampleSize: HISTORICAL_ANALOGS.length,
   };
 }
 
 function buildCourt(consensus: GateJudgeConsensus | null | undefined, conviction: number): MeridianBullBearCourt {
   if (!consensus) {
     return {
-      bull: { score: conviction, arguments: ["Awaiting skill consensus"], layers: [] },
-      bear: { score: 100 - conviction, arguments: ["Insufficient data"], layers: [] },
+      bull: { score: conviction, arguments: ["Awaiting skill consensus — DATA UNAVAILABLE"], layers: [] },
+      bear: { score: 100 - conviction, arguments: ["Insufficient consensus data"], layers: [] },
       verdict: conviction >= 55 ? "Bull wins" : "Bear wins",
+      netConviction: conviction - (100 - conviction),
+      spread: Math.abs(conviction - (100 - conviction)),
       dissent: [],
-      permit: "PENDING",
+      permit: "WAIT",
+      conflictNote: "Court cannot convene without live skill consensus.",
     };
   }
 
-  const bullLayers = consensus.layers.filter((l) => l.signal === "ENTER_LONG" || l.agreesWithDesk);
+  const bullLayers = consensus.layers.filter((l) => l.signal === "ENTER_LONG");
   const bearLayers = consensus.layers.filter((l) => l.signal === "EXIT" || l.signal === "AVOID");
+  const holdLayers = consensus.layers.filter((l) => l.signal === "HOLD");
 
   const bullArgs = bullLayers.map(
     (l) => `${l.name}: ${l.signal.replace(/_/g, " ")} (${Math.round(l.weight * 100)}% weight)`,
   );
   const bearArgs = bearLayers.length
-    ? bearLayers.map((l) => `${l.name}: ${l.signal.replace(/_/g, " ")}`)
+    ? bearLayers.map((l) => `${l.name}: ${l.signal.replace(/_/g, " ")} (${Math.round(l.weight * 100)}% weight)`)
     : consensus.blockers.length
-      ? consensus.blockers
-      : ["No active bear layers — dissent from hold-weight skills"];
+      ? consensus.blockers.map((b) => `Blocker: ${b}`)
+      : holdLayers.slice(0, 2).map((l) => `${l.name}: cautious HOLD`);
 
   const bullScore = Math.round(consensus.weights.longPct);
   const bearScore = Math.round(consensus.weights.bearPct);
+  const spread = Math.abs(bullScore - bearScore);
   let verdict: MeridianBullBearCourt["verdict"] = "Deadlock";
   if (bullScore > bearScore + 10) verdict = "Bull wins";
   else if (bearScore > bullScore) verdict = "Bear wins";
@@ -202,6 +244,14 @@ function buildCourt(consensus: GateJudgeConsensus | null | undefined, conviction
     .map((l) => `${l.name} disagrees (${l.signal})`);
 
   if (!consensus.coreStack.passed) dissent.push("Core stack failed — constitution split");
+  if (consensus.constitutionOnly) dissent.push("Constitution clears but skill stack disagrees");
+
+  const conflictNote =
+    dissent.length >= 3
+      ? "Healthy conflict — multiple layers dissent; Constitution resolves, not suppresses."
+      : dissent.length > 0
+        ? "Partial disagreement visible — review dissent before sizing."
+        : "Layer alignment high — still subject to Constitution veto.";
 
   return {
     bull: {
@@ -215,31 +265,31 @@ function buildCourt(consensus: GateJudgeConsensus | null | undefined, conviction
       layers: bearLayers.map((l) => ({ name: l.name, signal: l.signal, weight: l.weight })),
     },
     verdict,
+    netConviction: bullScore - bearScore,
+    spread,
     dissent,
     permit: consensus.permit.status,
+    conflictNote,
   };
 }
 
-function buildNarrativeFlow(
-  ranked: IntelligenceInput["ranked"],
-  symbol: string,
-): MeridianNarrativeFlow {
+function buildNarrativeFlow(ranked: IntelligenceInput["ranked"], symbol: string): MeridianNarrativeFlow {
   const sym = symbol.toUpperCase();
   const leader = ranked?.[0];
   const leaderNarr = SYMBOL_NARRATIVES[leader?.symbol ?? sym]?.bucket ?? "DeFi";
 
   const bucketStrength: Record<string, number> = {
-    AI: 52,
+    AI: 40,
     Memes: 40,
-    Gaming: 62,
-    RWA: 83,
-    DeFi: 58,
-    L1: 70,
+    Gaming: 40,
+    RWA: 40,
+    DeFi: 40,
+    L1: 40,
   };
 
   for (const r of ranked ?? []) {
     const bucket = SYMBOL_NARRATIVES[r.symbol]?.bucket;
-    if (bucket) bucketStrength[bucket] = clamp((r.conviction ?? 50) + 20);
+    if (bucket && r.conviction != null) bucketStrength[bucket] = clamp(r.conviction + 15);
   }
 
   const radar = NARRATIVE_BUCKETS.map((id) => ({
@@ -247,21 +297,28 @@ function buildNarrativeFlow(
     label: id,
     strength: Math.round(bucketStrength[id] ?? 40),
     trend: (bucketStrength[id] ?? 40) > 55 ? ("rising" as const) : ("stable" as const),
+    source: "benchmark-derived" as const,
   })).sort((a, b) => b.strength - a.strength);
 
-  const sorted = [...(ranked ?? [])].sort((a, b) => (b.conviction ?? 0) - (a.conviction ?? 0));
   const migration: MeridianNarrativeFlow["migration"] = [];
-  if (sorted.length >= 2) {
-    const from = SYMBOL_NARRATIVES[sorted[sorted.length - 1]!.symbol]?.bucket ?? "Memes";
+  if ((ranked?.length ?? 0) >= 2) {
+    const sorted = [...(ranked ?? [])].sort((a, b) => (b.conviction ?? 0) - (a.conviction ?? 0));
+    const from = SYMBOL_NARRATIVES[sorted.at(-1)!.symbol]?.bucket ?? "Unknown";
     const to = SYMBOL_NARRATIVES[sorted[0]!.symbol]?.bucket ?? leaderNarr;
-    migration.push({ from, to, strength: clamp((sorted[0]!.conviction ?? 50) - (sorted.at(-1)!.conviction ?? 30)) });
+    if (from !== to) {
+      migration.push({
+        from,
+        to,
+        strength: clamp((sorted[0]!.conviction ?? 50) - (sorted.at(-1)!.conviction ?? 30)),
+        source: "derived",
+      });
+    }
   }
-  migration.push({ from: "Memes", to: "AI", strength: 81 });
 
   return {
     radar,
     migration,
-    likelyNextLeader: { narrative: leaderNarr, confidence: clamp(leader?.conviction ?? 65) },
+    likelyNextLeader: { narrative: leaderNarr, conviction: clamp(leader?.conviction ?? 50) },
   };
 }
 
@@ -290,10 +347,30 @@ function buildCounterfactuals(
   baseConviction: number,
 ): MeridianCounterfactual[] {
   const scenarios = [
-    { label: "BTC drops 5%", mutate: (s: Record<string, unknown>) => ({ ...s, fearGreed: clamp((s.fearGreed as number) - 12), change24h: ((s.change24h as number) ?? 0) - 4 }) },
-    { label: "Sentiment doubles (F&G spike)", mutate: (s: Record<string, unknown>) => ({ ...s, fearGreed: clamp((s.fearGreed as number) + 18) }) },
-    { label: "Volume collapses 60%", mutate: (s: Record<string, unknown>) => ({ ...s, volume24h: ((s.volume24h as number) ?? 0) * 0.4 }) },
-    { label: "Risk-off regime shock", mutate: (s: Record<string, unknown>) => ({ ...s, fearGreed: clamp((s.fearGreed as number) - 20), change7d: ((s.change7d as number) ?? 0) - 8 }) },
+    {
+      label: "BTC drops 5%",
+      mutate: (s: Record<string, unknown>) => ({
+        ...s,
+        fearGreed: clamp((s.fearGreed as number) - 12),
+        change24h: ((s.change24h as number) ?? 0) - 4,
+      }),
+    },
+    {
+      label: "Sentiment doubles (F&G spike)",
+      mutate: (s: Record<string, unknown>) => ({ ...s, fearGreed: clamp((s.fearGreed as number) + 18) }),
+    },
+    {
+      label: "Volume collapses 60%",
+      mutate: (s: Record<string, unknown>) => ({ ...s, volume24h: ((s.volume24h as number) ?? 0) * 0.4 }),
+    },
+    {
+      label: "Risk-off regime shock",
+      mutate: (s: Record<string, unknown>) => ({
+        ...s,
+        fearGreed: clamp((s.fearGreed as number) - 20),
+        change7d: ((s.change7d as number) ?? 0) - 8,
+      }),
+    },
   ];
 
   return scenarios.map(({ label, mutate }) => {
@@ -302,27 +379,39 @@ function buildCounterfactuals(
       const gate = evaluateNexusGate(mutated);
       const out = toStructuredOutput(mutated, gate);
       const after = clamp(out.confidence ?? baseConviction);
+      const delta = after - baseConviction;
+      const sensitivity: MeridianCounterfactual["sensitivity"] =
+        Math.abs(delta) >= 15 ? "high" : Math.abs(delta) >= 8 ? "medium" : "low";
       return {
         scenario: label,
         convictionBefore: baseConviction,
         convictionAfter: after,
-        delta: after - baseConviction,
+        delta,
+        status: "ok" as const,
+        sensitivity,
       };
     } catch {
-      const after = clamp(baseConviction - 15);
-      return { scenario: label, convictionBefore: baseConviction, convictionAfter: after, delta: after - baseConviction };
+      return {
+        scenario: label,
+        convictionBefore: baseConviction,
+        convictionAfter: null,
+        delta: null,
+        status: "recompute_failed" as const,
+        sensitivity: "low" as const,
+      };
     }
   });
 }
 
 function buildConstitution(
   consensus: GateJudgeConsensus | null | undefined,
-  ctx: { regime: string; breadth: number; bearPct: number; liquidityOk: boolean },
+  ctx: { regime: string; breadth: number | null; bearPct: number; liquidityOk: boolean },
 ): MeridianConstitutionArticle[] {
   const longVotes = consensus?.votes.long ?? 0;
   const total = consensus?.votes.total ?? 9;
+  const breadthLabel = ctx.breadth != null ? `${ctx.breadth}%` : "UNKNOWN";
 
-  const articles: MeridianConstitutionArticle[] = [
+  return [
     {
       id: "I",
       title: "Supermajority vote",
@@ -334,8 +423,8 @@ function buildConstitution(
       id: "II",
       title: "Momentum subordinate to risk",
       rule: "Momentum cannot override risk-off regime without breadth confirmation",
-      status: ctx.regime !== "risk-off" || ctx.breadth >= 45 ? "active" : "triggered",
-      detail: `Regime ${ctx.regime} · breadth ${ctx.breadth}`,
+      status: ctx.regime !== "risk-off" || (ctx.breadth ?? 0) >= 45 ? "active" : "triggered",
+      detail: `Regime ${ctx.regime} · breadth ${breadthLabel}`,
     },
     {
       id: "III",
@@ -353,27 +442,27 @@ function buildConstitution(
     },
     {
       id: "V",
-      title: "Liquidity floor",
-      rule: "Volume must support turnover vs market cap",
+      title: "Liquidity floor (veto)",
+      rule: "Low liquidity vetoes trades — risk overrides opportunity",
       status: ctx.liquidityOk ? "active" : "violated",
-      detail: "Turnover vs market cap check",
+      detail: ctx.liquidityOk ? "Turnover check passed" : "Liquidity veto active",
     },
     {
       id: "VI",
       title: "Conviction decay review",
-      rule: "Thesis must be re-reviewed after 48h if permit granted",
+      rule: "Thesis must be re-reviewed after decay window if permit granted",
       status: "active",
       detail: "Auto review window active",
     },
   ];
-  return articles;
 }
 
 function buildMemory(genome: MeridianGenome): MeridianMemoryMatch[] {
+  const breadth = genome.breadth ?? 50;
   return MEMORY_GENOMES.map((g) => {
     const sim = Math.round(
-      (1 - Math.abs(genome.fearGreed - g.fearGreed) / 100) * 40 +
-        (1 - Math.abs(genome.breadth - g.breadth) / 100) * 35 +
+      (1 - Math.abs((genome.fearGreed ?? 50) - g.fearGreed) / 100) * 40 +
+        (1 - Math.abs(breadth - g.breadth) / 100) * 35 +
         (genome.regime === g.regime ? 25 : 10),
     );
     return {
@@ -389,16 +478,22 @@ function buildMemory(genome: MeridianGenome): MeridianMemoryMatch[] {
 }
 
 function buildThesisDna(genome: MeridianGenome, topMemory: MeridianMemoryMatch | undefined): MeridianThesisDna {
+  const rsi = genome.rsi;
   return {
     id: genome.id.replace("G-", "DNA-"),
     regime: genome.regime,
-    momentum: genome.rsi >= 55 ? "High" : genome.rsi >= 45 ? "Neutral" : "Low",
+    momentum: rsi == null ? "UNKNOWN" : rsi >= 55 ? "High" : rsi >= 45 ? "Neutral" : "Low",
     relativeStrength: genome.relativeStrength,
     volatility: genome.volatility,
-    liquidity: genome.volumeExpansion >= 1.5 ? "Healthy" : "Thin",
+    liquidity:
+      genome.volumeExpansion == null
+        ? "UNKNOWN"
+        : genome.volumeExpansion >= 1.5
+          ? "Healthy"
+          : "Thin",
     narrative: genome.narrative,
     resemblanceNote: topMemory
-      ? `Resembles genome #${topMemory.genomeId} (${topMemory.similarity}% similar) — historical +${topMemory.avgOutcomePct}% avg`
+      ? `Resembles genome #${topMemory.genomeId} (${topMemory.similarity}% similar) — historical +${topMemory.avgOutcomePct}% avg (reference, not forecast)`
       : null,
   };
 }
@@ -411,7 +506,7 @@ function buildTimeMachine(backtest: IntelligenceInput["backtest"]): MeridianTime
     avgDurationDays: 6,
     worstDrawdownPct: backtest.maxDrawdownPct ?? 0,
     sampleSize: backtest.roundTrips ?? 0,
-    source: "90-day constitution backtest",
+    source: "90-day constitution backtest (reproducible via /api/gate/backtest)",
   };
 }
 
@@ -423,8 +518,89 @@ function buildEvolution(backtest: IntelligenceInput["backtest"]): MeridianEvolut
     winRatePct: backtest.winRatePct ?? 0,
     sharpe: Math.round(((backtest.totalReturnPct ?? 0) / Math.max(1, Math.abs(backtest.maxDrawdownPct ?? 5))) * 10) / 10,
     weakness: (backtest.maxDrawdownPct ?? 0) < -12 ? "Fails during panic regimes" : "Moderate drawdown in chop",
-    proposedMutation: "Increase volatility penalty in risk-off",
+    proposedMutation: "Increase volatility penalty in risk-off (suggestion only — no auto-mutation)",
     expectedImprovement: `Sharpe +0.3 · drawdown saved ${edge.drawdownSavedPct ?? 0}% vs naive agent`,
+  };
+}
+
+function buildProvenance(input: IntelligenceInput, skillEvidence: MeridianSkillEvidence[]): MeridianDataProvenance {
+  const fetchedAt = input.fetchedAt ?? new Date().toISOString();
+  const fields = input.fieldSources ?? {};
+  const fieldList = Object.entries(fields).map(([field, source]) => ({
+    field,
+    source: String(source ?? "unknown"),
+    value: input.market?.[field as keyof NonNullable<IntelligenceInput["market"]>] ?? null,
+  }));
+
+  const dataCompletenessPct = countDataCompleteness(skillEvidence);
+  const dataQuality = assessDataQuality({
+    cmcLive: input.cmcLive,
+    degraded: input.degraded,
+    fieldsPresent: fieldList.filter((f) => f.source !== "unknown" && f.source !== "pending").length,
+    fieldsTotal: Math.max(fieldList.length, 8),
+  });
+
+  const staleWarning =
+    input.cmcLive === false || input.degraded
+      ? "Data may be venue-only or cached — verify live CMC before acting."
+      : dataCompletenessPct < 75
+        ? "Some skill inputs unavailable — reduced confidence applied."
+        : null;
+
+  return {
+    source: "CoinMarketCap",
+    fetchedAt,
+    freshnessLabel: freshnessLabel(fetchedAt),
+    cmcLive: input.cmcLive ?? false,
+    dataQuality,
+    dataCompletenessPct,
+    fields: fieldList.slice(0, 12),
+    staleWarning,
+  };
+}
+
+function buildConfidenceBreakdown(input: {
+  conviction: number;
+  twinSimilarity: number;
+  court: MeridianBullBearCourt;
+  dataCompletenessPct: number;
+}): MeridianConfidenceBreakdown {
+  return {
+    conviction: input.conviction,
+    historicalSimilarity: input.twinSimilarity,
+    bullBearSpread: input.court.spread,
+    dataCompletenessPct: input.dataCompletenessPct,
+    note: "Evidence-derived metrics — not probability of profit.",
+  };
+}
+
+function buildExplainability(input: {
+  symbol: string;
+  genome: MeridianGenome;
+  court: MeridianBullBearCourt;
+  consensus: GateJudgeConsensus | null;
+  marketTwin: MeridianMarketTwin;
+  decay: MeridianConvictionDecay;
+  gate?: IntelligenceInput["gate"];
+  skills?: IntelligenceInput["skills"];
+}): MeridianExplainability {
+  const sym = input.symbol;
+  const thesis = input.skills?.composite?.thesis ?? input.gate?.thesis ?? "Awaiting gate evaluation.";
+  const blockers = input.skills?.composite?.blockers ?? input.consensus?.blockers ?? [];
+
+  return {
+    why: thesis,
+    whyNow: `${sym} in ${input.genome.regime} regime · F&G ${input.genome.fearGreed ?? "UNKNOWN"} · breadth ${input.genome.breadth ?? "UNKNOWN"}`,
+    whoDisagrees: input.court.dissent,
+    thesisBreakers: [
+      ...blockers.map((b) => `Blocker: ${b}`),
+      "Stress: BTC −5%",
+      "Stress: volume collapse",
+      "Stress: F&G shock",
+    ].slice(0, 6),
+    validityHours: input.decay.reviewAfterHours,
+    seenBefore: `${input.marketTwin.label} (${input.marketTwin.similarity}% similar)`,
+    historicalResemblance: input.marketTwin.disclaimer,
   };
 }
 
@@ -435,7 +611,11 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
   const memory = buildMemory(genome);
   const consensus = input.consensus ?? null;
   const bearPct = consensus?.weights.bearPct ?? 20;
-  const liquidityOk = input.skills?.composite?.liquidity?.pass !== false;
+  const liquidityOk = input.skills?.composite?.liquidity?.pass === true;
+
+  const skillEvidence =
+    input.skills?.skillEvidence ??
+    extractSkillEvidenceBundle(input.skills as Record<string, unknown> | undefined);
 
   const snapshot: Record<string, unknown> = {
     symbol: sym,
@@ -451,19 +631,68 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
 
   const breadthInfo = computeBreadth(input.ranked);
   const arch = summarizeArchitectureCoverage();
+  const marketTwin = buildMarketTwin(genome, sym);
+  const bullBearCourt = buildCourt(consensus, conviction);
+  const convictionDecay = buildConvictionDecay(conviction);
+  const provenance = buildProvenance(input, skillEvidence);
+  const confidence = buildConfidenceBreakdown({
+    conviction,
+    twinSimilarity: marketTwin.similarity,
+    court: bullBearCourt,
+    dataCompletenessPct: provenance.dataCompletenessPct,
+  });
+
+  const explainability = buildExplainability({
+    symbol: sym,
+    genome,
+    court: bullBearCourt,
+    consensus,
+    marketTwin,
+    decay: convictionDecay,
+    gate: input.gate,
+    skills: input.skills,
+  });
+
+  const permitStatus = consensus?.permit.status;
+  const verdict = resolveMeridianVerdict({
+    permitStatus,
+    dataQuality: provenance.dataQuality,
+    hasConsensus: Boolean(consensus),
+  });
+
+  let verdictReason: string;
+  if (verdict === "UNKNOWN") verdictReason = "Data unavailable — abstaining rather than fabricating.";
+  else if (verdict === "WAIT") verdictReason = "Evidence insufficient or degraded — prefer WAIT over fake certainty.";
+  else if (verdict === "GRANT") verdictReason = consensus?.permit.reason ?? "Constitution GRANT — 6/9 layers aligned.";
+  else verdictReason = consensus?.permit.reason ?? "Constitution DENY — risk or alignment failed.";
+
+  const tradeAutopsy = buildTradeAutopsies({
+    symbol: sym,
+    trades: input.trades ?? [],
+    skillEvidence,
+    conviction,
+    consensus,
+  });
 
   return {
-    schema: "meridian-intelligence/v1",
+    schema: "meridian-intelligence/v2",
     symbol: sym,
     generatedAt: new Date().toISOString(),
     philosophy: PHILOSOPHY,
+    goldenRules: [...MERIDIAN_GOLDEN_RULES],
+    verdict,
+    verdictReason,
+    confidence,
+    explainability,
+    provenance,
+    skillEvidence,
     genome,
-    marketTwin: buildMarketTwin(genome, sym),
-    bullBearCourt: buildCourt(consensus, conviction),
+    marketTwin,
+    bullBearCourt,
     narrativeFlow: buildNarrativeFlow(input.ranked, sym),
     timeMachine: buildTimeMachine(input.backtest),
     thesisDna: buildThesisDna(genome, memory[0]),
-    convictionDecay: buildConvictionDecay(conviction),
+    convictionDecay,
     counterfactuals: buildCounterfactuals(snapshot, conviction),
     constitution: buildConstitution(consensus, {
       regime: genome.regime,
@@ -473,6 +702,7 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     }),
     marketMemory: memory,
     evolution: buildEvolution(input.backtest),
+    tradeAutopsy,
     architecture: {
       tagline: arch.tagline,
       coveragePct: arch.coveragePct,

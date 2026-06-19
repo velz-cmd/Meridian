@@ -398,7 +398,7 @@ function aggregateTrades(trades: DemoTradeRecord[]): GlobalDemoTradeStats {
 }
 
 /** Aggregate demo trades across all wallets — Supabase first, then local JSON. */
-export async function getGlobalDemoTradeStats(): Promise<GlobalDemoTradeStats> {
+async function loadAllDemoTrades(): Promise<DemoTradeRecord[]> {
   const supabase = getSupabase();
   const all: DemoTradeRecord[] = [];
 
@@ -419,7 +419,15 @@ export async function getGlobalDemoTradeStats(): Promise<GlobalDemoTradeStats> {
     all.push(...(await readJson<DemoTradeRecord[]>("demo-trades.json", [])));
   }
 
-  return aggregateTrades(all);
+  return all;
+}
+
+export async function getAllDemoTradesGlobal(): Promise<DemoTradeRecord[]> {
+  return loadAllDemoTrades();
+}
+
+export async function getGlobalDemoTradeStats(): Promise<GlobalDemoTradeStats> {
+  return aggregateTrades(await loadAllDemoTrades());
 }
 
 export async function saveDemoTrade(trade: DemoTradeRecord, walletPositions: DemoPosition[]) {

@@ -506,10 +506,11 @@ export function evaluateVolatilityCompressionSkill(t, vol) {
       name: "Volatility regime",
       signal: "HOLD",
       state: "unknown",
-      checks: [{ id: "data", label: "Daily OHLC unavailable", pass: true }],
-      checksPassed: 1,
+      dataUnavailable: true,
+      checks: [{ id: "data", label: "Daily OHLC unavailable — DATA UNAVAILABLE", pass: false }],
+      checksPassed: 0,
       checksTotal: 1,
-      thesis: "Volatility skill waits for daily bars (Binance venue or CMC historical).",
+      thesis: "Volatility skill abstains — daily bars missing (Binance venue or CMC historical).",
       dataSource: "pending",
     };
   }
@@ -776,6 +777,52 @@ export function buildJudgeConsensusBlock(symbol, gate, consensus, blockers) {
 }
 
 /**
+ * Normalize skill output to evidence format — skills provide evidence, not trade commands.
+ * @param {object} skill
+ */
+export function toSkillEvidence(skill) {
+  const evidence = [];
+  for (const c of skill.checks ?? []) {
+    evidence.push(`${c.pass ? "✓" : "✗"} ${c.label ?? c.id}`);
+  }
+  for (const [k, v] of Object.entries(skill.metrics ?? {})) {
+    if (v != null && v !== "") evidence.push(`${k} = ${v}`);
+  }
+  if (skill.state) evidence.push(`state: ${skill.state}`);
+  if (skill.socialHeat != null) evidence.push(`socialHeat = ${skill.socialHeat}`);
+  if (skill.flowScore != null) evidence.push(`flowScore = ${skill.flowScore}`);
+
+  const score =
+    skill.checksTotal && skill.checksPassed != null
+      ? Math.round((skill.checksPassed / skill.checksTotal) * 100)
+      : skill.confidence != null
+        ? Math.round(skill.confidence)
+        : skill.socialHeat != null && skill.flowScore != null
+          ? Math.round((skill.socialHeat + skill.flowScore) / 2)
+          : 50;
+
+  const confidence =
+    skill.dataUnavailable || skill.dataSource === "pending"
+      ? 0
+      : skill.checksTotal && skill.checksPassed != null
+        ? Math.round((skill.checksPassed / skill.checksTotal) * 100) / 100
+        : skill.confidence != null
+          ? Math.round(skill.confidence) / 100
+          : 0.7;
+
+  return {
+    skill: skill.name ?? skill.id ?? "Unknown",
+    score,
+    confidence,
+    evidence,
+    explanation: skill.thesis ?? skill.entryRule ?? "No explanation recorded.",
+    stance: skill.signal ?? "HOLD",
+    dataSource: skill.dataSource ?? "unknown",
+    dataUnavailable: Boolean(skill.dataUnavailable || skill.dataSource === "pending"),
+  };
+}
+
+/**
  * @param {CmcTokenSnapshot} t
  * @param {ReturnType<typeof import("./nexus-gate.mjs").evaluateNexusGate>} gate
  * @param {object} [macro]
@@ -836,6 +883,17 @@ export function composeSkillVerdict(t, gate, macro = {}, ctx = {}) {
   const constitutionOnly =
     gate.signal === "ENTER_LONG" && compositeSignal !== "ENTER_LONG" && blockers.length === 0;
 
+  const skillEvidence = [
+    momentum,
+    sentiment,
+    regime,
+    trend,
+    liquidity,
+    structural,
+    relativeStrength,
+    volRegime,
+  ].map(toSkillEvidence);
+
   return {
     momentum,
     sentiment,
@@ -845,6 +903,7 @@ export function composeSkillVerdict(t, gate, macro = {}, ctx = {}) {
     structural,
     relativeStrength,
     volatility: volRegime,
+    skillEvidence,
     composite: {
       signal: compositeSignal,
       constitutionSignal: gate.signal,

@@ -124,7 +124,7 @@ export const MERIDIAN_FEATURE_COVERAGE: FeatureCoverage[] = [
   { id: "decay", name: "Conviction decay", cmcBacked: false, meridianLayer: true, status: "live", skillOrModule: "Decay curve model" },
   { id: "counter", name: "Counterfactual engine", cmcBacked: false, meridianLayer: true, status: "live", skillOrModule: "Gate re-eval stress" },
   { id: "replay", name: "Market replay / timeline", cmcBacked: true, meridianLayer: true, status: "partial", skillOrModule: "90-day replay tab" },
-  { id: "autopsy", name: "Trade autopsy", cmcBacked: false, meridianLayer: true, status: "planned", skillOrModule: "NEXUS closed trades" },
+  { id: "autopsy", name: "Trade autopsy", cmcBacked: false, meridianLayer: true, status: "partial", skillOrModule: "NEXUS closed trades + skill attribution" },
 ];
 
 export function summarizeArchitectureCoverage() {
