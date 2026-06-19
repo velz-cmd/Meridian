@@ -23,14 +23,12 @@ export function AutopilotDeskPreview({
   symbol,
   venue,
   hasPosition,
-  spotThesisLeverage = 1,
   futuresLeverage = 3,
   marginPercent = 25,
 }: {
   symbol: string | null;
   venue: AutopilotVenue;
   hasPosition?: boolean;
-  spotThesisLeverage?: number;
   futuresLeverage?: number;
   marginPercent?: number;
 }) {
@@ -50,7 +48,7 @@ export function AutopilotDeskPreview({
       symbol,
       venue,
       hasPosition: hasPosition ? "1" : "0",
-      spotLev: String(spotThesisLeverage),
+      spotLev: "1",
       futLev: String(futuresLeverage),
       marginPct: String(marginPercent),
     });
@@ -69,7 +67,7 @@ export function AutopilotDeskPreview({
     return () => {
       cancelled = true;
     };
-  }, [symbol, venue, hasPosition, spotThesisLeverage, futuresLeverage, marginPercent]);
+  }, [symbol, venue, hasPosition, futuresLeverage, marginPercent]);
 
   if (!symbol) return null;
 
@@ -92,7 +90,7 @@ export function AutopilotDeskPreview({
               {cycle.action.replace(/_/g, " ")}
             </span>
             <span className="text-xs text-white/45">
-              {cycle.confidence}% · {cycle.execute.tradeThisCycle ? "trade this cycle" : "hold"}
+              {cycle.confidence}% · {cycle.execute.tradeThisCycle ? "would act now" : "check only — wait"}
             </span>
             {venue === "futures" && cycle.execute.futuresLeverage != null && (
               <span className="rounded border border-violet-400/30 bg-violet-500/10 px-1.5 py-0.5 text-[9px] text-violet-200">
@@ -100,9 +98,9 @@ export function AutopilotDeskPreview({
                 margin
               </span>
             )}
-            {venue === "spot" && (cycle.execute.spotThesisLeverage ?? 1) > 1 && (
+            {venue === "spot" && (
               <span className="rounded border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] text-emerald-200">
-                {cycle.execute.spotThesisLeverage}× thesis size
+                spot · wallet % only
               </span>
             )}
           </div>

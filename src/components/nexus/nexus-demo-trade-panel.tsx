@@ -423,7 +423,7 @@ export function NexusTradeHub({
           </div>
           {tradeTab === "agent" && (
             <p className="mt-2 text-center text-[10px] leading-relaxed text-white/45">
-              Set interval + max trades — agent applies live market data rules each cycle.
+              Set check interval + max executions — agent trades only when live desk rules pass.
             </p>
           )}
           {(tradeTab === "buy" || tradeTab === "sell") && (

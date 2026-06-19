@@ -9,32 +9,23 @@ export function NexusDirectionPanel({
   token,
   hasRiskPosition,
   agentAction,
-  onBuySpot,
-  onSellSpot,
+  strategyOnly = true,
 }: {
   token: TrendingMarketToken | null;
   hasRiskPosition?: boolean;
   agentAction?: string;
-  onBuySpot?: () => void;
-  onSellSpot?: () => void;
+  /** Read-only strategy stack — no duplicate Buy/Sell (wallet column only) */
+  strategyOnly?: boolean;
 }) {
   const sym = token?.symbol?.replace(/^\$/, "").toUpperCase();
   const { route, loading } = usePositionRoute(sym, {
     hasPosition: hasRiskPosition,
     agentAction,
   });
-  const { canExecuteBuy } = useConstitution();
 
   if (!sym) return null;
 
   return (
-    <NexusDirectionDesk
-      route={route}
-      loading={loading}
-      onBuySpot={onBuySpot}
-      onSellSpot={onSellSpot}
-      canBuySpot={canExecuteBuy}
-      canSellSpot={Boolean(hasRiskPosition) || route?.spotAction === "sell"}
-    />
+    <NexusDirectionDesk route={route} loading={loading} strategyOnly={strategyOnly} />
   );
 }

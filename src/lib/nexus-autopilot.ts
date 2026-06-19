@@ -128,7 +128,7 @@ export function loadAutopilot(): AutopilotConfig {
     }
     if (!merged.scheduleMode) merged.scheduleMode = "recurring";
     if (!merged.onceRunWhen) merged.onceRunWhen = "now";
-    merged.mode = merged.mode ?? "data_desk";
+    merged.mode = "data_desk";
     if (!merged.venue) merged.venue = "spot";
     if (merged.spotThesisLeverage == null) merged.spotThesisLeverage = 1;
     if (merged.futuresLeverage == null) merged.futuresLeverage = 3;
@@ -205,11 +205,11 @@ export function autopilotScheduleSummary(cfg: AutopilotConfig): string {
         cfg.interval;
   const capN = effectiveMaxTrades(cfg);
   const cap =
-    capN <= 0 ? "until you stop" : `up to ${capN} trade${capN === 1 ? "" : "s"}`;
+    capN <= 0 ? "until you stop" : `up to ${capN} execution${capN === 1 ? "" : "s"} when rules pass`;
   if (cfg.scheduleMode === "once") {
-    return `One trade ${onceScheduleLabel(cfg)}`;
+    return `One market check ${onceScheduleLabel(cfg)}`;
   }
-  return `Every ${interval} · ${cap}`;
+  return `Check every ${interval} · ${cap}`;
 }
 
 // ── Wallet funding estimates ─────────────────────────────────────────────────

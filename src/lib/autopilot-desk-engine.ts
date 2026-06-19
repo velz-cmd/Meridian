@@ -180,6 +180,27 @@ export function buildAutopilotExecutePlan(input: {
   };
 }
 
+/** Live tape dumping — block spot buys and reckless futures entries. */
+export function isDumpingTape(
+  pulse: MarketPulse,
+  consensus: GateJudgeConsensus | null,
+): boolean {
+  if (pulse.agentStance === "DE_RISK") return true;
+  if (pulse.cascadeLevel === "elevated" || pulse.cascadeLevel === "extreme") return true;
+  if ((pulse.marketCapChange24h ?? 0) < -1.5) return true;
+  if ((pulse.btcChange24h ?? 0) < -2.5) return true;
+  if ((consensus?.weights.bearPct ?? 0) >= 45) return true;
+  return false;
+}
+
+/** Tape supportive for selective longs — not a prediction, rule on live macro. */
+export function isSupportiveTape(pulse: MarketPulse): boolean {
+  if (pulse.agentStance === "DE_RISK") return false;
+  if (pulse.cascadeLevel !== "normal") return false;
+  if (pulse.stressScore >= 55) return false;
+  return pulse.agentStance === "LONG" || (pulse.marketCapChange24h ?? 0) > -0.5;
+}
+
 /** Deterministic desk cycle — rules on live data, not forecasts. */
 export function evaluateAutopilotDesk(input: {
   symbol: string;
@@ -252,6 +273,22 @@ export function evaluateAutopilotDesk(input: {
   } else if (route.direction === "LONG" && consensus?.cleared) {
     action = "OPEN_LONG";
     thesis = `${sym}: consensus cleared · ${consensus.votes.long}/${consensus.votes.total} layers long · ${consensus.alignmentScore}/100 · ${route.verdict}`;
+  } else if (
+    venue === "futures" &&
+    route.direction === "SHORT" &&
+    !hasPosition &&
+    !isDumpingTape(pulse, consensus)
+  ) {
+    action = "OPEN_SHORT";
+    thesis = `${sym}: futures short setup · ${route.verdict}`;
+  } else if (
+    venue === "futures" &&
+    route.direction === "LONG" &&
+    consensus?.cleared &&
+    !isDumpingTape(pulse, consensus)
+  ) {
+    action = "OPEN_LONG";
+    thesis = `${sym}: futures long setup · consensus cleared · ${route.verdict}`;
   } else if (consensus?.constitutionOnly) {
     action = "HOLD";
     thesis = `${sym}: constitution-only split — ${consensus.permit.reason}`;
@@ -279,6 +316,35 @@ export function evaluateAutopilotDesk(input: {
     }
   }
 
+  if (venue === "futures" && action === "OPEN_SHORT" && derivatives) {
+    if (fundingDirectionBias(derivatives.fundingRate) === "short_crowded") {
+      action = "HOLD";
+      thesis = `${sym}: short setup but crowded negative funding ${derivatives.fundingRatePct} — wait.`;
+    }
+  }
+
+  if (action === "OPEN_LONG" && isDumpingTape(pulse, consensus)) {
+    action = "HOLD";
+    thesis = `${sym}: tape dumping / elevated stress — skip buy this check (agent still monitoring).`;
+    layers.push({
+      id: "tape-guard",
+      label: "Tape guard",
+      source: "market-pulse.ts",
+      status: "block",
+      detail: `${pulse.headline} · stress ${pulse.stressScore}/100 · no buy on dump`,
+    });
+  } else if (action === "OPEN_LONG" && venue === "spot" && !isSupportiveTape(pulse)) {
+    action = "HOLD";
+    thesis = `${sym}: macro not supportive for spot entry — wait for clearer tape.`;
+    layers.push({
+      id: "tape-guard",
+      label: "Tape guard",
+      source: "market-pulse.ts",
+      status: "warn",
+      detail: pulse.headline,
+    });
+  }
+
   const execute = buildAutopilotExecutePlan({
     action,
     venue,
@@ -286,7 +352,7 @@ export function evaluateAutopilotDesk(input: {
     route,
     hasPosition,
     consensus,
-    spotThesisLeverage: input.spotThesisLeverage,
+    spotThesisLeverage: 1,
     futuresLeverage: input.futuresLeverage,
     marginPercent: input.marginPercent,
   });
@@ -311,7 +377,7 @@ export function evaluateAutopilotDesk(input: {
     thesis,
     notPrediction: true,
     method:
-      "Deterministic: CMC consensus → position route → cascade pulse → funding/OI. No LLM forecast.",
+      "Interval = market check. Trade only when CMC consensus + pulse + funding align — not every tick.",
     dataSources,
     layers,
     consensus,

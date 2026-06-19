@@ -263,12 +263,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
     return tokenDossier.payload?.agent ?? selectedToken.agent;
   }, [selectedToken, tokenDossier.payload?.agent, benchSym]);
 
-  const permitAgent = useMemo(() => {
-    if (!deskAgent || !isGateSymbol(benchSym)) return deskAgent;
-    if (tradeTab === "buy") return { ...deskAgent, action: "BUY" as const };
-    if (tradeTab === "sell") return { ...deskAgent, action: "SELL" as const };
-    return deskAgent;
-  }, [deskAgent, benchSym, tradeTab]);
+  const permitAgent = deskAgent;
 
   const constitution = useConstitutionPermit(selectedToken, permitAgent);
   const pulseSymbol = isGateSymbol(benchSym) ? benchSym : selectedToken?.symbol;
@@ -731,37 +726,11 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           decision={displayDecision}
           onOpenAutopilot={() => openTradePanel("agent")}
           actions={
-            <>
-              <button
-                type="button"
-                onClick={() => openTradePanel("buy")}
-                className={nexusActionGlass(
-                  "buy",
-                  tradeTab === "buy",
-                  "relative z-[1] hidden min-h-[40px] items-center gap-2 rounded-xl px-3 text-xs font-bold lg:inline-flex",
-                )}
-              >
-                <ArcIcon3d icon={NEXUS_TRADE_ICONS.buy} theme="nexus" size="sm" className="!h-7 !w-7" />
-                Buy
-              </button>
-              <button
-                type="button"
-                onClick={() => openTradePanel("sell")}
-                className={nexusActionGlass(
-                  "sell",
-                  tradeTab === "sell",
-                  "relative z-[1] hidden min-h-[40px] items-center gap-2 rounded-xl px-3 text-xs font-bold lg:inline-flex",
-                )}
-              >
-                <ArcIcon3d icon={NEXUS_TRADE_ICONS.sell} theme="prism" size="sm" className="!h-7 !w-7" />
-                Sell
-              </button>
-              <NexusTokenChatButton
-                token={selectedToken}
-                onOpenTrade={openTradePanel}
-                className="!border-white/20 !bg-white/5 !text-white/70"
-              />
-            </>
+            <NexusTokenChatButton
+              token={selectedToken}
+              onOpenTrade={openTradePanel}
+              className="!border-white/20 !bg-white/5 !text-white/70"
+            />
           }
         />
         <NexusTokenStrip
@@ -773,7 +742,6 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         />
         <NexusMobileTokenActions
           token={selectedToken}
-          onTradeTab={openTradePanel}
           onOpenAutopilot={() => openTradePanel("agent")}
           activeTab={tradeTab}
         />
@@ -803,9 +771,8 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           <NexusDirectionPanel
             token={selectedToken}
             hasRiskPosition={hasRiskPosition}
-            agentAction={permitAgent?.action}
-            onBuySpot={() => openTradePanel("buy")}
-            onSellSpot={() => openTradePanel("sell")}
+            agentAction={deskAgent?.action}
+            strategyOnly
           />
         )}
 
@@ -884,7 +851,6 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         {selectedToken && (
           <NexusMobileTokenActions
             token={selectedToken}
-            onTradeTab={openTradePanel}
             onOpenAutopilot={() => openTradePanel("agent")}
             activeTab={tradeTab}
           />
