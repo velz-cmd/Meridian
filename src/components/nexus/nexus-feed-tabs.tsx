@@ -2,7 +2,7 @@
 
 import { Radio, Sparkles } from "lucide-react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
-import { nexusActionGlass } from "@/lib/nexus-action-glass";
+import { cn } from "@/lib/utils";
 import { ALPHA_TAB_SUBTITLE, LIVE_FEED_INTRO } from "@/lib/nexus-copy";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 
@@ -17,45 +17,26 @@ export function NexusFeedTabs({
   onChange: (tab: NexusFeedTab) => void;
   alphaCount: number;
 }) {
+  const tabs = [
+    { id: "live" as const, label: "Live Feed", icon: Radio, theme: "nexus" as const, delay: 0 },
+    { id: "alpha" as const, label: `Alpha (${alphaCount})`, icon: Sparkles, theme: "nexus" as const, delay: 0.1 },
+    { id: "swap" as const, label: "Swap", icon: NEXUS_TRADE_ICONS.swap, theme: "nexus" as const, delay: 0.2 },
+  ];
+
   return (
     <div className="mb-3 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={() => onChange("live")}
-        className={nexusActionGlass(
-          "live",
-          active === "live",
-          "arc-btn-pill relative z-[1] flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold",
-        )}
-      >
-        <ArcIcon3d icon={Radio} theme="nexus" size="sm" />
-        Live Feed
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("alpha")}
-        className={nexusActionGlass(
-          "alpha",
-          active === "alpha",
-          "arc-btn-pill relative z-[1] flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold",
-        )}
-      >
-        <ArcIcon3d icon={Sparkles} theme="nexus" size="sm" delay={0.1} />
-        Alpha ({alphaCount})
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("swap")}
-        className={nexusActionGlass(
-          "swap",
-          active === "swap",
-          "arc-btn-pill relative z-[1] flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold",
-        )}
-      >
-        <ArcIcon3d icon={NEXUS_TRADE_ICONS.swap} theme="nexus" size="sm" delay={0.2} />
-        Swap
-      </button>
+      <div className="arc-tab-bar arc-tab-bar--grid-3 w-full">
+        {tabs.map(({ id, label, icon: Icon, theme, delay }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            className={cn("arc-tab-item w-full", active === id && "arc-tab-item-active")}
+          >
+            <ArcIcon3d icon={Icon} theme={theme} size="sm" delay={delay} className="!h-7 !w-7 shrink-0" />
+            {label}
+          </button>
+        ))}
       </div>
       <p className="text-[11px] leading-snug text-white/45">
         {active === "live"

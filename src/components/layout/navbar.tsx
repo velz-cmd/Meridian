@@ -25,8 +25,8 @@ export function Navbar() {
   return (
     <>
       <header className="sticky top-0 z-50 px-4 pt-3 sm:px-6">
-      <div className="arc-nav-glass mx-auto flex h-[62px] max-w-5xl items-center justify-between rounded-2xl px-3 sm:px-5">
-        <Link href="/" className="group flex items-center gap-2.5">
+      <div className="arc-nav-glass mx-auto grid h-[62px] max-w-5xl grid-cols-[1fr_auto_1fr] items-center rounded-2xl px-3 sm:px-5">
+        <Link href="/" className="group flex items-center gap-2.5 justify-self-start">
           <ArcLogoMark className="h-10 w-10" />
           <div className="min-w-0">
             <p className="text-sm font-bold tracking-[0.12em] text-white">{MERIDIAN_NAME}</p>
@@ -38,7 +38,7 @@ export function Navbar() {
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-0.5 md:flex">
+        <nav className="hidden items-center gap-0.5 justify-self-center md:flex">
           {links.map((link) => {
             const Icon = link.icon;
             const iconTheme = arcNavIconTheme(link.href.split("#")[0]);
@@ -48,18 +48,18 @@ export function Navbar() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "flex items-center gap-2 rounded-full px-3 py-2 text-sm transition",
-                  active ? "bg-white/10 text-white" : "text-white/55 hover:bg-white/5 hover:text-white",
+                  "flex min-h-[40px] items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition",
+                  active ? "bg-white/10 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" : "text-white/55 hover:bg-white/5 hover:text-white",
                 )}
               >
-                <ArcIcon3d icon={Icon} theme={iconTheme} size="sm" className="!h-7 !w-7" />
+                <ArcIcon3d icon={Icon} theme={iconTheme} size="sm" className="!h-7 !w-7 shrink-0" />
                 {link.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-self-end gap-2">
           <NexusWalletMenu />
           <MobileNav />
         </div>

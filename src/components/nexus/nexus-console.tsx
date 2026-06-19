@@ -999,31 +999,31 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
 
   const rightColumnPanel = (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="mb-2 flex shrink-0 gap-1.5 border-b border-white/[0.06] pb-2">
-        <button
-          type="button"
-          onClick={() => setRightTab("trade")}
-          className={cn(
-            "arc-btn-pill flex flex-1 items-center justify-center gap-2 px-3 py-2 text-sm font-semibold",
-            rightTab === "trade" ? "arc-nav-pill-active text-emerald-50" : "text-white/50",
-          )}
-        >
-          <ArcIcon3d icon={NEXUS_TRADE_ICONS.trade} theme="nexus" size="sm" className="!h-8 !w-8" />
-          Trade
-        </button>
-        <button
-          type="button"
-          onClick={() => setRightTab("portfolio")}
-          className={cn(
-            "arc-btn-pill flex flex-1 items-center justify-center gap-2 px-3 py-2 text-sm font-semibold",
-            rightTab === "portfolio"
-              ? "border-emerald-400/35 bg-emerald-500/15 text-emerald-100"
-              : "text-white/50",
-          )}
-        >
-          <ArcIcon3d icon={NEXUS_TRADE_ICONS.portfolio} theme="nexus" size="sm" className="!h-8 !w-8" />
-          Portfolio
-        </button>
+      <div className="mb-2 shrink-0">
+        <div className="arc-tab-bar arc-tab-bar--grid-2 w-full">
+          <button
+            type="button"
+            onClick={() => setRightTab("trade")}
+            className={cn(
+              "arc-tab-item w-full",
+              rightTab === "trade" && "arc-tab-item-active emerald",
+            )}
+          >
+            <ArcIcon3d icon={NEXUS_TRADE_ICONS.trade} theme="nexus" size="sm" className="!h-7 !w-7 shrink-0" />
+            Trade
+          </button>
+          <button
+            type="button"
+            onClick={() => setRightTab("portfolio")}
+            className={cn(
+              "arc-tab-item w-full",
+              rightTab === "portfolio" && "arc-tab-item-active emerald",
+            )}
+          >
+            <ArcIcon3d icon={NEXUS_TRADE_ICONS.portfolio} theme="nexus" size="sm" className="!h-7 !w-7 shrink-0" />
+            Portfolio
+          </button>
+        </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {rightTab === "trade" ? tradePanel : portfolioPanel}

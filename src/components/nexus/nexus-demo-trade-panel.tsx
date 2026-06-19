@@ -10,7 +10,7 @@ import { NexusTokenChatButton } from "@/components/nexus/nexus-token-chat";
 import { NexusAgentWalletProvider } from "@/components/nexus/nexus-agent-wallet-provider";
 import { useConstitution } from "@/contexts/nexus-constitution-context";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
-import { nexusActionGlass, nexusGlassCta } from "@/lib/nexus-action-glass";
+import { nexusGlassCta } from "@/lib/nexus-action-glass";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -400,7 +400,7 @@ export function NexusTradeHub({
             )}
           </div>
           )}
-          <div className="nexus-trade-tabs grid grid-cols-3 gap-2">
+          <div className="arc-tab-bar arc-tab-bar--grid-3 nexus-trade-tabs w-full">
             {(
               [
                 { id: "buy" as const, label: "Buy", sub: "Manual", icon: NEXUS_TRADE_ICONS.buy, theme: "nexus" as const },
@@ -415,10 +415,9 @@ export function NexusTradeHub({
                   e.stopPropagation();
                   setTab(id);
                 }}
-                className={nexusActionGlass(
-                  id === "agent" ? "autopilot" : id,
-                  tradeTab === id,
-                  "nexus-trade-tab relative z-[1] flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 active:scale-[0.98]",
+                className={cn(
+                  "arc-tab-item flex min-h-[52px] w-full flex-col gap-0.5 py-2",
+                  tradeTab === id && "arc-tab-item-active emerald",
                 )}
               >
                 <ArcIcon3d
@@ -426,7 +425,7 @@ export function NexusTradeHub({
                   theme={id === "agent" ? "home" : iconTheme}
                   size="sm"
                   delay={id === "agent" ? 0.15 : 0}
-                  className="pointer-events-none scale-90"
+                  className="pointer-events-none !h-7 !w-7 shrink-0"
                 />
                 <span className="text-[10px] font-bold">{label}</span>
                 <span className="text-[8px] font-medium text-white/40">{sub}</span>

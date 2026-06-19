@@ -161,6 +161,8 @@ export function evaluateSentimentDivergenceSkill(t) {
  */
 export function evaluateRegimeSkill(t, macro = {}) {
   const fg = t.fearGreed ?? 50;
+  const ch1 = t.change1h ?? 0;
+  const ch24 = t.change24h ?? 0;
   const ch7 = t.change7d ?? 0;
   const btcDom = macro.btcDominance ?? null;
   const mktCh24 = macro.totalMarketChange24h ?? null;
@@ -184,8 +186,6 @@ export function evaluateRegimeSkill(t, macro = {}) {
   let signal = "HOLD";
   if (regime === "risk-off") {
     strategyMode = positioning === "crowded-long-unwind" ? "defensive" : "tight";
-    const ch24 = t.change24h ?? 0;
-    const ch7 = t.change7d ?? 0;
     if (positioning === "crowded-long-unwind") signal = "AVOID";
     else if (positioning === "capitulation") {
       // Contrarian long only when washout is stabilizing — not when 7d still bleeding
