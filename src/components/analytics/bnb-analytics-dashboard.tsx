@@ -4,17 +4,21 @@ import {
   Activity,
   BarChart3,
   ExternalLink,
+  Eye,
   Loader2,
   RefreshCw,
   Scale,
   TrendingUp,
+  Users,
   Wallet,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { ArcBackground } from "@/components/layout/arc-background";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { useBnbAnalytics } from "@/hooks/use-bnb-analytics";
+import { trackMeridianEvent } from "@/lib/product-analytics-client";
 import { bscExplorerAddress, bscExplorerTxIfValid } from "@/lib/bsc-chain";
 import { cn } from "@/lib/utils";
 
@@ -42,13 +46,25 @@ function formatMetricKey(key: string): string {
   return key.replace(/_/g, " ");
 }
 
+function kindLabel(kind: string): string {
+  return kind.replace(/^api_/, "API · ").replace(/_/g, " ");
+}
+
 export function BnbAnalyticsDashboard() {
-  const { data, loading, error, reload } = useBnbAnalytics(90_000);
+  const { data, loading, error, reload } = useBnbAnalytics(30_000);
+  const product = data?.product;
 
   const duneMetrics = Object.entries(data?.dune.metrics ?? {}).slice(0, 8);
   const refreshed = data?.generatedAt
-    ? new Date(data.generatedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    ? new Date(data.generatedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })
     : "—";
+
+  const maxHour = Math.max(1, ...(product?.hourlyPageViews.map((h) => h.count) ?? [1]));
+
+  const handleRefresh = () => {
+    trackMeridianEvent({ kind: "analytics_refresh", path: "/analytics" });
+    void reload();
+  };
 
   return (
     <div className="relative min-h-screen text-white" data-arc-theme="nexus">
@@ -64,14 +80,17 @@ export function BnbAnalyticsDashboard() {
               MERIDIAN <span className="text-white/55">analytics</span>
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-white/55">
-              Public stats for judges — CMC gate scans, BSC Testnet Chapel swaps, Dune on-chain SQL, and
-              platform usage. Refreshes every 90s.
+              Real product traction on trader-arc.vercel.app — unique visitors, page views, user actions, and
+              API usage. Auto-refreshes every 30s.
+            </p>
+            <p className="mt-1 font-mono text-[10px] text-emerald-400/80">
+              Live · storage {product?.storage ?? "—"} · last sync {refreshed}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => void reload()}
+              onClick={handleRefresh}
               disabled={loading}
               className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2 text-sm text-white/80 hover:border-cyan-400/35"
             >
@@ -94,9 +113,137 @@ export function BnbAnalyticsDashboard() {
           </div>
         )}
 
-        <p className="mb-4 font-mono text-[10px] text-white/35">Last sync · {refreshed}</p>
+        <p className="mb-4 font-mono text-[10px] text-white/35">Live product metrics · updates every 30s</p>
 
-        <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* ── Live product traction ── */}
+        <section className="mb-6">
+          <div className="mb-3 flex items-center gap-2">
+            <Users className="h-4 w-4 text-cyan-400" />
+            <h2 className="text-sm font-semibold">Live product traction</h2>
+            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[9px] text-emerald-300">
+              REAL USERS
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Unique visitors (24h)"
+              value={loading ? "…" : String(product?.visitors24h ?? 0)}
+              sub={`${product?.visitors7d ?? 0} this week · ${product?.activeVisitors1h ?? 0} active last hour`}
+              accent="text-cyan-200"
+            />
+            <StatCard
+              label="Page views (24h)"
+              value={loading ? "…" : String(product?.pageViews24h ?? 0)}
+              sub={`${product?.pageViews7d ?? 0} views · 7 days · ${product?.sessions24h ?? 0} sessions`}
+              accent="text-violet-200"
+            />
+            <StatCard
+              label="User actions (24h)"
+              value={loading ? "…" : String(product?.actions24h ?? 0)}
+              sub="Symbol picks, trades, API scans"
+              accent="text-amber-200"
+            />
+            <StatCard
+              label="Connected wallets trading"
+              value={loading ? "…" : String(product?.derived.demoWallets ?? 0)}
+              sub={`${product?.derived.totalDemoTrades ?? 0} Chapel swaps recorded`}
+              accent="text-emerald-200"
+            />
+          </div>
+        </section>
+
+        <div className="mb-6 grid gap-4 lg:grid-cols-3">
+          <section className="rounded-2xl border border-white/10 bg-black/30 p-4 lg:col-span-1">
+            <div className="mb-3 flex items-center gap-2">
+              <Eye className="h-4 w-4 text-violet-400" />
+              <h2 className="text-sm font-semibold">Top pages (24h)</h2>
+            </div>
+            {!product?.topPages.length ? (
+              <p className="text-xs text-white/45">No page views yet — browse /gate or /nexus to populate.</p>
+            ) : (
+              <ul className="space-y-2">
+                {product.topPages.map((p) => (
+                  <li key={p.path} className="flex items-center justify-between text-xs">
+                    <span className="font-mono text-white/75">{p.path}</span>
+                    <span className="tabular-nums text-white/45">{p.views}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-white/10 bg-black/30 p-4 lg:col-span-1">
+            <div className="mb-3 flex items-center gap-2">
+              <Zap className="h-4 w-4 text-amber-400" />
+              <h2 className="text-sm font-semibold">Top actions (7d)</h2>
+            </div>
+            {!product?.topActions.length ? (
+              <p className="text-xs text-white/45">Actions appear when users pick tokens, run gate API, or swap.</p>
+            ) : (
+              <ul className="space-y-2">
+                {product.topActions.map((a) => (
+                  <li key={a.kind} className="flex items-center justify-between text-xs">
+                    <span className="capitalize text-white/75">{kindLabel(a.kind)}</span>
+                    <span className="tabular-nums text-white/45">{a.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-white/10 bg-black/30 p-4 lg:col-span-1">
+            <div className="mb-3 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-cyan-400" />
+              <h2 className="text-sm font-semibold">Page views · last 24h</h2>
+            </div>
+            <div className="flex h-24 items-end gap-0.5">
+              {(product?.hourlyPageViews ?? []).map((h) => (
+                <div
+                  key={h.hour}
+                  className="flex-1 rounded-t bg-cyan-500/40 transition-all"
+                  style={{ height: `${Math.max(4, (h.count / maxHour) * 100)}%` }}
+                  title={`${h.hour}: ${h.count}`}
+                />
+              ))}
+            </div>
+            <p className="mt-2 font-mono text-[9px] text-white/35">Hourly buckets · hover bars for count</p>
+          </section>
+        </div>
+
+        <section className="mb-6 rounded-2xl border border-cyan-400/15 bg-cyan-500/5 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Activity className="h-4 w-4 text-cyan-300" />
+            <h2 className="text-sm font-semibold">Live activity feed</h2>
+          </div>
+          {!product?.recent.length ? (
+            <p className="text-xs text-white/45">Waiting for first events…</p>
+          ) : (
+            <ul className="max-h-56 space-y-1.5 overflow-y-auto">
+              {product.recent.map((ev, i) => (
+                <li
+                  key={`${ev.at}-${i}`}
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-white/[0.05] bg-black/20 px-2.5 py-1.5 text-[11px]"
+                >
+                  <span className="font-mono text-white/35">
+                    {new Date(ev.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  </span>
+                  <span className="font-medium capitalize text-cyan-200/90">{kindLabel(ev.kind)}</span>
+                  {ev.path && <span className="font-mono text-white/50">{ev.path}</span>}
+                  {ev.symbol && <span className="text-amber-200/80">{ev.symbol}</span>}
+                  {ev.action && <span className="text-white/40">{ev.action}</span>}
+                  <span className="ml-auto font-mono text-white/25">{ev.visitorShort}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mb-6">
+          <div className="mb-3 flex items-center gap-2">
+            <Scale className="h-4 w-4 text-violet-400" />
+            <h2 className="text-sm font-semibold">Strategy desk · gate engine</h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Gate feed"
             value={loading ? "…" : data?.gate.cmcLive ? "CMC live" : data?.gate.degraded ? "Venue" : "Cached"}
@@ -131,6 +278,7 @@ export function BnbAnalyticsDashboard() {
             sub={`Fear & Greed ${data?.gate.fearGreed ?? 50} · BNB CAKE FLOKI XVS`}
             accent="text-white"
           />
+          </div>
         </section>
 
         {(data?.dune.dashboardUrl || data?.dune.embedUrl || duneMetrics.length > 0) && (

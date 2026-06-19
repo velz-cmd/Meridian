@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildGateEvaluateResponse } from "@/lib/gate-handler";
 import type { AgentInput } from "@/lib/constitution-permit-handler";
+import { trackServerProductEvent } from "@/lib/product-analytics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export async function GET(req: NextRequest) {
       }
     : null;
   try {
+    trackServerProductEvent(req, "api_gate_evaluate", { symbol });
     const payload = await buildGateEvaluateResponse({ symbol, agent });
     return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
@@ -29,6 +31,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as { symbol?: string; agent?: AgentInput };
     const symbol = String(body.symbol ?? "BNB").toUpperCase();
+    trackServerProductEvent(req, "api_gate_evaluate", { symbol });
     const payload = await buildGateEvaluateResponse({ symbol, agent: body.agent ?? null });
     return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {

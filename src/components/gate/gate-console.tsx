@@ -23,6 +23,7 @@ import { NexusAgentPulseStrip } from "@/components/nexus/nexus-agent-pulse-strip
 import { useMarketPulse } from "@/hooks/use-market-pulse";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import { appendMeridianActivity } from "@/lib/meridian-activity-log";
+import { trackMeridianEvent } from "@/lib/product-analytics-client";
 import { type GateSymbol } from "@/lib/gate-constants";
 import { buildGateExecutionUrl } from "@/lib/gate-nexus-bridge";
 import { effectiveCleared, effectiveGateSignal } from "@/lib/gate-effective-signal";
@@ -140,6 +141,7 @@ export function GateConsole() {
   const handleSelectSymbol = useCallback((sym: GateSymbol) => {
     userPickedSymbol.current = sym;
     setSymbol(sym);
+    trackMeridianEvent({ kind: "gate_symbol", path: "/gate", symbol: sym, action: "select" });
   }, []);
 
   useEffect(() => {

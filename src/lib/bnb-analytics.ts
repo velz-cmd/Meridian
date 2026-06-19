@@ -14,6 +14,7 @@ import {
 } from "@/lib/dune-client";
 import { getGlobalDemoTradeStats } from "@/lib/storage";
 import { getSupabase } from "@/lib/supabase";
+import { getProductAnalyticsStats } from "@/lib/product-analytics";
 import type { BnbAnalyticsPayload } from "@/lib/bnb-analytics-types";
 
 export type { BnbAnalyticsPayload } from "@/lib/bnb-analytics-types";
@@ -35,7 +36,7 @@ async function countSupabaseTable(table: "nexus_decisions" | "prism_predictions"
 export async function buildBnbAnalyticsPayload(): Promise<BnbAnalyticsPayload> {
   const duneConfig = getDunePublicConfig();
 
-  const [gateBatch, gateStatus, onChain, execution, duneProbe, duneData, nexusCount, prismCount] =
+  const [gateBatch, gateStatus, onChain, execution, duneProbe, duneData, nexusCount, prismCount, productStats] =
     await Promise.all([
       evaluateAllGateBenchmarks().catch(() => null),
       probeGateStatus(),
@@ -45,6 +46,7 @@ export async function buildBnbAnalyticsPayload(): Promise<BnbAnalyticsPayload> {
       hasDuneKey() ? fetchDuneBnbAnalytics() : Promise.resolve({ stats: null, txs: null, metrics: {} }),
       countSupabaseTable("nexus_decisions"),
       countSupabaseTable("prism_predictions"),
+      getProductAnalyticsStats(),
     ]);
 
   let permitsClear = 0;
@@ -76,7 +78,7 @@ export async function buildBnbAnalyticsPayload(): Promise<BnbAnalyticsPayload> {
   }
 
   return {
-    product: "MERIDIAN · BNB Hack Track 2",
+    brand: "MERIDIAN · BNB Hack Track 2",
     track: "Strategy Skills (CoinMarketCap) + BSC Testnet execution",
     generatedAt: new Date().toISOString(),
     live: {
@@ -106,6 +108,7 @@ export async function buildBnbAnalyticsPayload(): Promise<BnbAnalyticsPayload> {
     },
     execution,
     onChain,
+    product: productStats,
     platform: {
       supabaseConfigured: Boolean(getSupabase()),
       nexusDecisions: nexusCount,

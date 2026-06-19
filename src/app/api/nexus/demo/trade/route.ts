@@ -4,6 +4,7 @@ import { applyDemoTrade, buildDemoQuote, type DemoTradeSide } from "@/lib/demo-t
 import { demoNetworkById, type DemoTradeNetworkId } from "@/lib/testnet-chains";
 import { debitAgentVault, getAgentVaultLedger, getDemoPositions, saveDemoTrade } from "@/lib/storage";
 import { getBscPublicClient, isBscTxHash } from "@/lib/bsc-chain";
+import { trackServerProductEvent } from "@/lib/product-analytics";
 
 export async function POST(request: Request) {
   try {
@@ -96,6 +97,11 @@ export async function POST(request: Request) {
 
     const { positions: nextPositions } = applyDemoTrade([...positions], trade);
     await saveDemoTrade(trade, nextPositions);
+    trackServerProductEvent(request, "nexus_trade", {
+      symbol: body.symbol,
+      action: body.side,
+      meta: { tradeNetwork: body.tradeNetwork },
+    });
 
     let agentBalanceUsdc: number | undefined;
     if (body.useAgentVault && body.side === "buy") {

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { BnbAnalyticsPayload } from "@/lib/bnb-analytics-types";
 
-export function useBnbAnalytics(refreshMs = 90_000) {
+export function useBnbAnalytics(refreshMs = 30_000) {
   const [data, setData] = useState<BnbAnalyticsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

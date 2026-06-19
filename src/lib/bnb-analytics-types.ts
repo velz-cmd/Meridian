@@ -1,6 +1,6 @@
 /** Public payload from GET /api/bnb/analytics */
 export type BnbAnalyticsPayload = {
-  product: string;
+  brand: string;
   track: string;
   generatedAt: string;
   live: {
@@ -67,6 +67,35 @@ export type BnbAnalyticsPayload = {
     supabaseConfigured: boolean;
     nexusDecisions: number | null;
     prismPredictions: number | null;
+  };
+  product: {
+    configured: boolean;
+    storage: "supabase" | "local" | "none";
+    visitors24h: number;
+    visitors7d: number;
+    visitorsAllTime: number;
+    pageViews24h: number;
+    pageViews7d: number;
+    actions24h: number;
+    activeVisitors1h: number;
+    sessions24h: number;
+    topPages: { path: string; views: number }[];
+    topActions: { kind: string; count: number }[];
+    hourlyPageViews: { hour: string; count: number }[];
+    recent: Array<{
+      at: string;
+      kind: string;
+      path: string | null;
+      action: string | null;
+      symbol: string | null;
+      visitorShort: string;
+    }>;
+    derived: {
+      demoWallets: number;
+      totalDemoTrades: number;
+      nexusDecisions: number;
+      prismPredictions: number;
+    };
   };
   api: {
     evaluate: string;

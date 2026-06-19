@@ -101,6 +101,7 @@ export async function probeSupabaseTables(): Promise<SupabaseHealthStatus> {
         "prism_predictions",
         "agent_vault_ledgers",
         "agent_vault_meta",
+        "product_events",
       ] as SupabaseTableName[]
     ).map(probeTable),
   );

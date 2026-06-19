@@ -7,6 +7,7 @@ export const SUPABASE_TABLES = [
   "prism_predictions",
   "agent_vault_ledgers",
   "agent_vault_meta",
+  "product_events",
 ] as const;
 
 export type SupabaseTableName = (typeof SUPABASE_TABLES)[number];
