@@ -3,9 +3,9 @@
  * Suggests improvements only — no automatic rule mutation.
  */
 import type { GateJudgeConsensus } from "@/lib/gate-consensus-payload";
+import type { DemoTradeRecord, DemoTradeThesisSnapshot } from "@/lib/demo-trading";
 import type { MeridianSkillEvidence } from "@/lib/meridian-skill-evidence";
 import type { MeridianTradeAutopsy } from "@/lib/meridian-intelligence-types";
-import type { DemoTradeRecord } from "@/lib/demo-trading";
 
 function pairTrades(trades: DemoTradeRecord[]): Array<{ buy: DemoTradeRecord; sell?: DemoTradeRecord }> {
   const bySymbol = new Map<string, DemoTradeRecord[]>();
@@ -35,11 +35,17 @@ function pairTrades(trades: DemoTradeRecord[]): Array<{ buy: DemoTradeRecord; se
 
 function inferFailedSkills(
   evidence: MeridianSkillEvidence[],
+  snapshot: DemoTradeThesisSnapshot | undefined,
   outcome: "win" | "loss" | "flat",
 ): { failed: string[]; passed: string[] } {
   const failed: string[] = [];
   const passed: string[] = [];
-  for (const e of evidence) {
+
+  const stances =
+    snapshot?.skillStances ??
+    evidence.map((e) => ({ skill: e.skill, score: e.score, stance: e.stance }));
+
+  for (const e of stances) {
     const bearish = e.stance === "EXIT" || e.stance === "AVOID";
     const bullish = e.stance === "ENTER_LONG";
     if (outcome === "loss") {
@@ -68,33 +74,38 @@ export function buildTradeAutopsies(input: {
     .slice(-5)
     .reverse()
     .map(({ buy, sell }) => {
+      const snap = buy.thesisSnapshot;
       const pnl = sell?.pnlUsd ?? null;
       const outcome: MeridianTradeAutopsy["outcome"] =
         pnl == null ? "open" : pnl > 0.5 ? "win" : pnl < -0.5 ? "loss" : "flat";
       const { failed, passed } =
         outcome === "open"
           ? { failed: [], passed: [] }
-          : inferFailedSkills(input.skillEvidence, outcome);
+          : inferFailedSkills(input.skillEvidence, snap, outcome);
+
+      const expected = snap?.expectedConviction ?? input.conviction;
 
       const lesson =
         outcome === "open"
           ? "Position still open — autopsy runs after close."
           : outcome === "win"
-            ? `Thesis held — ${passed.length ? passed.join(", ") : "constitution stack"} aligned with outcome.`
-            : `Thesis failed — review ${failed.length ? failed.join(", ") : "risk/liquidity layers"}.`;
+            ? `Thesis held (expected conviction ${expected}) — ${passed.length ? passed.join(", ") : "constitution stack"} aligned.`
+            : `Thesis failed vs expected conviction ${expected} — review ${failed.length ? failed.join(", ") : "risk/liquidity layers"}.`;
 
       const suggestedImprovement =
         failed.includes("Liquidity depth") || failed.includes("Volatility regime")
           ? "Consider tightening liquidity veto before entry in similar regimes."
           : failed.includes("Momentum")
             ? "Momentum layer may have been late — review RSI/MACD thresholds for this symbol."
-            : "Review constitution articles triggered at entry vs exit — suggest manual rule review only.";
+            : snap?.verdict === "GRANT" && outcome === "loss"
+              ? "Constitution GRANT but loss — review Article V liquidity veto and counterfactual sensitivity."
+              : "Review constitution articles at entry vs exit — suggest manual rule review only.";
 
       return {
         tradeId: buy.id,
         symbol: sym,
         side: sell ? "round-trip" : "open-long",
-        expectedConviction: input.conviction,
+        expectedConviction: expected,
         actualPnlUsd: pnl,
         outcome,
         failedSkills: failed,

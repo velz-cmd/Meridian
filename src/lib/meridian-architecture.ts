@@ -123,8 +123,8 @@ export const MERIDIAN_FEATURE_COVERAGE: FeatureCoverage[] = [
   { id: "dna", name: "Trade / Thesis DNA", cmcBacked: false, meridianLayer: true, status: "live", skillOrModule: "Thesis DNA panel" },
   { id: "decay", name: "Conviction decay", cmcBacked: false, meridianLayer: true, status: "live", skillOrModule: "Decay curve model" },
   { id: "counter", name: "Counterfactual engine", cmcBacked: false, meridianLayer: true, status: "live", skillOrModule: "Gate re-eval stress" },
-  { id: "replay", name: "Market replay / timeline", cmcBacked: true, meridianLayer: true, status: "partial", skillOrModule: "90-day replay tab" },
-  { id: "autopsy", name: "Trade autopsy", cmcBacked: false, meridianLayer: true, status: "partial", skillOrModule: "NEXUS closed trades + skill attribution" },
+  { id: "replay", name: "Market replay / timeline", cmcBacked: true, meridianLayer: true, status: "live", skillOrModule: "90-day backtest + analog timeline slider" },
+  { id: "autopsy", name: "Trade autopsy", cmcBacked: false, meridianLayer: true, status: "live", skillOrModule: "NEXUS trades + thesis snapshot at entry" },
 ];
 
 export function summarizeArchitectureCoverage() {

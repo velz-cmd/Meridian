@@ -6,6 +6,7 @@ import {
   sanitizeChatReply,
 } from "@/lib/nexus-chat-context";
 import { TRADING_SETTLEMENT, TRADING_AUTOPILOT_HINT } from "@/lib/trading-copy";
+import { meridianLlmSystemPreamble } from "@/lib/meridian-llm-context";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,7 +27,9 @@ type ChatBody = {
   agentBalanceUsdc?: number;
 };
 
-const SYSTEM = `You are NEXUS Token Copilot — expert on ONE selected token only. Answer in plain language for beginners.
+const SYSTEM = `${meridianLlmSystemPreamble()}
+
+You are NEXUS Token Copilot — expert on ONE selected token only. Answer in plain language for beginners.
 
 Your job for this token:
 1. Explain fundamentals (liquidity, volume, 24h move, chain) using ONLY the verified live snapshot.

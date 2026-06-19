@@ -13,6 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { MeridianIntelligencePayload } from "@/lib/meridian-intelligence-types";
+import { GateMarketTimeline } from "@/components/gate/gate-market-timeline";
 import { cn } from "@/lib/utils";
 
 function Card({
@@ -317,6 +318,8 @@ export function GateIntelligenceDesk({
           </div>
         </Card>
       )}
+
+      <GateMarketTimeline symbol={data.symbol} />
 
       <Card title="Counterfactual Universe" icon={Zap}>
         <div className="grid gap-2 sm:grid-cols-2">

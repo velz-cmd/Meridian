@@ -10,6 +10,7 @@ import { checkSwappable } from "./swappable";
 import { anchorDecisionPayload } from "./arc";
 import { addNexusDecision, type NexusDecision, type TokenIntel, type AgentSignal, type ReasoningFactor } from "./storage";
 import { assessTokenScam, applyScamAndSecurity } from "./scam-detection";
+import { meridianLlmSystemPreamble } from "@/lib/meridian-llm-context";
 import {
   enforceSignalGate,
   evaluateTradeSetup,
@@ -211,8 +212,7 @@ async function aiDecision(token: TrendingToken, intel: TokenIntel) {
       messages: [
         {
           role: "system",
-          content:
-            "You are NEXUS, a professional crypto trading agent. Each token analysis MUST be unique — cite specific numbers from the payload (price, % change, liquidity, volume, RSI, MACD, news headlines). If 5m or 1h price change shows a crime dump or pump-then-dump while 24h is still positive, you MUST return SELL with confidence under 40 — never HOLD or BUY on obvious rugs/honeypots. Never reuse the same confidence/risk for different tokens. Return JSON: action (BUY|SELL|HOLD), confidence (0-100), riskScore (0-100), reasoning (2-3 sentences with unique metrics), whyAction (one sentence naming this token's edge).",
+          content: `${meridianLlmSystemPreamble()}\n\nYou are NEXUS, a professional crypto trading agent. Each token analysis MUST be unique — cite specific numbers from the payload (price, % change, liquidity, volume, RSI, MACD, news headlines). If 5m or 1h price change shows a crime dump or pump-then-dump while 24h is still positive, you MUST return SELL with confidence under 40 — never HOLD or BUY on obvious rugs/honeypots. Never reuse the same confidence/risk for different tokens. Return JSON: action (BUY|SELL|HOLD), confidence (0-100), riskScore (0-100), reasoning (2-3 sentences with unique metrics), whyAction (one sentence naming this token's edge). Confidence is evidence strength — NOT probability of profit.`,
         },
         {
           role: "user",
@@ -899,7 +899,7 @@ async function aiFeedBatch(
       messages: [
         {
           role: "system",
-          content: `${NEXUS_SIGNAL_GATE_PROMPT} Batch: return JSON { signals: [{ symbol, action, confidence, riskScore, reasoning, whyAction }] } — one row per symbol.`,
+          content: `${meridianLlmSystemPreamble()}\n${NEXUS_SIGNAL_GATE_PROMPT} Batch: return JSON { signals: [{ symbol, action, confidence, riskScore, reasoning, whyAction }] } — one row per symbol.`,
         },
         { role: "user", content: JSON.stringify(payload) },
       ],

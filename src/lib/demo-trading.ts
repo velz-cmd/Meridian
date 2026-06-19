@@ -5,6 +5,17 @@ import { mirrorTestnetForSource, type DemoTradeNetworkId } from "./testnet-chain
 
 export type DemoTradeSide = "buy" | "sell" | "swap_to_usdc";
 
+/** Snapshot at trade entry for Trade Autopsy — expected vs actual. */
+export type DemoTradeThesisSnapshot = {
+  permitId?: string;
+  expectedConviction?: number;
+  gateSignal?: string;
+  verdict?: string;
+  skillStances?: Array<{ skill: string; score: number; stance: string }>;
+  source?: string;
+  capturedAt: string;
+};
+
 export type DemoPosition = {
   id: string;
   wallet: string;
@@ -38,6 +49,7 @@ export type DemoTradeRecord = {
   arcFeeTxHash: string;
   timestamp: string;
   pnlUsd?: number;
+  thesisSnapshot?: DemoTradeThesisSnapshot;
 };
 
 export function buildDemoQuote(input: {

@@ -6,6 +6,7 @@ import {
   MERIDIAN_FEATURE_COVERAGE,
   summarizeArchitectureCoverage,
 } from "@/lib/meridian-architecture";
+import { MERIDIAN_GOLDEN_RULES } from "@/lib/meridian-philosophy";
 import { cn } from "@/lib/utils";
 
 const SOURCE_STYLE = {
@@ -104,6 +105,14 @@ export function GateCmcArchitecturePanel({ compact = false }: { compact?: boolea
             CMC cannot provide alone: smart-money wallets, orderbook depth, liquidations — MERIDIAN uses honest CMC
             proxies and labels sources on every skill.
           </p>
+          <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/25 px-3 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">Golden rules</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-4 text-[10px] text-white/45">
+              {MERIDIAN_GOLDEN_RULES.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ol>
+          </div>
         </div>
       )}
     </section>

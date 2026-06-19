@@ -20,8 +20,8 @@ export async function POST(request: Request) {
       priceUsd: number;
       arcFeeTxHash: string;
       useAgentVault?: boolean;
-      /** Set when trade is part of an authorized autopilot session (reuses one arcFeeTxHash) */
       autopilotSession?: boolean;
+      thesisSnapshot?: import("@/lib/demo-trading").DemoTradeThesisSnapshot;
     };
 
     if (!body.wallet || !body.arcFeeTxHash) {
@@ -93,6 +93,7 @@ export async function POST(request: Request) {
       arcFeeTxHash: body.arcFeeTxHash,
       timestamp: new Date().toISOString(),
       pnlUsd: "pnlUsd" in quote ? quote.pnlUsd : undefined,
+      thesisSnapshot: body.thesisSnapshot,
     };
 
     const { positions: nextPositions } = applyDemoTrade([...positions], trade);

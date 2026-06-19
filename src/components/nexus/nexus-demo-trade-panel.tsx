@@ -258,6 +258,48 @@ export function NexusTradeHub({
       void onChainBal.refetch();
 
       const outAmt = parseFloat(result.amountOutFormatted) || resolved.tokenAmount;
+
+      let thesisSnapshot: import("@/lib/demo-trading").DemoTradeThesisSnapshot | undefined;
+      if (side === "buy") {
+        const intent = loadGateExecutionIntent();
+        const sym = normalizeTradeSym(trade.symbol);
+        if (intent?.permitId || intent?.confidence) {
+          try {
+            const intelRes = await fetch(`/api/meridian/intelligence?symbol=${sym}&backtest=0`, {
+              cache: "no-store",
+            });
+            if (intelRes.ok) {
+              const intel = (await intelRes.json()) as {
+                verdict?: string;
+                conviction?: { conviction?: number };
+                skillEvidence?: Array<{ skill: string; score: number; stance: string }>;
+              };
+              thesisSnapshot = {
+                permitId: intent.permitId,
+                expectedConviction: intent.confidence ?? intel.conviction?.conviction,
+                gateSignal: intent.permit,
+                verdict: intel.verdict,
+                skillStances: intel.skillEvidence?.map((s) => ({
+                  skill: s.skill,
+                  score: s.score,
+                  stance: s.stance,
+                })),
+                source: "meridian-intelligence/v2",
+                capturedAt: new Date().toISOString(),
+              };
+            }
+          } catch {
+            thesisSnapshot = {
+              permitId: intent.permitId,
+              expectedConviction: intent.confidence,
+              gateSignal: intent.permit,
+              source: "gate-intent",
+              capturedAt: new Date().toISOString(),
+            };
+          }
+        }
+      }
+
       try {
         await fetch("/api/nexus/demo/trade", {
           method: "POST",
@@ -276,6 +318,7 @@ export function NexusTradeHub({
             tokenAmount: side === "buy" ? outAmt : resolved.tokenAmount,
             priceUsd: livePrice,
             arcFeeTxHash: result.hash,
+            thesisSnapshot,
           }),
         });
       } catch {

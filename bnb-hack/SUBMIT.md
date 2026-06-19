@@ -16,7 +16,26 @@ We deliver exactly that. No execution layer required.
 
 ## One sentence
 
-**A CoinMarketCap LLM Skill that transforms live market data (quotes, RSI, MACD, Fear & Greed) into explicit entry/exit rules — with a reproducible 90-day backtest on the same engine.**
+**A CoinMarketCap-powered market intelligence OS — 8 deterministic skills feed Bull/Bear Court and Constitution, with Market Twin, counterfactual stress, and reproducible 90-day backtest.**
+
+Full architecture: `docs/MERIDIAN-TRACK2.md` · Intelligence API: `GET /api/meridian/intelligence`
+
+---
+
+## MERIDIAN intelligence stack (Track 2 differentiator)
+
+```
+CMC APIs → 8 Skills (evidence) → Bull/Bear Court → Constitution → Memory → Counterfactual → Verdict
+```
+
+| Layer | Live endpoint |
+|-------|---------------|
+| Skills + Constitution | `/api/gate/evaluate` |
+| Unified intelligence | `/api/meridian/intelligence` |
+| 90-day proof | `/api/gate/backtest` |
+| Strategy desk UI | `/gate` (Memory tab) |
+
+Golden rules: never hallucinate, prefer WAIT over fake certainty, skills provide evidence only.
 
 ---
 
@@ -31,6 +50,9 @@ We deliver exactly that. No execution layer required.
 | **Strategy engine** | `bnb-hack/engine/nexus-gate.mjs` |
 | **Backtest runner** | `bnb-hack/backtest/run.mjs` |
 | **Live demo (optional UI)** | https://trader-arc.vercel.app/gate |
+| **Intelligence API** | `GET /api/meridian/intelligence?symbol=CAKE` |
+| **Track 2 architecture doc** | `docs/MERIDIAN-TRACK2.md` |
+| **Philosophy / golden rules** | `src/lib/meridian-philosophy.ts` |
 | **Public analytics** | https://trader-arc.vercel.app/analytics |
 | **Analytics API** | `GET /api/bnb/analytics` |
 
@@ -43,7 +65,7 @@ We deliver exactly that. No execution layer required.
 3. Toggle **BNB** — today’s strategy output: LONG or FLAT + thesis (0:30)
 4. Scroll **90-day backtest** — strategy vs naive agent (0:50)
 5. GitHub **SKILL.md** — CMC MCP workflow (1:10)
-6. GitHub **STRATEGY_SPEC.md** — Quantopian-style rules (1:25)
+6. Open **Memory tab** — Market Twin, Bull/Bear Court, verdict, skill evidence (1:00)
 7. Terminal: `npm run bnb:backtest -- --symbol BNB --days 90` (1:45)
 
 ---
@@ -53,6 +75,7 @@ We deliver exactly that. No execution layer required.
 ```powershell
 # Strategy skill (live CMC gate)
 curl "https://trader-arc.vercel.app/api/gate/evaluate?symbol=BNB"
+curl "https://trader-arc.vercel.app/api/meridian/intelligence?symbol=CAKE"
 curl "https://trader-arc.vercel.app/api/gate/backtest?symbol=BNB&days=90"
 curl "https://trader-arc.vercel.app/api/gate/status"
 
