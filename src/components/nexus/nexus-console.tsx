@@ -116,6 +116,31 @@ function resolveFeedSelection(
   return prev;
 }
 
+/** Trade hub token: live feed row for analysis; chapel desk + live quote when swappable on testnet. */
+function resolveActiveTradeToken(
+  selected: TrendingMarketToken | null,
+  deskTokens: TrendingMarketToken[],
+  bnbSpotUsd: number,
+): TrendingMarketToken | null {
+  if (!selected) {
+    return deskTokens.find((t) => t.symbol === "CAKE") ?? deskTokens[0] ?? null;
+  }
+
+  const sym = normalizeSym(selected.symbol);
+  const marketRow = isGateSymbol(sym) ? mergeGateBenchmarkRow(selected) : selected;
+
+  if (gateSymbolTradableOnTestnet(sym) || isTestnetDeskToken(selected)) {
+    const desk = isTestnetDeskToken(selected)
+      ? selected
+      : matchTestnetDeskBySymbol(sym, bnbSpotUsd);
+    if (desk) {
+      return isGateSymbol(sym) ? overlayGateMarketOnDesk(desk, marketRow) : desk;
+    }
+  }
+
+  return marketRow;
+}
+
 function tokenToDecision(token: TrendingMarketToken): NexusDecision | null {
   if (!token.agent) return null;
   return {
@@ -148,7 +173,6 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
   const testnetDeskRaw = useMemo(() => buildBscTestnetTradeTokens(bnbSpotUsd), [bnbSpotUsd]);
   const testnetDeskTokens = useSwapTokenQuotes(testnetDeskRaw, bnbSpotUsd);
   const [portfolioKey, setPortfolioKey] = useState(0);
-  const [tradeDeskToken, setTradeDeskToken] = useState<TrendingMarketToken | null>(null);
 
   const [selectedToken, setSelectedToken] = useState<TrendingMarketToken | null>(null);
   const [intelTier, setIntelTier] = useState<"feed" | "alpha">("feed");
@@ -189,38 +213,25 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
     return () => window.removeEventListener("meridian-gate-handoff", onHandoff);
   }, []);
 
-  const activeTradeToken = useMemo(() => {
-    let desk: TrendingMarketToken | null = null;
-    if (tradeDeskToken) desk = tradeDeskToken;
-    else if (selectedToken && isTestnetDeskToken(selectedToken)) desk = selectedToken;
-    else if (selectedToken) desk = matchTestnetDeskBySymbol(selectedToken.symbol, bnbSpotUsd);
-    else desk = testnetDeskTokens.find((t) => t.symbol === "CAKE") ?? testnetDeskTokens[0] ?? null;
-
-    if (!desk || !selectedToken || !isGateSymbol(normalizeSym(selectedToken.symbol))) return desk;
-    return overlayGateMarketOnDesk(desk, mergeGateBenchmarkRow(selectedToken));
-  }, [selectedToken, tradeDeskToken, testnetDeskTokens, bnbSpotUsd]);
+  const activeTradeToken = useMemo(
+    () => resolveActiveTradeToken(selectedToken, testnetDeskTokens, bnbSpotUsd),
+    [selectedToken, testnetDeskTokens, bnbSpotUsd],
+  );
 
   useEffect(() => {
     if (selectedToken || testnetDeskTokens.length === 0 || initialGateHandoff?.symbol) return;
     const feedCake = findGateTokenInFeed(feedTokens, "CAKE");
     if (feedCake) {
       setSelectedToken(feedCake);
-      const desk = matchTestnetDeskBySymbol("CAKE", bnbSpotUsd);
-      if (desk) setTradeDeskToken(desk);
       return;
     }
     void fetchCanonicalGateBenchmarkToken("CAKE").then((row) => {
-      if (row) {
-        setSelectedToken(row);
-        const desk = matchTestnetDeskBySymbol("CAKE", bnbSpotUsd);
-        if (desk) setTradeDeskToken(desk);
-      }
+      if (row) setSelectedToken(row);
     });
   }, [selectedToken, testnetDeskTokens, initialGateHandoff?.symbol, feedTokens, bnbSpotUsd]);
 
   const handleDeskSelect = useCallback(
     (token: TrendingMarketToken) => {
-      setTradeDeskToken(token);
       const sym = normalizeSym(token.symbol);
       if (isGateSymbol(sym)) {
         const feedHit = findGateTokenInFeed(feedTokens, sym);
@@ -361,8 +372,6 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         setAlphaThesis(undefined);
         setSelectedToken(mergeGateBenchmarkRow(feedHit));
         if (tradable) {
-          const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
-          if (desk) setTradeDeskToken(desk);
           setTradeTab(tradeAction);
           if (isMobile) setMobilePanel("trade");
         } else {
@@ -378,8 +387,6 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           setSelectedToken(row);
           if (isGateBenchmarkRowComplete(row)) pendingHandoffSym.current = null;
           if (tradable) {
-            const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
-            if (desk) setTradeDeskToken(desk);
             setTradeTab(tradeAction);
             if (isMobile) setMobilePanel("trade");
           }
@@ -449,31 +456,32 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
           ? {
               ...fromFeed,
               ...token,
+              symbol: token.symbol,
+              name: token.name || fromFeed.name,
+              tokenAddress: token.tokenAddress || fromFeed.tokenAddress,
+              chainId: token.chainId || fromFeed.chainId,
               pairAddress: fromFeed.pairAddress || token.pairAddress,
               url: fromFeed.url || token.url,
               icon: fromFeed.icon ?? token.icon,
               agent: token.agent ?? fromFeed.agent,
-              intel: token.intel ?? fromFeed.intel,
+              intel: { ...(fromFeed.intel ?? {}), ...(token.intel ?? {}) },
+              priceUsd: token.priceUsd > 0 ? token.priceUsd : fromFeed.priceUsd,
+              change24h: token.change24h ?? fromFeed.change24h,
+              volume24h: token.volume24h ?? fromFeed.volume24h,
+              liquidityUsd: token.liquidityUsd ?? fromFeed.liquidityUsd,
             }
           : token,
       );
       setSelectedToken(merged);
       pendingHandoffSym.current = null;
 
-      if (isGateSymbol(sym)) {
-        const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
-        if (desk) setTradeDeskToken(desk);
-      } else if (merged.agent?.action) {
-        const action = merged.agent.action;
-        if (action === "BUY") setTradeTab("buy");
-        else if (action === "SELL") setTradeTab("sell");
-        const desk = matchTestnetDeskBySymbol(sym, bnbSpotUsd);
-        if (desk) setTradeDeskToken(desk);
-      }
+      const action = merged.agent?.action;
+      if (action === "BUY") setTradeTab("buy");
+      else if (action === "SELL") setTradeTab("sell");
 
       if (openChart) openChartView();
     },
-    [openChartView, feedTokens, bnbSpotUsd],
+    [openChartView, feedTokens],
   );
 
   const handleMobilePanel = useCallback(
@@ -506,8 +514,6 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
         const next = resolveFeedSelection(prev, merged.length ? merged : tradable, pending);
         if (pending && findGateTokenInFeed(merged.length ? merged : tradable, pending)) {
           pendingHandoffSym.current = null;
-          const desk = matchTestnetDeskBySymbol(pending, bnbSpotUsd);
-          if (desk) setTradeDeskToken(desk);
         }
         if (
           prev &&
@@ -682,6 +688,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
             className="lg:h-full lg:min-h-0"
             cleanFeed
             selectedAddress={selectedToken?.tokenAddress}
+            selectedKey={selectedToken ? tokenKey(selectedToken) : undefined}
             onSelect={(t, opts) => handleTokenSelect(t, opts?.openChart ?? true)}
             onTokensRefresh={handleFeedRefresh}
             onOpenTrade={(tab) => {
@@ -859,7 +866,7 @@ export function NexusConsole({ initialGateHandoff }: { initialGateHandoff?: Gate
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {!isConnected && (
           <div className="mb-2 shrink-0 px-1">
-            <BscTestnetTradingBanner compact selectedSymbol={activeTradeToken?.symbol} />
+            <BscTestnetTradingBanner compact selectedSymbol={selectedToken?.symbol ?? activeTradeToken?.symbol} />
           </div>
         )}
         <NexusTradeHub

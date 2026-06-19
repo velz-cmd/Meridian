@@ -21,7 +21,7 @@ import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { chapelDeskLabel } from "@/lib/honest-trade-flags";
-import { dedupeFeedTokens } from "@/lib/feed-curation";
+import { dedupeFeedTokens, tokenKey } from "@/lib/feed-curation";
 import { STABLE_FEED_LIMIT } from "@/lib/feed-config";
 import { agentVerdictLine } from "@/lib/nexus-copy";
 import { filterReasoningFactorsForDisplay } from "@/lib/reasoning-factors";
@@ -150,6 +150,7 @@ function chainLabel(chainId: string): string {
 
 export function NexusTrendingFeed({
   selectedAddress,
+  selectedKey,
   onSelect,
   onTokensRefresh,
   onOpenTrade,
@@ -159,6 +160,8 @@ export function NexusTrendingFeed({
   className,
 }: {
   selectedAddress?: string;
+  /** Preferred selection match — chainId + tokenAddress */
+  selectedKey?: string;
   onSelect: (token: TrendingMarketToken, options?: { openChart?: boolean }) => void;
   onTokensRefresh?: (tokens: TrendingMarketToken[]) => void;
   onOpenTrade?: (tab: "buy" | "sell" | "agent") => void;
@@ -325,7 +328,9 @@ export function NexusTrendingFeed({
   }
 
   function renderTokenRow(token: TrendingMarketToken) {
-    const selected = selectedAddress?.toLowerCase() === token.tokenAddress.toLowerCase();
+    const selected =
+      (selectedKey && tokenKey(token) === selectedKey) ||
+      selectedAddress?.toLowerCase() === token.tokenAddress.toLowerCase();
     const agent = token.agent;
     const sec = token.security;
 
