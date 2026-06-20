@@ -59,7 +59,7 @@ export function GateTechnicalPanel({
   const gate = selected.gate;
   const displaySignal = effectiveGateSignal(gate, skills);
   const long = effectivePosition(gate, skills) === "LONG";
-  const verdictLabel = long ? "LONG" : displaySignal === "EXIT" ? "EXIT" : displaySignal === "AVOID" ? "AVOID" : "FLAT";
+  const verdictLabel = long ? "LONG" : displaySignal === "EXIT" ? "EXIT" : displaySignal === "AVOID" ? "AVOID" : "HOLD";
   const checks = gate.checks ?? [];
   const passedWeight = checks.filter((c) => c.pass).reduce((s, c) => s + c.weight, 0);
   const totalWeight = checks.reduce((s, c) => s + c.weight, 0);

@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 function directionLabel(d: string) {
   if (d === "LONG") return "Long";
-  if (d === "SHORT") return "Short";
-  if (d === "FLAT") return "Flat";
+  if (d === "SHORT") return "Exit";
+  if (d === "FLAT") return "Hold";
   return "Neutral";
 }
 

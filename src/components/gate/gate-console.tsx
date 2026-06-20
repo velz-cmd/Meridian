@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArcBackground } from "@/components/layout/arc-background";
 import { MeridianFooter } from "@/components/layout/meridian-footer";
@@ -31,6 +30,11 @@ import { GateCmcSkillStrip } from "@/components/gate/gate-cmc-skill-strip";
 import { GateCheckRadar } from "@/components/gate/gate-check-radar";
 import { GateStrategyLive } from "@/components/gate/gate-strategy-live";
 import { GateTimeframeDesk } from "@/components/gate/gate-timeframe-desk";
+import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
+import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
+import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
+import { deskDirectionLabel } from "@/lib/gate-desk-labels";
+import { effectiveGateSignal } from "@/lib/gate-effective-signal";
 import { resolveGatePermitStatus } from "@/lib/gate-permit-status";
 import { isTrack2PriorityMode, TRACK2_WALLET_PRINCIPLE } from "@/lib/meridian-track2-mode";
 import { effectiveCleared } from "@/lib/gate-effective-signal";
@@ -214,14 +218,8 @@ export function GateConsole() {
       <div className="relative z-10 mx-auto max-w-[1680px] px-4 pb-10 pt-1 sm:px-6">
         <GateDeskHero route={gateRoute} cmcLive={cmcLive} loading={gateRouteLoading} compact />
 
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <GateLiveStats route={gateRoute} loading={gateRouteLoading} cmcLive={cmcLive} className="flex-1" />
-          <Link
-            href="/analytics"
-            className="shrink-0 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-[11px] text-white/60 hover:border-cyan-400/30 hover:text-cyan-200"
-          >
-            Live analytics →
-          </Link>
+        <div className="mb-3">
+          <GateLiveStats route={gateRoute} loading={gateRouteLoading} cmcLive={cmcLive} />
         </div>
 
         {routeError && (
@@ -329,13 +327,6 @@ export function GateConsole() {
                   skills={skills ?? null}
                   onOpenNexus={openGateAutopilot}
                 />
-                <GateIntelligenceDesk
-                  data={intelligence}
-                  loading={intelLoading}
-                  error={intelError}
-                  onReload={() => void reloadIntel()}
-                  view="technical"
-                />
               </div>
             )}
 
@@ -375,11 +366,46 @@ export function GateConsole() {
                       price={selected.market.price}
                       change24h={selected.market.change24h}
                       cmcLive={selected.cmcLive}
-                      positionLabel={positionRoute?.direction === "LONG" ? "LONG" : "FLAT"}
+                      positionLabel={
+                        positionRoute?.direction
+                          ? (deskDirectionLabel(positionRoute.direction) as "LONG" | "HOLD" | "EXIT")
+                          : "HOLD"
+                      }
                       onOpenNexus={track2Priority ? undefined : openNexusManual}
                     />
                   </>
                 )}
+                {track2Priority && selected && (
+                  <GateCollapsibleCard
+                    title="Settlement desk"
+                    question="Position · leverage · Chapel"
+                    kicker="Rules & spec · BSC Testnet"
+                    summary={`${symbol} · ${deskDirectionLabel(positionRoute?.direction ?? "FLAT")} · NEXUS when permit clears`}
+                    defaultOpen={false}
+                  >
+                    <div className="space-y-4">
+                      <GateConnectStrip
+                        symbol={symbol}
+                        permit={permitStatus}
+                        permitId={gatePermit.permitId}
+                        priceUsd={selected.market.price}
+                        onOpenNexus={openNexusManual}
+                        onOpenAutopilot={openGateAutopilot}
+                        routerDirection={positionRoute?.direction ?? "FLAT"}
+                      />
+                      <GateExecutionDesk
+                        symbol={symbol}
+                        route={positionRoute}
+                        loading={directionLoading}
+                        deskSignal={effectiveGateSignal(selected.gate, skills)}
+                        permit={permitStatus === "WAIT" ? undefined : permitStatus}
+                        compact
+                      />
+                      <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact strategyOnly />
+                    </div>
+                  </GateCollapsibleCard>
+                )}
+                <GateCapitalRotation benchmarks={benchmarks} route={gateRoute} />
                 {!track2Priority && (
                   <GateConnectStrip
                     symbol={symbol}
@@ -405,13 +431,6 @@ export function GateConsole() {
                   onRunBacktest={() => void runBacktest(symbol)}
                   section="rules"
                 />
-                <GateIntelligenceDesk
-                  data={intelligence}
-                  loading={intelLoading}
-                  error={intelError}
-                  onReload={() => void reloadIntel()}
-                  view="rules"
-                />
               </div>
             )}
 
@@ -428,13 +447,6 @@ export function GateConsole() {
                   onQuickSelect={handleSelectSymbol}
                   onRunBacktest={() => void runBacktest(symbol)}
                   section="replay"
-                />
-                <GateIntelligenceDesk
-                  data={intelligence}
-                  loading={intelLoading}
-                  error={intelError}
-                  onReload={() => void reloadIntel()}
-                  view="replay"
                 />
               </div>
             )}

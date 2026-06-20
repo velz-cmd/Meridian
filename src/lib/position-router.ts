@@ -383,11 +383,11 @@ export function spotDeskActionLabel(action: SpotDeskAction, symbol: string): str
   const sym = symbol.toUpperCase();
   if (action === "buy") return `Buy ${sym} · spot long exposure`;
   if (action === "sell") return `Sell ${sym} · spot exit / reduce`;
-  return "Hold flat · no spot size change";
+  return "Hold · no spot size change";
 }
 
 export function positionExposureLabel(direction: PositionDirection): string {
-  if (direction === "LONG") return "Long exposure";
-  if (direction === "SHORT") return "Short exposure (exit bias on spot)";
-  return "Flat · no position";
+  if (direction === "LONG") return "Long · spot exposure";
+  if (direction === "SHORT") return "Exit · reduce spot";
+  return "Hold · no position";
 }

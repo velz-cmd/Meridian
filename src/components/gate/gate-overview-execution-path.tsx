@@ -1,42 +1,40 @@
 "use client";
 
-import { ArrowUpRight, Loader2, Wallet } from "lucide-react";
-import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
+import { ArrowUpRight, Wallet } from "lucide-react";
 import { GateCollapsibleCard } from "@/components/gate/gate-collapsible-card";
-import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
 import { GateConnectStrip } from "@/components/gate/gate-connect-strip";
 import type { GateArbitration } from "@/hooks/use-gate-permit";
 import type { GatePermitStatus } from "@/lib/gate-permit-status";
-import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
-import { effectiveGateSignal } from "@/lib/gate-effective-signal";
+import { deskDirectionLabel, deskExposureLabel } from "@/lib/gate-desk-labels";
 import { GATE_PRODUCT } from "@/lib/gate-product-copy";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
 import type { PositionDirection, PositionRoute } from "@/lib/position-router";
-import { positionExposureLabel } from "@/lib/position-router";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
 import { GateSectionHead } from "@/components/gate/gate-section-head";
+import { GateSectionLink } from "@/components/gate/gate-section-link";
 import { Sparkles } from "lucide-react";
 
-/** Overview execution — router verdict primary; execution collapsed in Track 2 mode. */
+/** Overview execution — router verdict primary; one wallet card + link to Rules settlement desk. */
 export function GateOverviewExecutionPath({
   symbol,
   selected,
-  skills,
+  skills: _skills,
   positionRoute,
   directionLoading,
-  gateRoute,
-  benchmarks,
+  gateRoute: _gateRoute,
+  benchmarks: _benchmarks,
   permit,
   permitId,
   priceUsd,
-  arbitration,
+  arbitration: _arbitration,
   primaryAction,
   routerDirection,
   deskLabel,
   onOpenNexus,
   onOpenAutopilot,
   track2Priority = false,
+  onGoRules,
 }: {
   symbol: string;
   selected?: GateBenchmarkFull;
@@ -55,14 +53,13 @@ export function GateOverviewExecutionPath({
   onOpenNexus: () => void;
   onOpenAutopilot?: () => void;
   track2Priority?: boolean;
+  onGoRules?: () => void;
 }) {
-  const exposureLabel =
-    routerDirection === "FLAT"
-      ? "Flat · no position"
-      : positionExposureLabel(routerDirection);
+  const displayDir = deskDirectionLabel(routerDirection);
+  const exposureLabel = deskExposureLabel(routerDirection);
 
-  const executionBlock = (
-    <>
+  const settlementCard = (
+    <div className="space-y-3">
       <GateConnectStrip
         symbol={symbol}
         permit={permit}
@@ -71,21 +68,14 @@ export function GateOverviewExecutionPath({
         onOpenNexus={onOpenNexus}
         onOpenAutopilot={onOpenAutopilot}
         routerDirection={routerDirection}
+        hideNexusButton
       />
-      <div className="gate-execution-cta flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-black/30 px-5 py-4 sm:px-6 sm:py-5">
-        <div className="min-w-0">
-          <GateSectionHead
-            title={`${symbol} · ${exposureLabel}`}
-            question="Settlement path · not router verdict"
-            kicker="Optional · BSC Testnet"
-            icon={Sparkles}
-          />
-          <p className="gate-body-text mt-3 pl-[calc(0.75rem+3px)] text-white/55">
-            Wallet and NEXUS settlement only when router permit is GRANT. Router verdict:{" "}
-            <span className="font-medium text-white">{routerDirection}</span> · permit{" "}
-            <span className="font-medium text-white">{permit ?? "WAIT"}</span>.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-black/25 px-4 py-3">
+        <p className="text-xs text-white/55">
+          Router: <span className="font-medium text-white">{displayDir}</span> · permit{" "}
+          <span className="font-medium text-white">{permit ?? "WAIT"}</span>
+          {directionLoading ? " · updating…" : ""}
+        </p>
         <div className="flex flex-wrap gap-2">
           {routerDirection === "LONG" && permit === "GRANT" && onOpenAutopilot ? (
             <button
@@ -93,13 +83,10 @@ export function GateOverviewExecutionPath({
               onClick={onOpenAutopilot}
               className={nexusGlassCta(
                 "autopilot",
-                "min-h-[44px] px-5 py-2.5 text-sm font-semibold border-violet-400/40 bg-violet-500/15 text-violet-50",
+                "min-h-[40px] px-4 py-2 text-xs font-semibold border-violet-400/40 bg-violet-500/15 text-violet-50",
               )}
             >
-              <span className="flex items-center gap-1.5">
-                Start gate autopilot
-                <ArrowUpRight className="h-4 w-4" />
-              </span>
+              Start autopilot
             </button>
           ) : null}
           <button
@@ -107,47 +94,22 @@ export function GateOverviewExecutionPath({
             onClick={onOpenNexus}
             className={nexusGlassCta(
               routerDirection === "LONG" && permit === "GRANT" ? "buy" : "swap",
-              "min-h-[44px] px-5 py-2.5 text-sm font-semibold",
+              "min-h-[40px] px-4 py-2 text-xs font-semibold",
             )}
           >
             <span className="flex items-center gap-1.5">
-              {routerDirection === "FLAT" || permit === "DENY" || permit === "WAIT"
-                ? "Review in NEXUS"
-                : GATE_PRODUCT.continueTradable(symbol)}
-              <ArrowUpRight className="h-4 w-4" />
+              {routerDirection !== "LONG" || permit !== "GRANT" ? "Open NEXUS settlement" : GATE_PRODUCT.continueTradable(symbol)}
+              <ArrowUpRight className="h-3.5 w-3.5" />
             </span>
           </button>
         </div>
       </div>
-      <GateCollapsibleCard
-        title="Full execution desk"
-        question="Lanes · leverage · settlement"
-        icon={Sparkles}
-        accent="border-violet-400/15"
-        summary="Expand for position targets, thesis leverage, and NEXUS Chapel settlement."
-        defaultOpen={false}
-      >
-        {directionLoading && !positionRoute ? (
-          <div className="flex items-center gap-2 py-4 text-xs text-white/50">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
-            Loading position signal…
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <GateExecutionDesk
-              symbol={symbol}
-              route={positionRoute}
-              loading={directionLoading}
-              deskSignal={selected ? effectiveGateSignal(selected.gate, skills) : undefined}
-              permit={permit === "WAIT" ? undefined : permit}
-              compact
-            />
-            <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact strategyOnly />
-            <GateCapitalRotation benchmarks={benchmarks} route={gateRoute} />
-          </div>
-        )}
-      </GateCollapsibleCard>
-    </>
+      {onGoRules ? (
+        <GateSectionLink onClick={onGoRules} features={["Position targets", "Leverage", "Capital rotation"]}>
+          Full settlement desk on Rules tab
+        </GateSectionLink>
+      ) : null}
+    </div>
   );
 
   return (
@@ -165,25 +127,25 @@ export function GateOverviewExecutionPath({
         </p>
         {track2Priority ? (
           <p className="gate-meta-text mt-3 pl-[calc(0.75rem+3px)] text-white/45">
-            Rules · Replay · Technical · Memory tabs explain this verdict. Execution is optional below — not part of
-            Track 2 scoring.
+            Technical · Memory · Rules · Replay explain this verdict. Wallet settlement is optional below — not Track 2
+            scoring.
           </p>
         ) : null}
       </div>
 
       {track2Priority ? (
         <GateCollapsibleCard
-          title="Optional execution"
-          question="Not Track 2 deliverable"
+          title="Wallet settlement"
+          question="BSC Testnet · optional"
           icon={Wallet}
           accent="border-white/10"
-          summary="BSC Testnet Chapel settlement · any wallet · progressive disclosure only."
+          summary={`${symbol} · ${displayDir} · Chapel when permit clears`}
           defaultOpen={false}
         >
-          {executionBlock}
+          {settlementCard}
         </GateCollapsibleCard>
       ) : (
-        executionBlock
+        settlementCard
       )}
     </section>
   );

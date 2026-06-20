@@ -3,7 +3,8 @@
 import { Loader2 } from "lucide-react";
 import { GATE_SYMBOLS, type GateSymbol } from "@/lib/gate-constants";
 import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
-import { effectivePosition } from "@/lib/gate-effective-signal";
+import { effectiveGateSignal, effectivePosition } from "@/lib/gate-effective-signal";
+import { deskSignalLabel } from "@/lib/gate-desk-labels";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +40,9 @@ export function GateBenchmarkDesk({
 
   const selectedBench = benchmarks.find((b) => b.symbol === selected);
   const selectedRank = rankBySym[selected];
-  const selectedPos = selectedBench ? effectivePosition(selectedBench.gate, selectedBench.skills as never) : "FLAT";
+  const selectedPos = selectedBench
+    ? deskSignalLabel(effectiveGateSignal(selectedBench.gate, selectedBench.skills as never))
+    : "HOLD";
   const selectedChecks = selectedBench
     ? `${selectedBench.gate.checksPassed}/${selectedBench.gate.checksTotal} rules`
     : "—";

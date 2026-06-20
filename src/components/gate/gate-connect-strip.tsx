@@ -19,6 +19,7 @@ export function GateConnectStrip({
   onOpenNexus,
   onOpenAutopilot,
   routerDirection,
+  hideNexusButton = false,
 }: {
   symbol: string;
   permit?: GatePermitStatus;
@@ -27,6 +28,7 @@ export function GateConnectStrip({
   onOpenNexus?: () => void;
   onOpenAutopilot?: () => void;
   routerDirection?: "LONG" | "SHORT" | "FLAT";
+  hideNexusButton?: boolean;
 }) {
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address, chainId: BSC_CHAIN_ID });
@@ -82,7 +84,7 @@ export function GateConnectStrip({
                 Start autopilot
               </button>
             ) : null}
-            {onOpenNexus ? (
+            {onOpenNexus && !hideNexusButton ? (
               <button
                 type="button"
                 onClick={onOpenNexus}

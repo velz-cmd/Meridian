@@ -5,11 +5,14 @@
 import type { GateJudgeConsensus } from "@/lib/gate-consensus-payload";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
 import type { MeridianIntelligencePayload } from "@/lib/meridian-intelligence-types";
+import { deskDirectionLabel } from "@/lib/gate-desk-labels";
 import type { PositionDirection, PositionRoute } from "@/lib/position-router";
 
 export type GateOverviewTruth = {
   deskLabel: string;
   direction: PositionDirection;
+  /** Trader-facing headline — LONG / HOLD / EXIT */
+  displayDirection: string;
   permit: "GRANT" | "DENY" | "WAIT";
   riskRegime: string;
   conviction: number | string;
@@ -114,6 +117,7 @@ export function resolveGateOverviewTruth(input: {
   return {
     deskLabel: routerDeskLabel(direction),
     direction,
+    displayDirection: deskDirectionLabel(direction),
     permit,
     riskRegime,
     conviction,

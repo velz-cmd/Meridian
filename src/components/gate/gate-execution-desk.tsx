@@ -34,8 +34,8 @@ const LANES: {
   icon: typeof TrendingUp;
 }[] = [
   { dir: "LONG", label: "Long", sub: "Spot / futures bias", icon: TrendingUp },
-  { dir: "FLAT", label: "Flat", sub: "No target size", icon: Minus },
-  { dir: "SHORT", label: "Short", sub: "Exit · perp N/A on Chapel", icon: TrendingDown },
+  { dir: "FLAT", label: "Hold", sub: "No target size", icon: Minus },
+  { dir: "SHORT", label: "Exit", sub: "Reduce spot · perp N/A on Chapel", icon: TrendingDown },
 ];
 
 const LEV_TICKS = [1, 2, 3, 4, 5] as const;
@@ -145,7 +145,7 @@ export function GateExecutionDesk({
         </div>
 
         <p className="mb-2 font-mono text-[9px] uppercase tracking-wider text-white/38">
-          Position target (long · flat · short) — CMC gate signal, not a swap
+          Position target (long · hold · exit) — CMC gate signal, not a swap
         </p>
         <div className="mb-4 grid grid-cols-3 gap-2">
           {LANES.map((lane) => {

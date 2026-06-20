@@ -6,7 +6,8 @@ import { GATE_SYMBOLS, GATE_SYMBOL_LABELS, type GateSymbol } from "@/lib/gate-co
 import { rankSymbolSkillHighlights, sortSymbolsByRank } from "@/lib/gate-desk-tab-meta";
 import { formatGatePrice } from "@/lib/gate-format";
 import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
-import { effectivePosition } from "@/lib/gate-effective-signal";
+import { effectiveGateSignal, effectivePosition } from "@/lib/gate-effective-signal";
+import { deskSignalLabel } from "@/lib/gate-desk-labels";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,8 @@ export function GateConfigPanel({
             {sortSymbolsByRank([...GATE_SYMBOLS], rankBySym).map((sym) => {
               const bench = benchmarks.find((b) => b.symbol === sym);
               const rank = rankBySym[sym];
+              const signal = bench ? effectiveGateSignal(bench.gate, bench.skills as never) : null;
+              const stance = bench ? deskSignalLabel(signal) : "—";
               const long = bench ? effectivePosition(bench.gate, bench.skills as never) === "LONG" : false;
               const skillHighlights = rankSymbolSkillHighlights(bench);
               return (
@@ -66,7 +69,13 @@ export function GateConfigPanel({
                   <p className="gate-symbol-meta">
                     {bench ? (
                       <>
-                        <span className={long ? "text-emerald-400" : "text-white/40"}>{long ? "LONG" : "FLAT"}</span>
+                        <span
+                          className={cn(
+                            long ? "text-emerald-400" : stance === "EXIT" ? "text-rose-300" : "text-white/55",
+                          )}
+                        >
+                          {stance}
+                        </span>
                         {" · "}
                         {bench.gate.checksPassed}/{bench.gate.checksTotal}
                         {bench.market.price > 0 && (
@@ -122,7 +131,7 @@ export function GateConfigPanel({
           <p className="mt-2 font-mono text-[10px] text-white/40">
             {GATE_PRODUCT.rankingMeta(
               benchmarks.filter((b) => effectivePosition(b.gate, b.skills as never) === "LONG").length,
-              benchmarks.filter((b) => effectivePosition(b.gate, b.skills as never) === "FLAT").length,
+              benchmarks.filter((b) => effectivePosition(b.gate, b.skills as never) !== "LONG").length,
               route.regime,
               route.fearGreed,
             )}

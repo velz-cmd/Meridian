@@ -1,6 +1,7 @@
 "use client";
 
 import { Brain, GitBranch, Scale, Shield, Users } from "lucide-react";
+import { GateHorizonContext } from "@/components/gate/gate-horizon-context";
 import { GateCollapsibleCard, GateStatPill } from "@/components/gate/gate-collapsible-card";
 import { GateOverviewExecutionPath } from "@/components/gate/gate-overview-execution-path";
 import { GateSectionLink } from "@/components/gate/gate-section-link";
@@ -116,7 +117,7 @@ export function GateOverviewTab({
           {intelPending ? " · syncing…" : ""}
         </p>
         <p className="mt-3 text-sm font-medium uppercase tracking-[0.14em] text-white/55">{truth.deskLabel}</p>
-        <p className="mt-1 text-5xl font-semibold tracking-tight text-white">{truth.direction}</p>
+        <p className="mt-1 text-5xl font-semibold tracking-tight text-white">{truth.displayDirection}</p>
         <p className="gate-body-text mt-4 max-w-2xl">{truth.summary}</p>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <GateStatPill label="Permit" value={truth.permit} sub="Execution gate · not bias" />
@@ -131,6 +132,20 @@ export function GateOverviewTab({
         </div>
         <p className="gate-meta-text mt-4">Updated {formatUpdated(truth.updatedAt)}</p>
       </section>
+
+      <GateHorizonContext
+        evidence={intel?.directionEvidence}
+        loading={intelPending}
+        defaultHorizon={
+          intel?.directionEvidence?.timeHorizonBucket === "intraday"
+            ? "intraday"
+            : intel?.directionEvidence?.timeHorizonBucket === "position"
+              ? "position"
+              : intel?.directionEvidence?.timeHorizonBucket === "scalping"
+                ? "scalping"
+                : "swing"
+        }
+      />
 
       {/* Section 2 — Thesis */}
       <GateCollapsibleCard
@@ -231,7 +246,7 @@ export function GateOverviewTab({
       >
         <p className="gate-body-text mb-3 text-white/55">
           Constitution bias explains layer alignment — it is not the final signal. Router verdict:{" "}
-          <span className="font-medium text-white">{truth.direction}</span>.
+          <span className="font-medium text-white">{truth.displayDirection}</span>.
         </p>
         <ul className="space-y-2">
           {(intel?.constitution ?? []).map((a) => (
@@ -355,6 +370,7 @@ export function GateOverviewTab({
         track2Priority={track2Priority}
         onOpenNexus={onOpenNexus}
         onOpenAutopilot={onOpenAutopilot}
+        onGoRules={() => onGoTab("rules")}
       />
 
       {intelPending && (

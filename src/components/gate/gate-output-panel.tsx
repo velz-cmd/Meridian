@@ -177,7 +177,7 @@ export function GateOutputPanel({
         return gate.confidence != null ? Math.min(base, gate.confidence) : base;
       })();
   const signalRows = buildGateSignalMeter(selected, route, skills);
-  const verdictLabel = long ? "LONG" : displaySignal === "EXIT" ? "EXIT" : displaySignal === "AVOID" ? "AVOID" : "FLAT";
+  const verdictLabel = long ? "LONG" : displaySignal === "EXIT" ? "EXIT" : displaySignal === "AVOID" ? "AVOID" : "HOLD";
 
   const entryChecks = checks.filter((c) => checkRuleKind(c.id) === "entry");
   const filterChecks = checks.filter((c) => checkRuleKind(c.id) === "filter");

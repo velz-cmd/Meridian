@@ -8,7 +8,7 @@ type RsRow = {
   rs24: number;
   rs7: number;
   role: string;
-  rotationScore: number;
+  rotationScore: number | null;
   signal: string;
   volState: string;
   conviction: number;
@@ -32,13 +32,13 @@ function buildRows(benchmarks: GateBenchmarkFull[], route: GateRoutePayload | nu
         rs24: rs?.metrics?.rs24h ?? 0,
         rs7: rs?.metrics?.rs7d ?? 0,
         role: rs?.role ?? "inline",
-        rotationScore: rs?.rotationScore ?? 50,
+        rotationScore: rs?.rotationScore ?? null,
         signal: rs?.signal ?? "HOLD",
         volState: vol?.state ?? "—",
         conviction: ranked?.conviction ?? b.conviction ?? 0,
       };
     })
-    .sort((a, b) => b.rotationScore - a.rotationScore);
+    .sort((a, b) => (b.rotationScore ?? -1) - (a.rotationScore ?? -1));
 }
 
 function roleTone(role: string) {
@@ -71,7 +71,8 @@ export function GateCapitalRotation({
         <p className="mt-1 text-sm text-white/70">
           RS ranks marginal flow vs BNB (CMC 24h/7d). Router deploys by conviction —{" "}
           <span className="font-semibold text-white">{routerLead?.symbol ?? lead?.symbol}</span> leads router at{" "}
-          {routerLead?.conviction ?? "—"} conv · RS leader {lead?.symbol} at {lead?.rotationScore}/100.
+          {routerLead?.conviction ?? "—"} conv · RS leader {lead?.symbol} at{" "}
+          {lead?.rotationScore != null ? `${lead.rotationScore}/100` : "DATA UNAVAILABLE"}.
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -108,13 +109,19 @@ export function GateCapitalRotation({
                 <td className="px-2 py-2.5 tabular-nums text-violet-200">{r.conviction}</td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400"
-                        style={{ width: `${r.rotationScore}%` }}
-                      />
-                    </div>
-                    <span className="tabular-nums text-white/70">{r.rotationScore}</span>
+                    {r.rotationScore != null ? (
+                      <>
+                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400"
+                            style={{ width: `${r.rotationScore}%` }}
+                          />
+                        </div>
+                        <span className="tabular-nums text-white/70">{r.rotationScore}</span>
+                      </>
+                    ) : (
+                      <span className="text-white/40">—</span>
+                    )}
                   </div>
                 </td>
               </tr>

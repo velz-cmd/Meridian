@@ -37,7 +37,7 @@ export function GateStrategyLive({
   change24h?: number;
   cmcLive?: boolean;
   rsiSource?: string;
-  positionLabel?: "LONG" | "FLAT";
+  positionLabel?: "LONG" | "HOLD" | "EXIT";
   onOpenNexus?: () => void;
 }) {
   if (loading) {

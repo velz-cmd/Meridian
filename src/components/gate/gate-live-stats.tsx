@@ -1,6 +1,7 @@
 "use client";
 
 import type { GateRoutePayload } from "@/lib/gate-route-types";
+import { deskRouterPickValue } from "@/lib/gate-desk-labels";
 import { GATE_PRODUCT } from "@/lib/gate-product-copy";
 import { cn } from "@/lib/utils";
 
@@ -19,16 +20,21 @@ export function GateLiveStats({
 }) {
   const ranked = route?.ranked ?? [];
   const longCount = ranked.filter((r) => r.permit === "GRANT" || r.signal === "ENTER_LONG").length;
-  const flatCount = Math.max(0, ranked.length - longCount);
-  const primary = route?.allocation?.primary ?? ranked[0]?.symbol ?? "—";
+  const holdCount = Math.max(0, ranked.length - longCount);
+  const primaryRaw = route?.allocation?.primary ?? ranked[0]?.symbol ?? "—";
+  const routerPick = deskRouterPickValue(primaryRaw);
   const primaryPct = route?.allocation?.splitPrimaryPct;
   const regime = route?.regime ?? "neutral";
   const fg = route?.fearGreed;
   const fgLabel = fg != null ? String(Math.round(fg)) : "DATA UNAVAILABLE";
+  const benchmarkSub =
+    ranked.length > 0 ? ranked.map((r) => r.symbol).join(" · ") : "Awaiting CMC scan";
 
   const refreshed = generatedAt
     ? new Date(generatedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-    : "—";
+    : route?.ranked?.[0]
+      ? "live"
+      : "—";
 
   const stats = [
     {
@@ -39,23 +45,25 @@ export function GateLiveStats({
     },
     {
       label: "Router pick",
-      value: loading ? "…" : primary,
+      value: loading ? "…" : routerPick,
       sub:
-        primaryPct != null
-          ? `${primaryPct}% notional · ${regime.replace(/-/g, " ")}`
-          : GATE_PRODUCT.rankingFlat,
-      accent: "text-white",
+        routerPick === "HOLD"
+          ? GATE_PRODUCT.rankingFlat
+          : primaryPct != null
+            ? `${primaryRaw} · ${primaryPct}% notional · ${regime.replace(/-/g, " ")}`
+            : `${primaryRaw} · ${regime.replace(/-/g, " ")}`,
+      accent: routerPick === "HOLD" ? "text-white/80" : "text-emerald-300",
     },
     {
       label: "Permits today",
       value: loading ? "…" : `${longCount} clear`,
-      sub: `${flatCount} blocked · sentiment ${fgLabel}`,
+      sub: `${holdCount} hold · sentiment ${fgLabel}`,
       accent: longCount > 0 ? "text-emerald-300" : "text-white/80",
     },
     {
       label: "Benchmarks",
       value: loading ? "…" : ranked.length ? String(ranked.length) : "—",
-      sub: "BNB · CAKE · FLOKI · XVS",
+      sub: benchmarkSub,
       accent: "text-white/90",
     },
   ];
