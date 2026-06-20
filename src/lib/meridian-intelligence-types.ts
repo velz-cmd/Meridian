@@ -24,6 +24,8 @@ export type MeridianGenome = {
 
 export type MeridianMarketTwin = {
   label: string;
+  /** Human label with explicit reference period — not a live forecast */
+  referenceLabel: string;
   period: string;
   similarity: number;
   confidence: "High" | "Medium" | "Low";

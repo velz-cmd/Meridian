@@ -125,14 +125,14 @@ export function GateTechnicalChambers({
         defaultOpen={false}
         summary={
           intelligence?.marketTwin
-            ? `${intelligence.marketTwin.similarity}% similar to ${intelligence.marketTwin.label} (${intelligence.marketTwin.period})`
+            ? `${intelligence.marketTwin.similarity}% similar to ${intelligence.marketTwin.referenceLabel}`
             : "Historical analog + thesis DNA from live snapshot"
         }
       >
         {intelligence?.marketTwin ? (
           <div className="space-y-3 text-sm text-white/70">
             <p>
-              Twin: <span className="text-white">{intelligence.marketTwin.label}</span> ·{" "}
+              Twin: <span className="text-white">{intelligence.marketTwin.referenceLabel}</span> ·{" "}
               {intelligence.marketTwin.similarity}% match · avg historical return{" "}
               {intelligence.marketTwin.avgHistoricalReturnPct}%
             </p>

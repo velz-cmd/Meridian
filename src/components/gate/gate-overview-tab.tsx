@@ -292,7 +292,7 @@ export function GateOverviewTab({
         question="Have we seen this before?"
         summary={
           intel
-            ? `Twin ${intel.marketTwin.label} (${intel.marketTwin.similarity}%) · decay ${intel.convictionDecay.current} → review ${intel.convictionDecay.reviewAfterHours}h`
+            ? `Ref ${intel.marketTwin.referenceLabel} (${intel.marketTwin.similarity}%) · decay ${intel.convictionDecay.current} → review ${intel.convictionDecay.reviewAfterHours}h`
             : "Twin and decay sync with intelligence"
         }
         icon={Brain}
@@ -300,10 +300,15 @@ export function GateOverviewTab({
       >
         {intel ? (
           <div className="grid gap-3 sm:grid-cols-2">
+            <p className="mb-1 rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100/90 sm:col-span-2">
+              Reference library only — historical episode match, not a live CMC forecast or router verdict.
+            </p>
             <div className="rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
               <p className="gate-stat-label">Market Twin</p>
-              <p className="mt-1 text-sm font-medium text-white">{intel.marketTwin.label}</p>
-              <p className="gate-meta-text mt-1">{intel.marketTwin.similarity}% similarity · {intel.marketTwin.confidence}</p>
+              <p className="mt-1 text-sm font-medium text-white">{intel.marketTwin.referenceLabel}</p>
+              <p className="gate-meta-text mt-1">
+                {intel.marketTwin.similarity}% similarity · {intel.marketTwin.confidence} · episode {intel.marketTwin.period}
+              </p>
             </div>
             <div className="rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
               <p className="gate-stat-label">Trade DNA</p>

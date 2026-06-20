@@ -28,27 +28,41 @@ type EvaluatePayload = {
   error?: string;
 };
 
-/** Live constitution permit + agent arbitration for Gate settlement surfaces. */
-export function useGatePermit(symbol: string, refreshMs = 120_000): GatePermitState {
+/** Live constitution permit receipt — no synthetic agent unless explicitly requested. */
+export function useGatePermit(
+  symbol: string,
+  refreshMs = 120_000,
+  opts?: { enabled?: boolean; agentAction?: "BUY" | "SELL" | "HOLD"; agentConfidence?: number },
+): GatePermitState {
+  const enabled = opts?.enabled !== false;
   const [permitId, setPermitId] = useState<string | null>(null);
   const [permitStatus, setPermitStatus] = useState<"GRANT" | "DENY" | null>(null);
   const [arbitration, setArbitration] = useState<GateArbitration | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const req = useRef(0);
 
   const load = useCallback(async () => {
+    if (!enabled) {
+      setPermitId(null);
+      setPermitStatus(null);
+      setArbitration(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     const sym = symbol.replace(/^\$/, "").trim().toUpperCase();
     if (!sym) return;
     const id = ++req.current;
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({
-        symbol: sym,
-        agentAction: "BUY",
-        confidence: "85",
-      });
+      const params = new URLSearchParams({ symbol: sym });
+      if (opts?.agentAction) {
+        params.set("agentAction", opts.agentAction);
+        if (opts.agentConfidence != null) params.set("confidence", String(opts.agentConfidence));
+      }
       const res = await fetch(`/api/gate/evaluate?${params.toString()}`, { cache: "no-store" });
       const data = (await res.json()) as EvaluatePayload;
       if (id !== req.current) return;
@@ -65,14 +79,14 @@ export function useGatePermit(symbol: string, refreshMs = 120_000): GatePermitSt
     } finally {
       if (id === req.current) setLoading(false);
     }
-  }, [symbol]);
+  }, [symbol, enabled, opts?.agentAction, opts?.agentConfidence]);
 
   useEffect(() => {
     void load();
-    if (refreshMs <= 0) return;
+    if (!enabled || refreshMs <= 0) return;
     const t = window.setInterval(() => void load(), refreshMs);
     return () => window.clearInterval(t);
-  }, [load, refreshMs]);
+  }, [load, refreshMs, enabled]);
 
   return { permitId, permitStatus, arbitration, loading, error, reload: load };
 }

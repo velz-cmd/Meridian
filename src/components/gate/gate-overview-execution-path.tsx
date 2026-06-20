@@ -5,7 +5,6 @@ import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
 import { GateCollapsibleCard } from "@/components/gate/gate-collapsible-card";
 import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
 import { GateConnectStrip } from "@/components/gate/gate-connect-strip";
-import { GatePermitArbitration } from "@/components/gate/gate-permit-arbitration";
 import type { GateArbitration } from "@/hooks/use-gate-permit";
 import type { GatePermitStatus } from "@/lib/gate-permit-status";
 import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
@@ -77,13 +76,14 @@ export function GateOverviewExecutionPath({
         <div className="min-w-0">
           <GateSectionHead
             title={`${symbol} · ${exposureLabel}`}
-            question="Primary action · router verdict"
-            kicker={deskLabel}
+            question="Settlement path · not router verdict"
+            kicker="Optional · BSC Testnet"
             icon={Sparkles}
           />
-          <p className="gate-body-text mt-3 pl-[calc(0.75rem+3px)]">
-            {primaryAction}
-            {directionLoading ? " · updating…" : ""}
+          <p className="gate-body-text mt-3 pl-[calc(0.75rem+3px)] text-white/55">
+            Wallet and NEXUS settlement only when router permit is GRANT. Router verdict:{" "}
+            <span className="font-medium text-white">{routerDirection}</span> · permit{" "}
+            <span className="font-medium text-white">{permit ?? "WAIT"}</span>.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -152,14 +152,24 @@ export function GateOverviewExecutionPath({
 
   return (
     <section className="space-y-3">
-      {arbitration ? (
-        <GatePermitArbitration
-          symbol={symbol}
-          arbitration={arbitration}
-          granted={permit === "GRANT"}
-          priceUsd={priceUsd ?? undefined}
+      <div className="rounded-2xl border border-white/[0.08] bg-black/30 px-5 py-4 sm:px-6 sm:py-5">
+        <GateSectionHead
+          title={`${symbol} · ${exposureLabel}`}
+          question="Primary action · router ONE TRUTH"
+          kicker={deskLabel}
+          icon={Sparkles}
         />
-      ) : null}
+        <p className="gate-body-text mt-3 pl-[calc(0.75rem+3px)]">
+          {primaryAction}
+          {directionLoading ? " · updating…" : ""}
+        </p>
+        {track2Priority ? (
+          <p className="gate-meta-text mt-3 pl-[calc(0.75rem+3px)] text-white/45">
+            Rules · Replay · Technical · Memory tabs explain this verdict. Execution is optional below — not part of
+            Track 2 scoring.
+          </p>
+        ) : null}
+      </div>
 
       {track2Priority ? (
         <GateCollapsibleCard

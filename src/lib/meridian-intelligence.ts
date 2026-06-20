@@ -201,6 +201,7 @@ function buildMarketTwin(genome: MeridianGenome, _symbol: string, change7d: numb
   if (genome.breadth == null || genome.fearGreed == null || genome.rsi == null) {
     return {
       label: "DATA UNAVAILABLE",
+      referenceLabel: "DATA UNAVAILABLE",
       period: "—",
       similarity: 0,
       confidence: "Low",
@@ -238,6 +239,7 @@ function buildMarketTwin(genome: MeridianGenome, _symbol: string, change7d: numb
   return {
     label: best.label,
     period: best.period,
+    referenceLabel: `${best.label} · ref ${best.period}`,
     similarity: score,
     confidence,
     outcomes: Object.entries(best.outcomes).map(([s, returnPct]) => ({ symbol: s, returnPct })),
@@ -659,7 +661,7 @@ function buildExplainability(input: {
     whoDisagrees: input.court.dissent,
     thesisBreakers: [...blockers.map((b) => `Blocker: ${b}`), ...stressBreakers].slice(0, 6),
     validityHours: input.decay.reviewAfterHours,
-    seenBefore: `${input.marketTwin.label} (${input.marketTwin.similarity}% similar)`,
+    seenBefore: `${input.marketTwin.referenceLabel} (${input.marketTwin.similarity}% similar · ref only)`,
     historicalResemblance: input.marketTwin.disclaimer,
   };
 }

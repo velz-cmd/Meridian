@@ -21,6 +21,7 @@ export function GateConfigPanel({
   backtestRequested,
   onRunBacktest,
   onOpenNexus,
+  track2Priority = false,
 }: {
   symbol: GateSymbol;
   onSelectSymbol: (sym: GateSymbol) => void;
@@ -31,6 +32,7 @@ export function GateConfigPanel({
   backtestRequested: boolean;
   onRunBacktest: () => void;
   onOpenNexus: () => void;
+  track2Priority?: boolean;
 }) {
   const rankBySym = Object.fromEntries((route?.ranked ?? []).map((r) => [r.symbol, r]));
   const selectedBench = benchmarks.find((b) => b.symbol === symbol);
@@ -130,9 +132,11 @@ export function GateConfigPanel({
 
       {selectedBench && (
         <div className="gate-config-actions">
-          <button type="button" className={cn(nexusGlassCta("buy"), "w-full py-2.5 text-sm")} onClick={onOpenNexus}>
-            {tradable ? GATE_PRODUCT.continueTradable(symbol) : GATE_PRODUCT.continueResearch(symbol)}
-          </button>
+          {!track2Priority ? (
+            <button type="button" className={cn(nexusGlassCta("buy"), "w-full py-2.5 text-sm")} onClick={onOpenNexus}>
+              {tradable ? GATE_PRODUCT.continueTradable(symbol) : GATE_PRODUCT.continueResearch(symbol)}
+            </button>
+          ) : null}
           <button
             type="button"
             className="gate-btn-secondary w-full"

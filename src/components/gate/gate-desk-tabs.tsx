@@ -3,7 +3,7 @@
 import { BarChart3, BookOpen, Brain, LayoutDashboard, LineChart } from "lucide-react";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import {
-  GATE_DESK_TAB_META,
+  getGateDeskTabMeta,
   getTabFeatureChips,
   getTabSkillChips,
   type GateDeskTabTier,
@@ -11,6 +11,8 @@ import {
 import { cn } from "@/lib/utils";
 
 export type GateDeskTab = "overview" | "memory" | "technical" | "rules" | "replay";
+
+const TAB_ORDER: GateDeskTab[] = ["overview", "memory", "technical", "rules", "replay"];
 
 const TAB_ICONS = {
   overview: LayoutDashboard,
@@ -80,18 +82,20 @@ export function GateDeskTabs({
 }) {
   return (
     <div className="gate-desk-tabs arc-tab-bar arc-tab-bar--grid-5 mb-3 w-full">
-      {GATE_DESK_TAB_META.map((meta) => {
+      {TAB_ORDER.map((tabId, tabIndex) => {
+        const meta = getGateDeskTabMeta(tabId);
         const Icon = TAB_ICONS[meta.id];
         const isActive = active === meta.id;
         const tierStyles = TIER_STYLES[meta.tier];
         const skillChips = getTabSkillChips(meta.id, skills);
         const featureChips = getTabFeatureChips(meta.id).slice(0, isActive ? 4 : 2);
+        const tabNumber = tabIndex + 1;
 
         return (
           <button
             key={meta.id}
             type="button"
-            onClick={() => onChange(meta.id)}
+            onClick={() => onChange(tabId)}
             className={cn(
               "arc-tab-item arc-tab-item--wrap-sm gate-tab-item w-full flex-col items-stretch gap-1 py-2",
               isActive && tierStyles.active,
@@ -103,7 +107,7 @@ export function GateDeskTabs({
               <Icon className="h-3.5 w-3.5 shrink-0" />
               <span className="hidden sm:inline">{meta.label}</span>
               <span className="sm:hidden">{meta.shortLabel}</span>
-              <span className="gate-tab-rank font-mono text-[8px] text-white/30">#{meta.rank}</span>
+              <span className="gate-tab-rank font-mono text-[8px] text-white/30">#{tabNumber}</span>
             </span>
             <span className="gate-tab-chips flex w-full flex-wrap justify-center gap-0.5 px-0.5">
               {meta.id === "technical" && skillChips.length > 0

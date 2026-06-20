@@ -118,14 +118,15 @@ function buildArbitration(
   permit: NonNullable<Awaited<ReturnType<typeof evaluateSymbol>>["permit"]>,
 ) {
   const agentConf = agent.confidence ?? 70;
-  const gateConf = gate.confidence ?? 50;
+  const gateConf = gate.confidence ?? 0;
+  const gateConfLabel = gate.confidence != null ? `${gate.confidence}%` : "—";
   const gap = agentConf - gateConf;
   const vetoed = permit.overridden ?? false;
 
   let narrative: string;
   if (permit.status === "DENY" && agent.action === "BUY") {
     narrative = vetoed
-      ? `Agent confidence (${agentConf}%) exceeds gate calibration (${gateConf}%) — constitution vetoed the entry.`
+      ? `Agent confidence (${agentConf}%) exceeds gate calibration (${gateConfLabel}) — constitution vetoed the entry.`
       : `Gate signal is ${gate.signal.replace("_", " ")} — agent BUY not cleared for sizing.`;
   } else if (permit.status === "GRANT") {
     narrative = `Agent BUY aligns with ${gate.tier.toUpperCase()} ${gate.signal.replace("_", " ")} under ${gate.regime ?? "neutral"} regime.`;
@@ -135,7 +136,7 @@ function buildArbitration(
 
   return {
     agent: { action: agent.action, confidence: agentConf, reasoning: agent.reasoning },
-    gate: { confidence: gateConf, edge: gate.edge, signal: gate.signal, regime: gate.regime },
+    gate: { confidence: gate.confidence ?? 0, edge: gate.edge, signal: gate.signal, regime: gate.regime },
     gap,
     vetoed,
     verdict: permit.status,

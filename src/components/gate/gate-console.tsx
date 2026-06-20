@@ -109,7 +109,9 @@ export function GateConsole() {
   const { pulse: marketPulse, loading: pulseLoading } = useMarketPulse(symbol, 90_000);
   const { data: intelligence, loading: intelLoading, error: intelError, reload: reloadIntel } = useMeridianIntelligence(symbol, 120_000);
   const { route: positionRoute, loading: directionLoading } = usePositionRoute(symbol, { intervalMs: 90_000 });
-  const gatePermit = useGatePermit(symbol, 120_000);
+  const gatePermit = useGatePermit(symbol, track2Priority ? 0 : 120_000, {
+    enabled: !track2Priority,
+  });
 
   const runBacktest = useCallback(async (sym: GateSymbol) => {
     const id = ++btReq.current;
@@ -264,6 +266,7 @@ export function GateConsole() {
               void runBacktest(symbol);
             }}
             onOpenNexus={openGateAutopilot}
+            track2Priority={track2Priority}
           />
 
           <div className="gate-workspace min-w-0">
@@ -282,8 +285,8 @@ export function GateConsole() {
                 gateRoute={gateRoute}
                 benchmarks={benchmarks}
                 permit={permitStatus}
-                permitId={gatePermit.permitId}
-                arbitration={gatePermit.arbitration}
+                permitId={track2Priority ? null : gatePermit.permitId}
+                arbitration={track2Priority ? null : gatePermit.arbitration}
                 track2Priority={track2Priority}
                 onGoTab={setTab}
                 onOpenNexus={openNexusManual}

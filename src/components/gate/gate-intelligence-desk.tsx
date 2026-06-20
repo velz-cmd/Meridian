@@ -206,7 +206,7 @@ export function GateIntelligenceDesk({
             </p>
           )}
           <p className="text-sm text-cyan-100">
-            Resembles <span className="font-semibold">{marketTwin.label}</span> · {marketTwin.similarity}% similar ·{" "}
+            Resembles <span className="font-semibold">{marketTwin.referenceLabel}</span> · {marketTwin.similarity}% similar ·{" "}
             {marketTwin.confidence} confidence
           </p>
           <ul className="mt-2 space-y-1 text-[11px] text-white/55">
