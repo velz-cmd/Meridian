@@ -34,7 +34,7 @@ export function GateSkillLayerCard({ layer }: { layer: GateSkillLayerView }) {
                 </span>
               )}
             </div>
-            <p className="mt-2 text-sm leading-snug text-white/65">{layer.reason}</p>
+            <p className="mt-2 text-sm leading-snug text-white/80">{layer.reason}</p>
           </div>
           <div className="flex shrink-0 items-start gap-2">
             <div className="text-right">
@@ -46,10 +46,10 @@ export function GateSkillLayerCard({ layer }: { layer: GateSkillLayerView }) {
         </div>
       </summary>
       <div className="border-t border-white/[0.06] px-4 pb-4 pt-3">
-        <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-white/35">Full metrics · live CMC</p>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/55">Full metrics · live CMC</p>
         <ul className="space-y-1.5">
           {layer.metrics.map((m) => (
-            <li key={m} className="flex gap-2 text-[12px] text-white/55">
+            <li key={m} className="flex gap-2 text-[12px] text-white/72">
               <span className="text-white/25">·</span>
               <span>{m}</span>
             </li>

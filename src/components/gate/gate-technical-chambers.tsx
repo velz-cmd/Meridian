@@ -17,7 +17,7 @@ function EvidenceBlock({ items }: { items: MeridianSkillEvidence[] }) {
   if (!items.length) return null;
   return (
     <div className="mt-4 border-t border-white/[0.06] pt-4">
-      <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-white/35">Skill evidence bundle</p>
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/55">Skill evidence bundle</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {items.map((s) => (
           <div key={s.skill} className="rounded-lg border border-white/[0.06] bg-black/25 px-3 py-2 text-[11px]">
@@ -25,10 +25,10 @@ function EvidenceBlock({ items }: { items: MeridianSkillEvidence[] }) {
               <span className="font-semibold text-white">{s.skill}</span>
               <span className="font-mono tabular-nums text-cyan-200/90">{s.score}</span>
             </div>
-            <p className="mt-1 text-[10px] text-white/40">
+            <p className="mt-1 text-[11px] text-white/58">
               {s.stance} · conf {s.confidence} · {s.dataSource}
             </p>
-            <ul className="mt-1 space-y-0.5 text-[10px] text-white/50">
+            <ul className="mt-1 space-y-0.5 text-[11px] text-white/68">
               {s.evidence.map((e) => (
                 <li key={e}>· {e}</li>
               ))}
@@ -92,7 +92,7 @@ export function GateTechnicalChambers({
 
   return (
     <div className="gate-v2-stack space-y-5">
-      <p className="text-sm text-white/50">
+      <p className="gate-body-text rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
         Five chambers · summary collapsed · expand each layer for live CMC metrics
       </p>
 

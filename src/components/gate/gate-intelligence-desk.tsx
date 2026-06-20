@@ -15,36 +15,15 @@ import {
 import type { MeridianIntelligencePayload } from "@/lib/meridian-intelligence-types";
 import { GateMarketTimeline } from "@/components/gate/gate-market-timeline";
 import { GateTradeJournalPanel } from "@/components/gate/gate-trade-journal-panel";
+import { GateSectionCard } from "@/components/gate/gate-section-head";
 import { cn } from "@/lib/utils";
-
-function Card({
-  title,
-  icon: Icon,
-  children,
-  accent = "border-white/10",
-}: {
-  title: string;
-  icon: typeof Brain;
-  children: React.ReactNode;
-  accent?: string;
-}) {
-  return (
-    <section className={cn("rounded-2xl border bg-black/30 p-4", accent)}>
-      <div className="mb-3 flex items-center gap-2">
-        <Icon className="h-4 w-4 text-violet-300" />
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
-      </div>
-      {children}
-    </section>
-  );
-}
 
 function StatPill({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-black/35 px-3 py-2">
-      <p className="text-[9px] uppercase tracking-wider text-white/35">{label}</p>
-      <p className="mt-0.5 text-lg font-bold tabular-nums text-white">{value}</p>
-      {sub && <p className="text-[10px] text-white/45">{sub}</p>}
+    <div className="gate-stat-pill rounded-xl border border-white/[0.08] bg-black/35 px-3 py-2">
+      <p className="gate-stat-label">{label}</p>
+      <p className="gate-stat-value mt-0.5 text-lg">{value}</p>
+      {sub && <p className="gate-stat-sub">{sub}</p>}
     </div>
   );
 }
@@ -217,8 +196,7 @@ export function GateIntelligenceDesk({
       )}
 
       {shows(view, "memory", "full") && (
-        <Card title="Market Twin" icon={TrendingUp} accent="border-cyan-400/20">
-          <p className="mb-2 font-mono text-[8px] uppercase text-violet-300/60">MERIDIAN · historical analog</p>
+        <GateSectionCard title="Market Twin" question="Have we seen this episode before?" kicker="MERIDIAN · historical analog" icon={TrendingUp} accent="border-cyan-400/20">
           <p className="text-sm text-cyan-100">
             Resembles <span className="font-semibold">{marketTwin.label}</span> · {marketTwin.similarity}% similar ·{" "}
             {marketTwin.confidence} confidence
@@ -241,12 +219,11 @@ export function GateIntelligenceDesk({
               </span>
             ))}
           </div>
-        </Card>
+        </GateSectionCard>
       )}
 
       {shows(view, "technical", "full") && (
-        <Card title="Bull vs Bear Court" icon={Scale} accent="border-amber-400/20">
-          <p className="mb-2 font-mono text-[8px] uppercase text-amber-300/60">MERIDIAN · 9 CMC skill layers as attorneys</p>
+        <GateSectionCard title="Bull vs Bear Court" question="Who disagrees?" kicker="MERIDIAN · 9 CMC skill layers as attorneys" icon={Scale} accent="border-amber-400/20">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-3">
               <p className="text-[10px] uppercase text-emerald-300">Bull Attorney</p>
@@ -275,13 +252,12 @@ export function GateIntelligenceDesk({
           {bullBearCourt.dissent.length > 0 && (
             <p className="mt-1 text-[11px] text-amber-200/80">Dissent: {bullBearCourt.dissent.join(" · ")}</p>
           )}
-        </Card>
+        </GateSectionCard>
       )}
 
       {shows(view, "memory", "replay", "full") && (
         <div className={cn("grid gap-4", view === "full" ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
-          <Card title="Narrative Flow" icon={GitBranch}>
-            <p className="mb-2 font-mono text-[8px] uppercase text-cyan-300/60">CMC + MERIDIAN · category rotation</p>
+          <GateSectionCard title="Narrative Flow" question="Where is capital moving?" kicker="CMC + MERIDIAN · category rotation" icon={GitBranch}>
             <div className="space-y-2">
               {narrativeFlow.radar.slice(0, 6).map((n) => (
                 <div key={n.id} className="flex items-center gap-2 text-xs">
@@ -302,9 +278,9 @@ export function GateIntelligenceDesk({
             <p className="mt-1 text-[10px] text-white/45">
               Likely leader: {narrativeFlow.likelyNextLeader.narrative} (conviction {narrativeFlow.likelyNextLeader.conviction})
             </p>
-          </Card>
+          </GateSectionCard>
 
-          <Card title="Conviction Decay" icon={Clock}>
+          <GateSectionCard title="Conviction Decay" question="How long is the thesis valid?" icon={Clock}>
             <p className="text-2xl font-bold tabular-nums text-white">{convictionDecay.current}</p>
             <p className="text-[10px] text-white/45">Review after {convictionDecay.reviewAfterHours}h · {convictionDecay.status}</p>
             <div className="mt-3 flex h-20 items-end gap-2">
@@ -319,10 +295,10 @@ export function GateIntelligenceDesk({
                 </div>
               ))}
             </div>
-          </Card>
+          </GateSectionCard>
 
           {shows(view, "memory", "full") && (
-            <Card title="Thesis DNA" icon={Dna}>
+            <GateSectionCard title="Thesis DNA" question="What fingerprint defines this setup?" icon={Dna}>
               <dl className="space-y-1.5 text-[11px]">
                 <div className="flex justify-between"><dt className="text-white/45">ID</dt><dd className="font-mono text-violet-200">{thesisDna.id}</dd></div>
                 <div className="flex justify-between"><dt className="text-white/45">Momentum</dt><dd>{thesisDna.momentum}</dd></div>
@@ -333,13 +309,13 @@ export function GateIntelligenceDesk({
               {thesisDna.resemblanceNote && (
                 <p className="mt-2 text-[10px] leading-snug text-amber-200/85">{thesisDna.resemblanceNote}</p>
               )}
-            </Card>
+            </GateSectionCard>
           )}
         </div>
       )}
 
       {shows(view, "technical", "full") && (
-        <Card title="Skill Evidence (8 calculators)" icon={Shield} accent="border-cyan-400/15">
+        <GateSectionCard title="Skill Evidence (8 calculators)" question="What do deterministic skills show?" icon={Shield} accent="border-cyan-400/15">
           <p className="mb-3 text-[10px] text-white/45">Skills provide evidence only — Constitution decides. No BUY/SELL from skills.</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {skillEvidence.map((s) => (
@@ -366,11 +342,11 @@ export function GateIntelligenceDesk({
               </div>
             ))}
           </div>
-        </Card>
+        </GateSectionCard>
       )}
 
       {shows(view, "technical", "full") && (
-        <Card title="Explainability" icon={Brain}>
+        <GateSectionCard title="Explainability" question="Why · who disagrees · what breaks it?" icon={Brain}>
           <dl className="space-y-2 text-[11px]">
             <div><dt className="text-white/40">Why</dt><dd className="text-white/80">{explainability.why}</dd></div>
             <div><dt className="text-white/40">Why now</dt><dd className="text-white/80">{explainability.whyNow}</dd></div>
@@ -379,24 +355,24 @@ export function GateIntelligenceDesk({
             <div><dt className="text-white/40">Validity</dt><dd>{explainability.validityHours}h review window</dd></div>
             <div><dt className="text-white/40">Seen before</dt><dd>{explainability.seenBefore}</dd></div>
           </dl>
-        </Card>
+        </GateSectionCard>
       )}
 
       {timeMachine && shows(view, "memory", "replay", "full") && (
-        <Card title="Time Machine · forward analog" icon={Sparkles} accent="border-emerald-400/15">
+        <GateSectionCard title="Time Machine · forward analog" question="What did similar setups do historically?" icon={Sparkles} accent="border-emerald-400/15">
           <div className="grid gap-2 sm:grid-cols-4">
             <StatPill label="Avg return" value={`+${timeMachine.avgReturnPct}%`} />
             <StatPill label="Win rate" value={`${timeMachine.winRatePct}%`} />
             <StatPill label="Duration" value={`${timeMachine.avgDurationDays}d`} />
             <StatPill label="Worst DD" value={`${timeMachine.worstDrawdownPct}%`} sub={timeMachine.source} />
           </div>
-        </Card>
+        </GateSectionCard>
       )}
 
       {shows(view, "memory", "replay", "full") && <GateMarketTimeline symbol={data.symbol} />}
 
       {shows(view, "technical", "replay", "full") && (
-        <Card title="Counterfactual Universe" icon={Zap}>
+        <GateSectionCard title="Counterfactual Universe" question="What if conditions change?" icon={Zap}>
           <div className="grid gap-2 sm:grid-cols-2">
             {counterfactuals.map((c) => (
               <div key={c.scenario} className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-2 text-xs">
@@ -418,7 +394,7 @@ export function GateIntelligenceDesk({
               </div>
             ))}
           </div>
-        </Card>
+        </GateSectionCard>
       )}
 
       {shows(view, "memory", "full") && (
@@ -429,7 +405,7 @@ export function GateIntelligenceDesk({
       )}
 
       {shows(view, "rules", "full") && (
-        <Card title="Market Constitution" icon={Scale}>
+        <GateSectionCard title="Market Constitution" question="How does MERIDIAN judge?" icon={Scale}>
           <ul className="space-y-2">
             {constitution.map((a) => (
               <li key={a.id} className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2 text-[11px]">
@@ -451,11 +427,11 @@ export function GateIntelligenceDesk({
               </li>
             ))}
           </ul>
-        </Card>
+        </GateSectionCard>
       )}
 
       {shows(view, "memory", "replay", "full") && (
-        <Card title="Market Memory" icon={Brain}>
+        <GateSectionCard title="Market Memory" question="Nearest genome relatives" icon={Brain}>
           <ul className="space-y-2">
             {marketMemory.map((m) => (
               <li key={m.genomeId} className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2 text-xs">
@@ -478,7 +454,7 @@ export function GateIntelligenceDesk({
               <p className="text-white/35">{evolution.expectedImprovement}</p>
             </div>
           )}
-        </Card>
+        </GateSectionCard>
       )}
 
       {shows(view, "rules", "full") && (

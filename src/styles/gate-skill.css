@@ -8,10 +8,121 @@
   --gate-green-dim: rgba(52, 211, 153, 0.12);
   --gate-red: #fb7185;
   --gate-red-dim: rgba(251, 113, 133, 0.12);
-  --gate-muted: var(--arc-text-muted);
-  --gate-dim: var(--arc-text-dim);
+  --gate-muted: rgba(255, 255, 255, 0.62);
+  --gate-dim: rgba(255, 255, 255, 0.52);
   --gate-border: var(--arc-border);
   --gate-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --gate-text-primary: rgba(255, 255, 255, 0.96);
+  --gate-text-body: rgba(255, 255, 255, 0.8);
+  --gate-text-secondary: rgba(255, 255, 255, 0.68);
+  --gate-text-muted: rgba(255, 255, 255, 0.58);
+  --gate-headline-accent: rgba(167, 139, 250, 0.65);
+  --gate-question-accent: rgba(125, 211, 252, 0.88);
+}
+
+/* Section headlines — visible hierarchy, all body text stays readable */
+[data-gate-page] .gate-section-title {
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--gate-headline-accent);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--gate-text-primary);
+}
+
+[data-gate-page] .gate-section-title--lg {
+  font-size: 1.25rem;
+}
+
+[data-gate-page] .gate-section-question {
+  margin-top: 0.4rem;
+  padding-left: calc(0.75rem + 3px);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--gate-question-accent);
+}
+
+[data-gate-page] .gate-section-kicker {
+  margin-bottom: 0.35rem;
+  font-family: var(--gate-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(196, 181, 253, 0.82);
+}
+
+[data-gate-page] .gate-section-icon {
+  color: rgba(196, 181, 253, 0.75);
+}
+
+[data-gate-page] .gate-section-summary {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--gate-text-body);
+}
+
+[data-gate-page] .gate-section-body,
+[data-gate-page] .gate-section-expanded {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--gate-text-body);
+}
+
+[data-gate-page] .gate-body-text {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--gate-text-body);
+}
+
+[data-gate-page] .gate-meta-text {
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--gate-text-muted);
+}
+
+[data-gate-page] .gate-stat-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gate-text-muted);
+}
+
+[data-gate-page] .gate-stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--gate-text-primary);
+}
+
+[data-gate-page] .gate-stat-sub {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--gate-text-muted);
+}
+
+[data-gate-page] .gate-verdict-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gate-text-secondary);
+}
+
+[data-gate-page] .gate-live-kicker {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--gate-text-secondary);
+}
+
+[data-gate-page] .gate-execution-kicker {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--gate-question-accent);
 }
 
 [data-gate-page] .gate-desk-main {
@@ -92,6 +203,11 @@
 
 [data-gate-page] .gate-tab-chips {
   min-height: 0.875rem;
+}
+
+[data-gate-page] .gate-tab-chip {
+  font-size: 0.625rem;
+  max-width: 6.25rem;
 }
 
 [data-gate-page] .gate-symbol-skills {

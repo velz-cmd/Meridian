@@ -12,6 +12,7 @@ import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types
 import type { PositionRoute } from "@/lib/position-router";
 import { positionExposureLabel } from "@/lib/position-router";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
+import { GateSectionHead } from "@/components/gate/gate-section-head";
 import { Sparkles } from "lucide-react";
 
 /** Overview execution — primary CTA visible; full desk progressively disclosed (V2). */
@@ -42,13 +43,15 @@ export function GateOverviewExecutionPath({
 
   return (
     <section className="space-y-3">
-      <div className="gate-execution-cta flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-black/30 px-5 py-4">
+      <div className="gate-execution-cta flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-black/30 px-5 py-4 sm:px-6 sm:py-5">
         <div className="min-w-0">
-          <p className="text-xs text-white/45">Execution path · live analysis · testnet settlement</p>
-          <p className="mt-1 text-base font-semibold text-white">
-            {symbol} · {positionExposureLabel(direction)}
-          </p>
-          <p className="mt-0.5 text-sm text-white/55">
+          <GateSectionHead
+            title={`${symbol} · ${positionExposureLabel(direction)}`}
+            question="Execution path · live analysis · testnet settlement"
+            kicker="Primary action"
+            icon={Sparkles}
+          />
+          <p className="gate-body-text mt-3 pl-[calc(0.75rem+3px)]">
             Desk {signalLabel}
             {permit ? ` · permit ${permit}` : ""}
             {directionLoading ? " · updating…" : ""}

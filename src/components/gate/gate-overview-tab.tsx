@@ -133,22 +133,22 @@ export function GateOverviewTab({
   return (
     <div className="gate-v2-stack space-y-6">
       {/* Live CMC strip — should I care? (price context only) */}
-      <section className="rounded-2xl border border-white/[0.08] bg-black/25 px-5 py-4">
+      <section className="rounded-2xl border border-white/[0.08] bg-black/25 px-5 py-4 sm:px-6 sm:py-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">
-            <Activity className="mt-0.5 h-4 w-4 shrink-0 text-white/45" />
+            <Activity className="mt-1 h-4 w-4 shrink-0 text-cyan-300/80" aria-hidden />
             <div>
-              <p className="text-xs text-white/45">
+              <p className="gate-live-kicker">
                 Live market · {GATE_SYMBOL_LABELS[symUpper as keyof typeof GATE_SYMBOL_LABELS] ?? symUpper}
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-white">
                 ${formatGatePrice(livePrice)}
-                <span className="ml-3 text-sm font-normal text-white/50">
+                <span className="ml-3 text-sm font-normal text-white/70">
                   24h {formatPct(live24h)}
                   {live7d != null && <> · 7d {formatPct(live7d)}</>}
                 </span>
               </p>
-              <p className="mt-1.5 text-[11px] text-white/40">
+              <p className="gate-meta-text mt-2">
                 {cmcLive ? "CMC live feed" : "DATA UNAVAILABLE — venue fallback"}
                 {intelPending ? " · refreshing intelligence…" : intel ? " · intelligence synced" : ""}
                 {" · "}
@@ -157,10 +157,10 @@ export function GateOverviewTab({
             </div>
           </div>
           {selected?.gate && (
-            <div className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-2.5 text-right">
-              <p className="text-[11px] text-white/40">Gate signal</p>
-              <p className="text-sm font-semibold text-white">{selected.gate.signal.replace(/_/g, " ")}</p>
-              <p className="text-[11px] tabular-nums text-white/45">
+            <div className="rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3 text-right">
+              <p className="gate-stat-label">Gate signal</p>
+              <p className="mt-1 text-sm font-semibold text-white">{selected.gate.signal.replace(/_/g, " ")}</p>
+              <p className="gate-meta-text mt-0.5 tabular-nums">
                 {selected.gate.checksPassed}/{selected.gate.checksTotal} checks
               </p>
             </div>
@@ -169,10 +169,10 @@ export function GateOverviewTab({
       </section>
 
       {/* 1. Verdict */}
-      <section className={cn("rounded-2xl border px-6 py-6", verdictSurface)}>
-        <p className="text-xs text-white/45">Verdict</p>
+      <section className={cn("rounded-2xl border px-6 py-6 sm:px-7 sm:py-7", verdictSurface)}>
+        <p className="gate-verdict-label">Verdict</p>
         <p className="mt-2 text-4xl font-semibold tracking-tight text-white">{verdict}</p>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/70">
+        <p className="gate-body-text mt-3 max-w-2xl">
           {intel?.verdictReason ?? judgeConsensus?.permit.reason ?? selected?.gate.thesis ?? "Live constitution + skill consensus."}
         </p>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -196,7 +196,7 @@ export function GateOverviewTab({
         icon={Scale}
         defaultOpen={false}
       >
-        <p className="text-sm leading-relaxed text-white/75">{thesis}</p>
+        <p className="gate-body-text">{thesis}</p>
         {intel?.explainability.whyNow && (
           <p className="mt-3 text-xs leading-relaxed text-white/50">{intel.explainability.whyNow}</p>
         )}
@@ -226,10 +226,10 @@ export function GateOverviewTab({
               key={a.id}
               className="flex justify-between gap-2 rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2.5 text-[12px]"
             >
-              <span className="text-white/80">
+              <span className="gate-body-text">
                 Article {a.id} · {a.title}
               </span>
-              <span className="font-mono text-[10px] uppercase text-white/45">{a.status}</span>
+              <span className="gate-meta-text font-mono uppercase">{a.status}</span>
             </li>
           ))}
         </ul>

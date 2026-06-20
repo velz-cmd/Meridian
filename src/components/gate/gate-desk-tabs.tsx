@@ -59,7 +59,7 @@ function TabChip({
   return (
     <span
       className={cn(
-        "gate-tab-chip inline-flex max-w-[5.5rem] truncate rounded border px-1 py-px text-[8px] font-medium leading-tight",
+        "gate-tab-chip inline-flex max-w-[6.25rem] truncate rounded border px-1.5 py-0.5 text-[10px] font-medium leading-tight",
         chipClass,
       )}
       title={label}

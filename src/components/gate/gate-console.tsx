@@ -261,6 +261,7 @@ export function GateConsole() {
                 <GateCollapsibleCard
                   title="Bull vs Bear debate"
                   question="Who disagrees?"
+                  kicker="Technical & reasoning"
                   summary={
                     judgeConsensus
                       ? `${judgeConsensus.weights.longPct}% long · ${judgeConsensus.weights.bearPct}% bear · ${judgeConsensus.permit.status}`
