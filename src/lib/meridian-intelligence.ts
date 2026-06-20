@@ -389,7 +389,8 @@ function buildConvictionDecay(base: number): MeridianConvictionDecay {
     hours: h,
     value: Math.round(base * Math.exp(-h / halfLife)),
   }));
-  const reviewAfterHours = base >= 75 ? 48 : base >= 60 ? 36 : 24;
+  const reviewAfterHours =
+    base >= 80 ? 4 : base >= 65 ? 12 : base >= 50 ? 24 : base >= 35 ? 48 : 72;
   const stale = curve[3]!.value < 52;
   const aging = curve[2]!.value < base - 15;
 

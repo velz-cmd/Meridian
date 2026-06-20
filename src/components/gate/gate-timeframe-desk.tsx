@@ -5,10 +5,11 @@ import { MERIDIAN_DECISION_TIMEFRAMES } from "@/lib/meridian-direction-engine";
 import { cn } from "@/lib/utils";
 
 function directionLabel(d: string) {
-  if (d === "LONG") return "Long";
-  if (d === "SHORT") return "Exit";
-  if (d === "FLAT") return "Hold";
-  return "Neutral";
+  if (d === "LONG") return "Accumulate";
+  if (d === "SHORT") return "Reduce";
+  if (d === "FLAT") return "Wait";
+  if (d === "WAIT") return "Wait";
+  return "Unavailable";
 }
 
 function directionClass(d: string) {
@@ -60,10 +61,9 @@ export function GateTimeframeDesk({
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/85">
           Timeframe desk · evidence only
         </p>
-        <h3 className="mt-1 text-base font-semibold text-white">1h → 30d trend map</h3>
+        <h3 className="mt-1 text-base font-semibold text-white">Scalp → position · multi-scale map</h3>
         <p className="mt-1 text-xs text-white/55">
-          Each cell is one real CMC percent-change window — no fabricated sub-hour bars. Strategy permit on
-          Overview remains the entry truth; this grid is price-trend context.
+          Horizons may disagree — that is normal. Each cell is one live CMC window. Permit on Overview remains entry truth.
         </p>
         <div className="mt-3 flex flex-wrap gap-2 text-[10px]">
           <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-200">
@@ -73,7 +73,7 @@ export function GateTimeframeDesk({
             Short {evidence.shortScore}
           </span>
           <span className="rounded-full border border-slate-400/25 bg-slate-500/10 px-2 py-0.5 text-slate-200">
-            Hold {evidence.holdScore}
+            Wait {evidence.holdScore}
           </span>
           <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-amber-100">
             Conflict {evidence.conflictScore}

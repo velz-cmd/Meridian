@@ -16,6 +16,7 @@ import { GATE_SYMBOL_LABELS } from "@/lib/gate-constants";
 import { formatGatePrice, formatSignedPct } from "@/lib/gate-format";
 import { resolveGateOverviewTruth } from "@/lib/gate-overview-truth";
 import type { GateHorizonId } from "@/lib/gate-desk-labels";
+import { spotStateTone, verdictTierTone } from "@/lib/meridian-desk-states";
 import { getGateDeskTabMeta } from "@/lib/gate-desk-tab-meta";
 import type { GateArbitration } from "@/hooks/use-gate-permit";
 import type { GatePermitStatus } from "@/lib/gate-permit-status";
@@ -120,17 +121,14 @@ export function GateOverviewTab({
   const constitutionTotal = intel?.constitution.length ?? 6;
   const constitutionViolated = intel?.constitution.filter((a) => a.status === "violated").length ?? 0;
 
-  const court = intel?.bullBearCourt;
-  const holdScore = judgeConsensus?.weights.holdPct ?? (court ? 100 - court.bull.score - court.bear.score : null);
-
   const narrativeLeader =
     intel?.narrativeFlow.likelyNextLeader.narrative ?? intel?.genome.narrative ?? "—";
   const migration = intel?.narrativeFlow.migration[0];
 
   const heroSurface =
-    truth.displayDirection === "LONG"
+    truth.displayDirection === "ACCUMULATE" || truth.displayDirection === "HOLD POSITION"
       ? "border-emerald-400/25 bg-emerald-500/[0.06]"
-      : truth.displayDirection === "EXIT"
+      : truth.displayDirection === "EXIT" || truth.displayDirection === "REDUCE"
         ? "border-rose-400/25 bg-rose-500/[0.06]"
         : "border-slate-400/20 bg-slate-500/[0.05]";
 
@@ -152,8 +150,12 @@ export function GateOverviewTab({
         </div>
 
         <p className="mt-6 text-sm font-medium uppercase tracking-[0.14em] text-white/55">{truth.deskLabel}</p>
-        <p className="mt-1 text-5xl font-semibold tracking-tight text-white">{truth.displayDirection}</p>
-        <p className="gate-body-text mt-4 max-w-3xl">{truth.summary}</p>
+        <p className={cn("mt-1 text-5xl font-semibold tracking-tight", spotStateTone(truth.displayDirection))}>
+          {truth.displayDirection}
+        </p>
+        <p className={cn("mt-2 text-lg font-medium", verdictTierTone(truth.verdictTier))}>{truth.verdictTier}</p>
+        <p className="gate-body-text mt-3 max-w-3xl">{truth.summary}</p>
+        <p className="gate-meta-text mt-2 text-white/45">{truth.reviewLabel}</p>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <GateStatPill label="Permit" value={truth.permit} sub="Strategy gate · entry rules" />
@@ -163,7 +165,7 @@ export function GateOverviewTab({
             value={truth.checksPassed != null && truth.checksTotal != null ? `${truth.checksPassed}/${truth.checksTotal}` : "—"}
             sub={truth.tier ? `Tier ${truth.tier}` : "Checks"}
           />
-          <GateStatPill label="Conviction" value={String(truth.conviction)} sub="Engine confidence" />
+          <GateStatPill label="Conviction" value={String(truth.conviction)} sub={truth.convictionBand} />
           <GateStatPill
             label="Price"
             value={priceLabel}
@@ -172,7 +174,7 @@ export function GateOverviewTab({
         </div>
 
         <p className="mt-6 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-          Price trend by window · live CMC — pick the horizon you trade
+          Desk state by horizon · live CMC — windows may disagree
         </p>
         <GateHorizonAllWindows
           evidence={intel?.directionEvidence}
@@ -185,7 +187,26 @@ export function GateOverviewTab({
         <p className="gate-meta-text mt-4">Updated {formatUpdated(truth.updatedAt)}</p>
       </section>
 
-      {/* Section 2 — Thesis */}
+      {/* Section 2 — Four pillars */}
+      <GateCollapsibleCard
+        title="Four pillars"
+        question="What drives this read?"
+        summary={
+          <span>
+            {truth.pillars.map((p) => `${p.label} ${p.value}`).join(" · ")}
+          </span>
+        }
+        icon={Scale}
+        defaultOpen={false}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {truth.pillars.map((p) => (
+            <GateStatPill key={p.id} label={p.label} value={p.value} sub={p.detail} />
+          ))}
+        </div>
+      </GateCollapsibleCard>
+
+      {/* Section 3 — Thesis */}
       <GateCollapsibleCard
         title="Thesis"
         question="Why should I care?"
@@ -213,9 +234,7 @@ export function GateOverviewTab({
               {intel.explainability.whoDisagrees.slice(0, 2).join("; ")}
             </p>
           ) : null}
-          <p className="text-white/45">
-            Review after {intel?.explainability.validityHours ?? truth.horizonHours}h.
-          </p>
+          <p className="text-white/45">{truth.reviewLabel}</p>
         </div>
         <div className="mt-4">
           <GateSectionLink onClick={() => onGoTab("technical")} features={getGateDeskTabMeta("technical").features.slice(0, 3)}>
@@ -224,49 +243,43 @@ export function GateOverviewTab({
         </div>
       </GateCollapsibleCard>
 
-      {/* Section 3 — Bull vs Bear Court */}
+      {/* Section 4 — Bull vs Bear Court */}
       <GateCollapsibleCard
         title="Bull vs Bear Court"
         question="Who disagrees?"
         summary={
-          court
-            ? `Bull ${court.bull.score} · Bear ${court.bear.score}${holdScore != null ? ` · Hold ${Math.round(holdScore)}` : ""} · spread ${court.spread}`
+          truth.courtSummary
+            ? `Bull ${truth.courtSummary.bullScore} · Bear ${truth.courtSummary.bearScore} · Conflict ${truth.courtSummary.conflict} · ${truth.courtSummary.verdict}`
             : "Court convenes when intelligence syncs"
         }
         icon={Users}
         defaultOpen={false}
       >
-        {court ? (
+        {truth.courtSummary ? (
           <div className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <GateStatPill label="Bull score" value={String(court.bull.score)} sub="Evidence for exposure" />
-              <GateStatPill label="Bear score" value={String(court.bear.score)} sub="Evidence to de-risk" />
+            <div className="grid gap-3 sm:grid-cols-4">
+              <GateStatPill label="Bull score" value={String(truth.courtSummary.bullScore)} sub="Evidence for exposure" />
+              <GateStatPill label="Bear score" value={String(truth.courtSummary.bearScore)} sub="Evidence to de-risk" />
+              <GateStatPill label="Hold weight" value={String(truth.courtSummary.holdScore)} sub="Neutral / abstain" />
               <GateStatPill
-                label="Hold / spread"
-                value={holdScore != null ? String(Math.round(holdScore)) : "—"}
-                sub={`Spread ${court.spread} · ${court.verdict}`}
+                label="Verdict"
+                value={truth.courtSummary.verdict}
+                sub={`Conflict ${truth.courtSummary.conflict} · spread ${truth.courtSummary.spread}`}
               />
             </div>
-            <p className="gate-body-text text-white/55">{court.conflictNote}</p>
-            {court.dissent.length > 0 && (
-              <ul className="space-y-1 text-xs text-white/45">
-                {court.dissent.slice(0, 3).map((d) => (
-                  <li key={d}>· {d}</li>
-                ))}
-              </ul>
-            )}
+            <p className="gate-body-text text-white/55">{truth.courtSummary.note}</p>
           </div>
         ) : (
           <p className="gate-body-text text-white/45">Awaiting intelligence sync for court scores.</p>
         )}
         <div className="mt-4">
-          <GateSectionLink onClick={() => onGoTab("technical")} features={["Bull Court", "Bear Court", "Layer votes"]}>
-            Full chamber debate
+          <GateSectionLink onClick={() => onGoTab("technical")} features={["Chamber debate", "Layer evidence", "Conflict map"]}>
+            Full technical debate
           </GateSectionLink>
         </div>
       </GateCollapsibleCard>
 
-      {/* Section 4 — Constitution summary (bias ≠ permission) */}
+      {/* Section 5 — Constitution summary (bias ≠ permission) */}
       <GateCollapsibleCard
         title="Constitution summary"
         question="How does the gate judge?"

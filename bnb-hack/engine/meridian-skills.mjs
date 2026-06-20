@@ -580,25 +580,27 @@ export function evaluateVolatilityCompressionSkill(t, vol) {
 export const CONSENSUS_RULES = {
   schema: "meridian-skill-consensus/v2",
   /** Weighted long share required (constitution included). */
-  longWeightMinPct: 55,
-  /** Minimum layer count voting ENTER_LONG (of 9). */
-  minLongLayerCount: 4,
+  longWeightMinPct: 50,
+  /** Minimum layer count voting ENTER_LONG (of 9) — tactical bar. */
+  minLongLayerCount: 5,
+  /** Strong alignment — 7+ layers for Strong Long tier. */
+  strongLongLayerCount: 7,
   /** Minimum of core directional stack voting long. */
   minCoreDirectionalCount: 2,
   coreDirectionalIds: ["momentum", "regime", "trend", "relativeStrength"],
   /** Max weighted bearish share for a cleared long. */
-  bearWeightMaxPct: 15,
-  /** Layer weights used in desk vote (sum ≈ 11.3). */
+  bearWeightMaxPct: 20,
+  /** Layer weights — L1 regime/structure heaviest; risk overrides opportunity. */
   layerWeights: {
     constitution: 2.5,
-    momentum: 1.2,
-    sentiment: 1,
-    regime: 1.5,
-    trend: 1.1,
-    liquidity: 1,
-    structural: 0.6,
-    relativeStrength: 1.4,
-    volatility: 1,
+    regime: 1.8,
+    structural: 1.4,
+    momentum: 1.1,
+    trend: 1.2,
+    relativeStrength: 1.3,
+    liquidity: 0.9,
+    sentiment: 0.8,
+    volatility: 0.8,
   },
 };
 

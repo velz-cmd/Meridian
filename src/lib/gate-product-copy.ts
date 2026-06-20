@@ -2,6 +2,7 @@
 
 import { hasChapelExecutionRoute } from "@/lib/chapel-execution-router";
 import { isGateSymbol } from "@/lib/gate-constants";
+import type { SpotDeskState } from "@/lib/meridian-desk-states";
 
 export const GATE_PRODUCT = {
   kicker: "MERIDIAN",
@@ -11,13 +12,13 @@ export const GATE_PRODUCT = {
   trustHorizon:
     "Trust over 1,000 trades — not excitement on the next trade. WAIT and UNKNOWN are valid answers.",
   rankingTitle: "Today's ranking",
-  rankingFlat: "No symbol clears entry rules — hold cash.",
+  rankingFlat: "No symbol clears entry rules — wait for edge.",
   rankingActive: (primary: string, pct: number, secondary?: string, secPct?: number) =>
     secondary && secPct
       ? `Strongest setup: ${primary} (${pct}%) with ${secondary} (${secPct}%) as secondary`
       : `Strongest setup: ${primary} (${pct}% notional)`,
-  rankingMeta: (long: number, hold: number, regime: string, fg: number) =>
-    `${long} long · ${hold} hold · ${regime.replace(/-/g, " ")} tape · sentiment ${fg}`,
+  rankingMeta: (long: number, wait: number, regime: string, fg: number) =>
+    `${long} accumulate · ${wait} wait · ${regime.replace(/-/g, " ")} tape · sentiment ${fg}`,
   continueTradable: (sym: string) => `Trade ${sym} · wallet tBNB`,
   continueResearch: (sym: string) => `Review ${sym}`,
   openExecution: "Open trade desk",
@@ -25,8 +26,8 @@ export const GATE_PRODUCT = {
   backtestTitle: "Historical replay",
   backtestSubtitle: (sym: string) => `90-day rule replay for ${sym} — run when you want proof, not on every page load.`,
   viewing: (sym: string) => `Selected · ${sym}`,
-  selectedHeadline: (sym: string, signal: "LONG" | "HOLD" | "EXIT", checks: string) =>
-    `${sym} · ${signal} · ${checks}`,
+  selectedHeadline: (sym: string, state: SpotDeskState | "WAIT", checks: string) =>
+    `${sym} · ${state} · ${checks}`,
 } as const;
 
 export function gateSymbolTradableOnTestnet(symbol: string): boolean {

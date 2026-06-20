@@ -6,6 +6,7 @@ import {
   strategySignalLabel,
 } from "@/lib/gate-strategy-copy";
 import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
+import type { SpotDeskState } from "@/lib/meridian-desk-states";
 import { cn } from "@/lib/utils";
 
 type LiveGate = {
@@ -37,7 +38,7 @@ export function GateStrategyLive({
   change24h?: number;
   cmcLive?: boolean;
   rsiSource?: string;
-  positionLabel?: "LONG" | "HOLD" | "EXIT";
+  positionLabel?: SpotDeskState;
   onOpenNexus?: () => void;
 }) {
   if (loading) {
@@ -57,8 +58,9 @@ export function GateStrategyLive({
     );
   }
 
-  const position = positionLabel ?? strategyPosition(gate.signal);
-  const long = position === "LONG";
+  const position =
+    positionLabel ?? (strategyPosition(gate.signal) === "LONG" ? "ACCUMULATE" : "WAIT");
+  const long = position === "ACCUMULATE" || position === "HOLD POSITION";
 
   return (
     <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
