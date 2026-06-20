@@ -16,6 +16,7 @@ import type { MeridianIntelligencePayload } from "@/lib/meridian-intelligence-ty
 import { GateMarketTimeline } from "@/components/gate/gate-market-timeline";
 import { GateTradeJournalPanel } from "@/components/gate/gate-trade-journal-panel";
 import { GateSectionCard } from "@/components/gate/gate-section-head";
+import { formatSignedPct } from "@/lib/gate-format";
 import { cn } from "@/lib/utils";
 
 function StatPill({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -209,7 +210,7 @@ export function GateIntelligenceDesk({
           <p className="mt-2 text-xs text-white/70">{marketTwin.implication}</p>
           <p className="mt-2 text-[10px] italic text-white/40">{marketTwin.disclaimer}</p>
           <p className="mt-2 text-xs text-white/55">
-            Avg historical return {marketTwin.avgHistoricalReturnPct}% · max drawdown {marketTwin.maxDrawdownPct}% · n=
+            Avg historical return {marketTwin.avgHistoricalReturnPct}% · worst analog return {marketTwin.worstHistoricalReturnPct}% · n=
             {marketTwin.sampleSize}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -361,7 +362,7 @@ export function GateIntelligenceDesk({
       {timeMachine && shows(view, "memory", "replay", "full") && (
         <GateSectionCard title="Time Machine · forward analog" question="What did similar setups do historically?" icon={Sparkles} accent="border-emerald-400/15">
           <div className="grid gap-2 sm:grid-cols-4">
-            <StatPill label="Avg return" value={`+${timeMachine.avgReturnPct}%`} />
+            <StatPill label="Avg return" value={formatSignedPct(timeMachine.avgReturnPct)} />
             <StatPill label="Win rate" value={`${timeMachine.winRatePct}%`} />
             <StatPill label="Duration" value={`${timeMachine.avgDurationDays}d`} />
             <StatPill label="Worst DD" value={`${timeMachine.worstDrawdownPct}%`} sub={timeMachine.source} />

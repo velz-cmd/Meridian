@@ -17,21 +17,13 @@ import type { MarketPulse } from "@/lib/market-pulse";
 import type { PositionRoute } from "@/lib/position-router";
 import { effectiveGateSignal } from "@/lib/gate-effective-signal";
 import { GATE_SYMBOL_LABELS } from "@/lib/gate-constants";
+import { formatGatePrice, formatSignedPct } from "@/lib/gate-format";
 import { getGateDeskTabMeta } from "@/lib/gate-desk-tab-meta";
 import { cn } from "@/lib/utils";
 
-function formatGatePrice(price: number): string {
-  if (price <= 0) return "—";
-  if (price >= 1000) return price.toFixed(2);
-  if (price >= 1) return price.toFixed(3);
-  if (price >= 0.01) return price.toFixed(4);
-  return price.toFixed(8);
-}
-
 function formatPct(n: number | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
+  return formatSignedPct(n);
 }
 
 type BacktestPayload = Parameters<typeof GateOutputPanel>[0]["backtest"];
@@ -95,7 +87,12 @@ export function GateOverviewTab({
           ? "GRANT"
           : "WAIT");
   const conviction = intel?.confidence.conviction ?? selected?.gate.confidence ?? selected?.conviction ?? "—";
-  const spread = intel?.confidence.bullBearSpread ?? judgeConsensus?.weights.bearPct ?? "—";
+  const spread =
+    intel?.confidence.bullBearSpread ??
+    (judgeConsensus
+      ? Math.abs(judgeConsensus.weights.longPct - judgeConsensus.weights.bearPct)
+      : undefined) ??
+    "—";
   const horizon = intel?.convictionDecay.reviewAfterHours ?? "—";
   const riskRegime = intel?.genome.regime ?? selected?.gate.regime ?? selected?.skills?.regime?.regime ?? "neutral";
   const thesis =

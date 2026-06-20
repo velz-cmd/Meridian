@@ -32,7 +32,8 @@ export type MeridianMarketTwin = {
   /** Reference only — not a prediction */
   disclaimer: string;
   avgHistoricalReturnPct: number;
-  maxDrawdownPct: number;
+  /** Minimum symbol return in the analog episode — not equity max drawdown */
+  worstHistoricalReturnPct: number;
   sampleSize: number;
 };
 

@@ -188,7 +188,7 @@ function buildMarketTwin(genome: MeridianGenome, _symbol: string, change7d: numb
   const symOutcomes = Object.values(best.outcomes);
   const avgHistoricalReturnPct =
     Math.round((symOutcomes.reduce((s, v) => s + v, 0) / symOutcomes.length) * 10) / 10;
-  const maxDrawdownPct = Math.min(...symOutcomes, 0);
+  const worstHistoricalReturnPct = Math.min(...symOutcomes);
 
   return {
     label: best.label,
@@ -202,7 +202,7 @@ function buildMarketTwin(genome: MeridianGenome, _symbol: string, change7d: numb
     implication: best.implication,
     disclaimer: "Historical analog — reference only, not a prediction or guarantee.",
     avgHistoricalReturnPct,
-    maxDrawdownPct,
+    worstHistoricalReturnPct,
     sampleSize: HISTORICAL_ANALOGS.length,
   };
 }

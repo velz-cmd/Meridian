@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { ArcPanel } from "@/components/ui/arc-panel";
 import { GATE_SYMBOLS, GATE_SYMBOL_LABELS, type GateSymbol } from "@/lib/gate-constants";
 import { rankSymbolSkillHighlights, sortSymbolsByRank } from "@/lib/gate-desk-tab-meta";
+import { formatGatePrice } from "@/lib/gate-format";
 import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { effectivePosition } from "@/lib/gate-effective-signal";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
@@ -70,7 +71,7 @@ export function GateConfigPanel({
                           <>
                             {" · "}
                             <span className="text-white/55">
-                              ${bench.market.price >= 1 ? bench.market.price.toFixed(2) : bench.market.price.toFixed(4)}
+                              ${formatGatePrice(bench.market.price)}
                             </span>
                           </>
                         )}
