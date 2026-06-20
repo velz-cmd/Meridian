@@ -25,6 +25,7 @@ import {
 import { buildTradeAutopsies } from "@/lib/meridian-trade-autopsy";
 import { buildTradeJournal } from "@/lib/meridian-trade-journal";
 import { buildMeridianTruthEnvelope } from "@/lib/meridian-truth-guard";
+import { buildMeridianDirectionEvidence } from "@/lib/meridian-direction-engine";
 import type { DemoTradeRecord } from "@/lib/demo-trading";
 import type {
   MeridianBullBearCourt,
@@ -692,6 +693,22 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     fetchedAt: provenance.fetchedAt,
   });
 
+  const directionEvidence = buildMeridianDirectionEvidence({
+    consensus,
+    court: bullBearCourt,
+    memorySimilarity: marketTwin.similarity,
+    dataQuality: provenance.dataQuality,
+    regime: genome.regime,
+    liquidityOk,
+    blockers: input.skills?.composite?.blockers as string[] | undefined,
+    market: {
+      change1h: (input.market as { change1h?: number })?.change1h,
+      change24h: input.market?.change24h,
+      change7d: input.market?.change7d,
+      change30d: (input.skills?.trend as { metrics?: { change30d?: number } })?.metrics?.change30d,
+    },
+  });
+
   return {
     schema: "meridian-intelligence/v2",
     symbol: sym,
@@ -722,6 +739,7 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     evolution: buildEvolution(input.backtest),
     tradeAutopsy,
     tradeJournal,
+    directionEvidence,
     truth,
     architecture: {
       tagline: arch.tagline,

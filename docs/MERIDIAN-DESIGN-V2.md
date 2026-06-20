@@ -31,11 +31,20 @@ One question per card. Every section has a single purpose.
 
 | Tab | Question | Contains |
 |-----|----------|----------|
-| **Overview** | Should I care? | Hero verdict, conviction, bull–bear spread, risk, horizon, thesis, constitution summary, narrative summary, live CMC strip, execution CTA |
+| **Overview** | What should I know and do right now? | **Router verdict only** (ONE TRUTH), thesis, bull–bear court, constitution summary, narrative, market memory compact, primary action |
 | **Market Memory** | Have we seen this before? | Historical Twin, DNA matches, conviction decay, trade autopsy, historical statistics |
-| **Technical & Reasoning** | Why does MERIDIAN believe this? | Chambers (Market, Flow, Behavior, Risk, Memory), bull/bear debate, skill evidence |
+| **Technical & Reasoning** | Why does MERIDIAN believe this? | Layer votes, direction scores, momentum, chambers, bull/bear debate, skill evidence, agent pulse, consensus engine |
 | **Rules & Spec** | How does MERIDIAN think? | Constitution, weighting, risk rules, sizing, CMC sources, skill explanations |
 | **90-Day Replay** | What would MERIDIAN have done? | Timeline controls, backtest proof |
+
+## Overview — ONE TRUTH
+
+Only the **position router verdict** (LONG / SHORT / FLAT) is the final signal on Overview.
+
+- Constitution bias, momentum, skills, agent pulse, and direction scores are **explanations** — never competing headlines.
+- Never show ENTER LONG, HOLD, DENY, and FLAT at the same hierarchy level.
+- If router says FLAT, every Overview section aligns with FLAT.
+- Bias ≠ permission. Permit is shown as execution gate, not as direction.
 
 ## Progressive disclosure
 

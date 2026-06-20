@@ -60,7 +60,7 @@ When editing `/gate`, `src/components/gate/**`, or MERIDIAN desk surfaces:
 2. **Never delete** skills, cards, metrics, tabs, or APIs — reorganize with progressive disclosure only.
 3. **One question per card.** Default = executive summary (score + stance + reason). Expand = full metrics.
 4. Use **`GateSkillLayerCard`** + **`buildGateSkillLayers()`** for skill UI — not dense metric grids in collapsed state.
-5. **Overview tab** = verdict, thesis, constitution, narrative, live CMC strip, one execution CTA — no indicator walls.
+5. **Overview tab** = router verdict (ONE TRUTH), thesis, court, constitution, narrative, memory compact, primary action — no skill dump, no conflicting headlines.
 6. **Data honesty:** live CMC labels, symbol-scoped intelligence, DATA UNAVAILABLE when missing, testnet execution disclosed.
 7. Typography: hero `text-4xl`, calm borders `white/[0.08]`, minimal mono — see design doc tokens.
 <!-- END:meridian-design-v2 -->
@@ -77,3 +77,18 @@ When editing intelligence, copy, LLM prompts, or Gate accountability surfaces:
 5. **Accountability is mandatory** — trade journal + autopsy on Memory tab; never hide failures.
 6. **Daily value loop:** morning brief / court / twin → intraday updates → post-trade autopsy & stats.
 <!-- END:meridian-north-star -->
+
+<!-- BEGIN:meridian-decision-engine -->
+# MERIDIAN Decision Engine — evidence synthesis, not prediction
+
+**Read first:** `docs/MERIDIAN-DECISION-ENGINE.md` · `src/lib/meridian-direction-engine.ts`
+
+- MERIDIAN **synthesizes evidence** — it does not predict. LONG / SHORT / FLAT are consequences, not defaults.
+- **Directional neutrality** — no preferred direction; adapt continuously to live conditions.
+- Publish **long · short · hold · conflict · uncertainty · data quality** scores — never "7/9 = LONG".
+- **Nine layers:** regime, trend, momentum, liquidity, RS, structure, narrative, memory, court.
+- **Multi-timeframe:** 3m–1w roadmap; higher TF anchors; micro cannot override swing without consensus.
+- **Risk has veto power** — opportunity never overrides regime, liquidity, or extreme uncertainty.
+- **Overview ONE TRUTH** = position router verdict; decision scores explain on Technical tab only.
+- **WAIT / UNKNOWN / FLAT** are valid. Trade quality > trade frequency.
+<!-- END:meridian-decision-engine -->

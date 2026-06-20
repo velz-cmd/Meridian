@@ -34,10 +34,32 @@ export const MERIDIAN_QUALITY_RULES = [
   "Never force signals — trade only when evidence is strong",
   "WAIT is a valid answer",
   "UNKNOWN is a valid answer",
+  "FLAT is a valid position — not failure",
   "No trade is better than a poor trade",
   "Less activity, higher selectivity",
   "Never claim 95% success, 99% accuracy, or guaranteed profits",
 ] as const;
+
+/** MERIDIAN must never bias toward LONG, SHORT, or FLAT */
+export const MERIDIAN_SIGNAL_PHILOSOPHY = {
+  principle: "MERIDIAN synthesizes evidence — it does not predict.",
+  directions: "LONG, SHORT, and FLAT emerge from evidence; none is preferred.",
+  flat: "FLAT is a position. Professional systems spend most of their time flat.",
+  activity: "Trade quality matters more than trade frequency.",
+  scores:
+    "Publish long, short, hold, conflict, uncertainty, and data quality scores — not forced direction.",
+} as const;
+
+/** Canonical Decision Engine principles — see docs/MERIDIAN-DECISION-ENGINE.md */
+export const MERIDIAN_DECISION_ENGINE = {
+  neutrality: "No preferred direction — not bullish, not bearish, not permanently flat.",
+  layers: 9,
+  scoring: ["longScore", "shortScore", "holdScore", "conflictScore", "uncertainty", "dataQualityScore"],
+  vetoes: ["regime risk-off", "liquidity fail", "constitution DENY"],
+  timeframes: "3m through 1w — higher TF anchors; micro cannot override swing alone.",
+  routerTruth: "Position router is Overview ONE TRUTH; decision scores explain on Technical tab.",
+  abstention: "WAIT and UNKNOWN are valid. No trade beats a low-quality trade.",
+} as const;
 
 /** Global MERIDIAN law — applies to every module, API, agent, and UI surface */
 export const MERIDIAN_TRUTH_LAW =
@@ -94,8 +116,8 @@ export const MERIDIAN_DESIGN_TENETS = [
 ] as const;
 
 export const MERIDIAN_VISUAL_HIERARCHY = {
-  primary: ["Verdict", "Conviction", "Risk", "Thesis"],
-  secondary: ["Bull vs Bear Court", "Constitution", "Narratives", "Market Memory"],
+  primary: ["Evidence direction", "Long / Short / Uncertainty scores", "Conviction", "Risk", "Thesis"],
+  secondary: ["Bull vs Bear Court", "Constitution permit", "Narratives", "Market Memory"],
   tertiary: ["Indicators", "Metrics", "Raw calculations", "Research", "Weights"],
 } as const;
 
@@ -134,7 +156,9 @@ export const MERIDIAN_CORE_PHILOSOPHY = {
   llmPlacement: "LLM sits near the end for narration — never at the beginning for numbers.",
   confidenceModel:
     "Confidence is evidence-derived (conviction, similarity, spread, completeness) — not probability of profit.",
-  abstention: "If evidence conflicts or data is insufficient, output WAIT or UNKNOWN.",
+  abstention: "If evidence conflicts or data is insufficient, output WAIT, FLAT, or UNKNOWN.",
+  signalPhilosophy: MERIDIAN_SIGNAL_PHILOSOPHY,
+  decisionEngine: MERIDIAN_DECISION_ENGINE,
   automation: "Agents enforce discipline — capital preservation, not trade count.",
   accountability: "Every closed trade gets autopsy; statistics are public including losses.",
   truthLaw: MERIDIAN_TRUTH_LAW,
@@ -193,6 +217,8 @@ export const MERIDIAN_MASTER_PRINCIPLES = {
   uxGoals: MERIDIAN_UX_GOALS,
   ultimateGoal: MERIDIAN_ULTIMATE_GOAL,
   qualityRules: MERIDIAN_QUALITY_RULES,
+  signalPhilosophy: MERIDIAN_SIGNAL_PHILOSOPHY,
+  decisionEngine: MERIDIAN_DECISION_ENGINE,
   goldenRules: MERIDIAN_GOLDEN_RULES,
   truthLaw: MERIDIAN_TRUTH_LAW,
   truthForbidden: MERIDIAN_TRUTH_FORBIDDEN,

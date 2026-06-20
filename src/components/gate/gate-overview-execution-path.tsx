@@ -9,13 +9,13 @@ import { effectiveGateSignal } from "@/lib/gate-effective-signal";
 import { GATE_PRODUCT } from "@/lib/gate-product-copy";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
-import type { PositionRoute } from "@/lib/position-router";
+import type { PositionDirection, PositionRoute } from "@/lib/position-router";
 import { positionExposureLabel } from "@/lib/position-router";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
 import { GateSectionHead } from "@/components/gate/gate-section-head";
 import { Sparkles } from "lucide-react";
 
-/** Overview execution — primary CTA visible; full desk progressively disclosed (V2). */
+/** Overview execution — instructions aligned with router verdict only. */
 export function GateOverviewExecutionPath({
   symbol,
   selected,
@@ -25,6 +25,9 @@ export function GateOverviewExecutionPath({
   gateRoute,
   benchmarks,
   permit,
+  primaryAction,
+  routerDirection,
+  deskLabel,
   onOpenNexus,
 }: {
   symbol: string;
@@ -35,35 +38,43 @@ export function GateOverviewExecutionPath({
   gateRoute: GateRoutePayload | null;
   benchmarks: GateBenchmarkFull[];
   permit?: "GRANT" | "DENY";
+  primaryAction: string;
+  routerDirection: PositionDirection;
+  deskLabel: string;
   onOpenNexus: () => void;
 }) {
-  const deskSignal = selected ? effectiveGateSignal(selected.gate, skills) : undefined;
-  const direction = positionRoute?.direction ?? "FLAT";
-  const signalLabel = (deskSignal ?? selected?.gate.signal ?? "HOLD").replace(/_/g, " ");
+  const exposureLabel =
+    routerDirection === "FLAT"
+      ? "Flat · no position"
+      : positionExposureLabel(routerDirection);
 
   return (
     <section className="space-y-3">
       <div className="gate-execution-cta flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-black/30 px-5 py-4 sm:px-6 sm:py-5">
         <div className="min-w-0">
           <GateSectionHead
-            title={`${symbol} · ${positionExposureLabel(direction)}`}
-            question="Execution path · live analysis · testnet settlement"
-            kicker="Primary action"
+            title={`${symbol} · ${exposureLabel}`}
+            question="Primary action · router verdict"
+            kicker={deskLabel}
             icon={Sparkles}
           />
           <p className="gate-body-text mt-3 pl-[calc(0.75rem+3px)]">
-            Desk {signalLabel}
-            {permit ? ` · permit ${permit}` : ""}
+            {primaryAction}
             {directionLoading ? " · updating…" : ""}
           </p>
         </div>
         <button
           type="button"
           onClick={onOpenNexus}
-          className={nexusGlassCta("buy", "min-h-[44px] px-5 py-2.5 text-sm font-semibold")}
+          className={nexusGlassCta(
+            routerDirection === "LONG" && permit === "GRANT" ? "buy" : "swap",
+            "min-h-[44px] px-5 py-2.5 text-sm font-semibold",
+          )}
         >
           <span className="flex items-center gap-1.5">
-            {GATE_PRODUCT.continueTradable(symbol)}
+            {routerDirection === "FLAT" || permit === "DENY"
+              ? "Review in NEXUS"
+              : GATE_PRODUCT.continueTradable(symbol)}
             <ArrowUpRight className="h-4 w-4" />
           </span>
         </button>
@@ -71,10 +82,10 @@ export function GateOverviewExecutionPath({
 
       <GateCollapsibleCard
         title="Full execution desk"
-        question="Lanes · leverage · buy / sell / autopilot"
+        question="Lanes · leverage · settlement"
         icon={Sparkles}
         accent="border-violet-400/15"
-        summary="Expand for position targets, thesis leverage, and NEXUS Chapel settlement — all features preserved."
+        summary="Expand for position targets, thesis leverage, and NEXUS Chapel settlement."
         defaultOpen={false}
       >
         {directionLoading && !positionRoute ? (
@@ -88,7 +99,7 @@ export function GateOverviewExecutionPath({
               symbol={symbol}
               route={positionRoute}
               loading={directionLoading}
-              deskSignal={deskSignal}
+              deskSignal={selected ? effectiveGateSignal(selected.gate, skills) : undefined}
               permit={permit}
               compact
             />

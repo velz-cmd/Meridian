@@ -4,6 +4,7 @@ import type { MeridianTradeJournal } from "@/lib/meridian-trade-journal";
 import type { MeridianSkillEvidence } from "@/lib/meridian-skill-evidence";
 import type { MeridianDataQuality, MeridianVerdict } from "@/lib/meridian-philosophy";
 import type { MeridianTruthEnvelope } from "@/lib/meridian-truth-guard";
+import type { MeridianDirectionEvidence } from "@/lib/meridian-direction-engine";
 
 export type MeridianGenome = {
   id: string;
@@ -201,6 +202,7 @@ export type MeridianIntelligencePayload = {
   evolution: MeridianEvolutionHint | null;
   tradeAutopsy: MeridianTradeAutopsy[];
   tradeJournal: MeridianTradeJournal;
+  directionEvidence: MeridianDirectionEvidence;
   truth: MeridianTruthEnvelope;
   architecture: {
     tagline: string;

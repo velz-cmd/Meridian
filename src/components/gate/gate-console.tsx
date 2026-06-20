@@ -225,19 +225,18 @@ export function GateConsole() {
                 judgeConsensus={judgeConsensus}
                 intelligence={intelligence}
                 intelLoading={intelLoading}
-                route={gateRoute}
                 positionRoute={positionRoute}
                 directionLoading={directionLoading}
-                marketPulse={marketPulse}
-                pulseLoading={pulseLoading}
                 gateRoute={gateRoute}
                 benchmarks={benchmarks}
-                gateRouteLoading={gateRouteLoading}
-                backtest={backtest}
-                backtestLoading={btLoading}
-                backtestRequested={btRequested}
-                onQuickSelect={handleSelectSymbol}
-                onRunBacktest={() => void runBacktest(symbol)}
+                permit={
+                  effectiveCleared(
+                    { signal: selected?.gate.signal ?? "HOLD" },
+                    skills,
+                  )
+                    ? "GRANT"
+                    : "DENY"
+                }
                 onGoTab={setTab}
                 onOpenNexus={openInNexus}
               />
