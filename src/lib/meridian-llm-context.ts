@@ -6,10 +6,17 @@ import {
   MERIDIAN_CORE_PHILOSOPHY,
   MERIDIAN_GOLDEN_RULES,
   MERIDIAN_LLM_GUARDRAILS,
+  MERIDIAN_TRUTH_LAW,
 } from "@/lib/meridian-philosophy";
+import { meridianTruthPreamble } from "@/lib/meridian-truth-guard";
 
 export function meridianLlmSystemPreamble(): string {
   return [
+    "MERIDIAN TRUTH AND VALUE (global law — all modules):",
+    MERIDIAN_TRUTH_LAW,
+    "",
+    meridianTruthPreamble(),
+    "",
     "MERIDIAN EVIDENCE RULES (mandatory):",
     MERIDIAN_CORE_PHILOSOPHY.tagline,
     `- ${MERIDIAN_CORE_PHILOSOPHY.abstention}`,

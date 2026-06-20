@@ -24,6 +24,7 @@ import {
 } from "@/lib/meridian-skill-evidence";
 import { buildTradeAutopsies } from "@/lib/meridian-trade-autopsy";
 import { buildTradeJournal } from "@/lib/meridian-trade-journal";
+import { buildMeridianTruthEnvelope } from "@/lib/meridian-truth-guard";
 import type { DemoTradeRecord } from "@/lib/demo-trading";
 import type {
   MeridianBullBearCourt,
@@ -682,6 +683,15 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     backtest: input.backtest,
   });
 
+  const truth = buildMeridianTruthEnvelope({
+    moduleId: "meridian-intelligence",
+    source: "CoinMarketCap + gate skills + wallet trades",
+    cmcLive: input.cmcLive,
+    degraded: input.degraded,
+    dataQuality: provenance.dataQuality,
+    fetchedAt: provenance.fetchedAt,
+  });
+
   return {
     schema: "meridian-intelligence/v2",
     symbol: sym,
@@ -712,6 +722,7 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     evolution: buildEvolution(input.backtest),
     tradeAutopsy,
     tradeJournal,
+    truth,
     architecture: {
       tagline: arch.tagline,
       coveragePct: arch.coveragePct,

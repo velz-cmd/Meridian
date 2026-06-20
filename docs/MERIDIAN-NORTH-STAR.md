@@ -150,4 +150,4 @@ It behaves like a **disciplined professional**, not an overconfident oracle.
 
 Implementation: `src/lib/meridian-philosophy.ts` · UI: Gate Memory tab · Agents: `AGENTS.md`
 
-See also: **[MERIDIAN Master Principles](./MERIDIAN-MASTER-PRINCIPLES.md)** — design, engineering, alignment, and do-not-delete rules.
+See also: **[MERIDIAN Master Principles](./MERIDIAN-MASTER-PRINCIPLES.md)** · **[Truth and Value Law](./MERIDIAN-TRUTH-AND-VALUE.md)**

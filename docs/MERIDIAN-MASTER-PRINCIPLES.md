@@ -2,6 +2,8 @@
 
 > **Trust is the ultimate product.**
 
+> **Global law:** [Truth and Value Principle](./MERIDIAN-TRUTH-AND-VALUE.md) — cosmetic intelligence is forbidden across every module.
+
 MERIDIAN is a world-class **market intelligence operating system**.
 
 MERIDIAN is **not** an oracle, hype machine, or signal spammer.

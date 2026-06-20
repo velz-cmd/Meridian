@@ -15,6 +15,7 @@ import { fetchBoracleUsdPrice, oracleCmcDeltaPct } from "@/lib/boracle-price";
 import { isBoracleGateSymbol } from "@/lib/boracle-testnet-feeds";
 import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
 import { GATE_SKILL_REPO, GATE_SYMBOLS, isGateSymbol } from "@/lib/gate-constants";
+import { buildMeridianTruthEnvelope } from "@/lib/meridian-truth-guard";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import {
   evaluateAllGateBenchmarks,
@@ -168,6 +169,12 @@ export async function buildGateEvaluateResponse(input: {
     track: "BNB Hack · Strategy Skills (CoinMarketCap)",
     skill: CONSTITUTION_SKILL,
     dataIntegrity: "cmc-only-no-synthetic",
+    meridianTruth: buildMeridianTruthEnvelope({
+      moduleId: "gate",
+      source: "CoinMarketCap",
+      cmcLive: eval_.cmcLive,
+      fetchedAt: new Date().toISOString(),
+    }),
     macro,
     ...eval_,
     ...(agent && eval_.permit

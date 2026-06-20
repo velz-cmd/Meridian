@@ -18,6 +18,8 @@ MERIDIAN is **not an AI predictor**. It is a **market intelligence operating sys
 
 > Truthfulness beats optimism. Prefer **WAIT** over fake certainty.
 
+> **Global law:** Cosmetic intelligence is forbidden everywhere. See [MERIDIAN-TRUTH-AND-VALUE.md](./MERIDIAN-TRUTH-AND-VALUE.md).
+
 ---
 
 ## Architecture

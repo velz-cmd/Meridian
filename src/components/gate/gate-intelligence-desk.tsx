@@ -119,6 +119,7 @@ export function GateIntelligenceDesk({
     skillEvidence,
     tradeAutopsy,
     tradeJournal,
+    truth,
   } = data;
   const maxDecay = Math.max(1, ...convictionDecay.curve.map((c) => c.value));
 
@@ -178,6 +179,9 @@ export function GateIntelligenceDesk({
                 Source: {provenance.source} · updated {provenance.freshnessLabel} · completeness{" "}
                 {provenance.dataCompletenessPct}% · quality {provenance.dataQuality}
                 {provenance.cmcLive ? " · CMC live" : " · venue/cached"}
+              </p>
+              <p className="mt-1 text-[10px] text-white/40">
+                {truth.dataIntegrity.replace(/-/g, " ")} · cosmetic intelligence forbidden
               </p>
               {provenance.staleWarning && (
                 <p className="mt-1 text-[10px] text-amber-300/90">{provenance.staleWarning}</p>

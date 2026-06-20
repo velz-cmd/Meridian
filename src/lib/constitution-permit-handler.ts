@@ -8,6 +8,7 @@ import { evaluateAllGateBenchmarks } from "@/lib/gate-benchmark-cache";
 import { gateSignalToAgentAction } from "@/lib/gate-feed-sync";
 import { CONSTITUTION_SKILL } from "@/lib/constitution-skill-meta";
 import { isGateSymbol } from "@/lib/gate-constants";
+import { buildMeridianTruthEnvelope } from "@/lib/meridian-truth-guard";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 
 export type AgentInput = { action: "BUY" | "SELL" | "HOLD"; confidence?: number; reasoning?: string };
@@ -133,6 +134,13 @@ export async function buildConstitutionResponse(input: {
       skillMeta: CONSTITUTION_SKILL,
       dataSource: "cmc-only",
       dataIntegrity: "cmc-only-no-synthetic",
+      meridianTruth: buildMeridianTruthEnvelope({
+        moduleId: "constitution",
+        source: "CoinMarketCap",
+        cmcLive: ev.cmcLive,
+        degraded: batch.degraded,
+        fetchedAt: new Date().toISOString(),
+      }),
       fieldSources: ev.sources,
       cmcLive: ev.cmcLive,
       gateDegraded: batch.degraded ?? false,

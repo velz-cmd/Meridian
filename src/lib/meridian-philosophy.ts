@@ -39,6 +39,29 @@ export const MERIDIAN_QUALITY_RULES = [
   "Never claim 95% success, 99% accuracy, or guaranteed profits",
 ] as const;
 
+/** Global MERIDIAN law — applies to every module, API, agent, and UI surface */
+export const MERIDIAN_TRUTH_LAW =
+  "Every feature must produce real value, real data, real reasoning, and real accountability — cosmetic intelligence is forbidden." as const;
+
+export const MERIDIAN_TRUTH_FORBIDDEN = [
+  "Cosmetic intelligence",
+  "Fake intelligence",
+  "Fabricated confidence",
+  "Artificial complexity",
+  "Placeholder reasoning",
+  "Pretending certainty when data is missing",
+  "Silent defaults that hide unavailable feeds",
+] as const;
+
+export const MERIDIAN_TRUTH_REQUIREMENTS = [
+  "Real data with source, timestamp, and freshness",
+  "Real reasoning traceable to skills or deterministic logic",
+  "Real accountability — losses and drawdowns visible",
+  "Honest DATA UNAVAILABLE when inputs are missing",
+  "Evidence-derived confidence — not probability of profit",
+  "LLM narration only — never invent market numbers",
+] as const;
+
 export const MERIDIAN_GOLDEN_RULES = [
   "Never hallucinate — every number must trace to a live API or deterministic skill.",
   "Never create synthetic values — if data is missing, mark DATA UNAVAILABLE.",
@@ -114,6 +137,7 @@ export const MERIDIAN_CORE_PHILOSOPHY = {
   abstention: "If evidence conflicts or data is insufficient, output WAIT or UNKNOWN.",
   automation: "Agents enforce discipline — capital preservation, not trade count.",
   accountability: "Every closed trade gets autopsy; statistics are public including losses.",
+  truthLaw: MERIDIAN_TRUTH_LAW,
 } as const;
 
 export const MERIDIAN_EXPLAINABILITY_QUESTIONS = [
@@ -154,6 +178,8 @@ export const MERIDIAN_LLM_GUARDRAILS = [
   "Do not hide losses, drawdowns, or failed trades.",
   "Prefer WAIT over optimistic language when evidence is thin.",
   "Cite CoinMarketCap or skill name for every numeric claim.",
+  "Cosmetic intelligence is forbidden — never invent value for appearance.",
+  "Placeholder reasoning is forbidden — cite skills, APIs, or mark unavailable.",
 ] as const;
 
 /** Canonical master principles — see docs/MERIDIAN-MASTER-PRINCIPLES.md */
@@ -168,6 +194,9 @@ export const MERIDIAN_MASTER_PRINCIPLES = {
   ultimateGoal: MERIDIAN_ULTIMATE_GOAL,
   qualityRules: MERIDIAN_QUALITY_RULES,
   goldenRules: MERIDIAN_GOLDEN_RULES,
+  truthLaw: MERIDIAN_TRUTH_LAW,
+  truthForbidden: MERIDIAN_TRUTH_FORBIDDEN,
+  truthRequirements: MERIDIAN_TRUTH_REQUIREMENTS,
 } as const;
 
 /** Payload philosophy block — shipped to clients */

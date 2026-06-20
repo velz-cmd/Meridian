@@ -77,7 +77,8 @@ export function MeridianIntelligencePipeline() {
         </div>
 
         <p className="mt-4 text-center font-mono text-[10px] text-white/35">
-          {summary.featureLive}/{summary.featureTotal} intelligence features live · Prefer WAIT over fake certainty ·{" "}
+          {summary.featureLive}/{summary.featureTotal} intelligence features live · Real data · No cosmetic intelligence ·{" "}
+          Prefer WAIT over fake certainty ·{" "}
           <Link href="/gate" className="text-violet-300/80 hover:underline">
             evidence engine
           </Link>

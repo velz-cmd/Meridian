@@ -4,6 +4,21 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+<!-- BEGIN:meridian-truth-law -->
+# MERIDIAN Truth and Value — GLOBAL LAW (all modules)
+
+**Read first:** `docs/MERIDIAN-TRUTH-AND-VALUE.md` · `src/lib/meridian-truth-guard.ts`
+
+This law applies to **every** present and future MERIDIAN module — Gate, NEXUS, PRISM, Analytics, agents, APIs, charts, skills, and UI. Not Gate-only.
+
+**Forbidden everywhere:** cosmetic intelligence · fake intelligence · fabricated confidence · artificial complexity · placeholder reasoning · pretending certainty.
+
+**Required everywhere:** real data (sourced + timestamped) · real reasoning (skills/deterministic logic) · real accountability · honest DATA UNAVAILABLE · evidence-derived confidence · LLM narration only for numbers.
+
+New modules must register in `MERIDIAN_ECOSYSTEM_MODULES`. New intelligence APIs must include `meridianTruth` envelope.
+
+<!-- END:meridian-truth-law -->
+
 <!-- BEGIN:meridian-evidence-rules -->
 # MERIDIAN — Evidence Engine (not oracle)
 
@@ -24,7 +39,7 @@ Full rules: `src/lib/meridian-philosophy.ts` · API: `/api/meridian/intelligence
 <!-- BEGIN:meridian-master-principles -->
 # MERIDIAN Master Principles — canonical standard
 
-Before any MERIDIAN product, UI, or intelligence change, read **`docs/MERIDIAN-MASTER-PRINCIPLES.md`**.
+Before any MERIDIAN product, UI, or intelligence change, read **`docs/MERIDIAN-MASTER-PRINCIPLES.md`** and **`docs/MERIDIAN-TRUTH-AND-VALUE.md`**.
 
 - **Trust is the ultimate product** — optimize architecture over 1,000 trades, not the next trade.
 - **Do not delete** — never remove features, skills, cards, or APIs; reorganize with progressive disclosure.
