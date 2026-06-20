@@ -17,10 +17,10 @@ export function effectiveCleared(gate: GateLike, skills?: GateSkillsPayload | nu
   return gate.signal === "ENTER_LONG";
 }
 
-/** Honest confidence — composite alignment when skills present, else gate confidence. */
-export function effectiveConfidence(gate: GateLike, skills?: GateSkillsPayload | null): number {
+/** Honest confidence — composite alignment when skills present, else gate confidence (no cosmetic 50). */
+export function effectiveConfidence(gate: GateLike, skills?: GateSkillsPayload | null): number | null {
   if (skills?.composite?.alignmentScore != null) return skills.composite.alignmentScore;
-  return gate.confidence ?? 50;
+  return gate.confidence ?? null;
 }
 
 export function constitutionOverridden(gate: GateLike, skills?: GateSkillsPayload | null): boolean {

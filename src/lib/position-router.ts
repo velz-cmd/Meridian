@@ -47,7 +47,7 @@ export type PositionRoute = {
   ok: boolean;
   symbol: string;
   direction: PositionDirection;
-  confidence: number;
+  confidence: number | null;
   verdict: string;
   sizeNote: string | null;
   method: string;
@@ -94,10 +94,10 @@ function computeConfidence(
   gate: GateOverlay | null,
   pulse: MarketPulse,
   fundingWarn: boolean,
-): number {
+): number | null {
   if (direction === "FLAT") {
-    if (gate?.signal === "ENTER_LONG") return 58;
-    return 48;
+    if (gate?.confidence != null) return Math.round(Math.min(92, Math.max(38, gate.confidence)));
+    return null;
   }
 
   let c = gate?.confidence ?? 62;

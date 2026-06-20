@@ -7,6 +7,7 @@ import { GatePermitSwap } from "@/components/gate/gate-permit-swap";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { TRADING_SETTLEMENT } from "@/lib/trading-copy";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
+import type { GatePermitStatus } from "@/lib/gate-permit-status";
 import { truncateHash } from "@/lib/utils";
 
 /** Gate strategy desk — connect any BSC wallet, then sign Chapel swaps inline or in NEXUS. */
@@ -20,7 +21,7 @@ export function GateConnectStrip({
   routerDirection,
 }: {
   symbol: string;
-  permit?: "GRANT" | "DENY";
+  permit?: GatePermitStatus;
   permitId?: string | null;
   priceUsd?: number | null;
   onOpenNexus?: () => void;
@@ -65,7 +66,7 @@ export function GateConnectStrip({
             <p className="mt-1 text-lg font-semibold text-white">{walletTbnb.toFixed(4)} tBNB</p>
             <p className="mt-1 text-xs text-white/55">
               {address ? truncateHash(address, 6, 4) : "—"} · desk {TRADING_SETTLEMENT.deskSymbols.join(" · ")} · permit{" "}
-              {granted ? "GRANT" : permit ?? "pending"}
+              {granted ? "GRANT" : permit === "WAIT" ? "WAIT" : permit ?? "pending"}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -107,6 +108,10 @@ export function GateConnectStrip({
       ) : granted && permitId && px == null ? (
         <p className="rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-xs text-white/55">
           Permit GRANT — waiting for live CMC price before inline Chapel sizing.
+        </p>
+      ) : permit === "WAIT" ? (
+        <p className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          Constitution WAIT for {symbol} — abstain · no size until evidence clears. Wallet optional for research only.
         </p>
       ) : (
         <p className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">

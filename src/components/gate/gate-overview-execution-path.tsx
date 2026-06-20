@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowUpRight, Loader2 } from "lucide-react";
+import { ArrowUpRight, Loader2, Wallet } from "lucide-react";
 import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
 import { GateCollapsibleCard } from "@/components/gate/gate-collapsible-card";
 import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
 import { GateConnectStrip } from "@/components/gate/gate-connect-strip";
 import { GatePermitArbitration } from "@/components/gate/gate-permit-arbitration";
 import type { GateArbitration } from "@/hooks/use-gate-permit";
+import type { GatePermitStatus } from "@/lib/gate-permit-status";
 import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
 import { effectiveGateSignal } from "@/lib/gate-effective-signal";
 import { GATE_PRODUCT } from "@/lib/gate-product-copy";
@@ -18,7 +19,7 @@ import { nexusGlassCta } from "@/lib/nexus-action-glass";
 import { GateSectionHead } from "@/components/gate/gate-section-head";
 import { Sparkles } from "lucide-react";
 
-/** Overview execution — instructions aligned with router verdict only. */
+/** Overview execution — router verdict primary; execution collapsed in Track 2 mode. */
 export function GateOverviewExecutionPath({
   symbol,
   selected,
@@ -36,6 +37,7 @@ export function GateOverviewExecutionPath({
   deskLabel,
   onOpenNexus,
   onOpenAutopilot,
+  track2Priority = false,
 }: {
   symbol: string;
   selected?: GateBenchmarkFull;
@@ -44,7 +46,7 @@ export function GateOverviewExecutionPath({
   directionLoading: boolean;
   gateRoute: GateRoutePayload | null;
   benchmarks: GateBenchmarkFull[];
-  permit?: "GRANT" | "DENY";
+  permit?: GatePermitStatus;
   permitId?: string | null;
   priceUsd?: number | null;
   arbitration?: GateArbitration | null;
@@ -53,14 +55,15 @@ export function GateOverviewExecutionPath({
   deskLabel: string;
   onOpenNexus: () => void;
   onOpenAutopilot?: () => void;
+  track2Priority?: boolean;
 }) {
   const exposureLabel =
     routerDirection === "FLAT"
       ? "Flat · no position"
       : positionExposureLabel(routerDirection);
 
-  return (
-    <section className="space-y-3">
+  const executionBlock = (
+    <>
       <GateConnectStrip
         symbol={symbol}
         permit={permit}
@@ -70,15 +73,6 @@ export function GateOverviewExecutionPath({
         onOpenAutopilot={onOpenAutopilot}
         routerDirection={routerDirection}
       />
-
-      {arbitration ? (
-        <GatePermitArbitration
-          symbol={symbol}
-          arbitration={arbitration}
-          granted={permit === "GRANT"}
-          priceUsd={priceUsd ?? undefined}
-        />
-      ) : null}
       <div className="gate-execution-cta flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-black/30 px-5 py-4 sm:px-6 sm:py-5">
         <div className="min-w-0">
           <GateSectionHead
@@ -117,7 +111,7 @@ export function GateOverviewExecutionPath({
             )}
           >
             <span className="flex items-center gap-1.5">
-              {routerDirection === "FLAT" || permit === "DENY"
+              {routerDirection === "FLAT" || permit === "DENY" || permit === "WAIT"
                 ? "Review in NEXUS"
                 : GATE_PRODUCT.continueTradable(symbol)}
               <ArrowUpRight className="h-4 w-4" />
@@ -125,7 +119,6 @@ export function GateOverviewExecutionPath({
           </button>
         </div>
       </div>
-
       <GateCollapsibleCard
         title="Full execution desk"
         question="Lanes · leverage · settlement"
@@ -146,7 +139,7 @@ export function GateOverviewExecutionPath({
               route={positionRoute}
               loading={directionLoading}
               deskSignal={selected ? effectiveGateSignal(selected.gate, skills) : undefined}
-              permit={permit}
+              permit={permit === "WAIT" ? undefined : permit}
               compact
             />
             <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact strategyOnly />
@@ -154,6 +147,34 @@ export function GateOverviewExecutionPath({
           </div>
         )}
       </GateCollapsibleCard>
+    </>
+  );
+
+  return (
+    <section className="space-y-3">
+      {arbitration ? (
+        <GatePermitArbitration
+          symbol={symbol}
+          arbitration={arbitration}
+          granted={permit === "GRANT"}
+          priceUsd={priceUsd ?? undefined}
+        />
+      ) : null}
+
+      {track2Priority ? (
+        <GateCollapsibleCard
+          title="Optional execution"
+          question="Not Track 2 deliverable"
+          icon={Wallet}
+          accent="border-white/10"
+          summary="BSC Testnet Chapel settlement · any wallet · progressive disclosure only."
+          defaultOpen={false}
+        >
+          {executionBlock}
+        </GateCollapsibleCard>
+      ) : (
+        executionBlock
+      )}
     </section>
   );
 }

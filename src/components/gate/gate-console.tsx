@@ -27,6 +27,12 @@ import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { trackMeridianEvent } from "@/lib/product-analytics-client";
 import { type GateSymbol } from "@/lib/gate-constants";
 import { buildGateExecutionUrl } from "@/lib/gate-nexus-bridge";
+import { GateCmcSkillStrip } from "@/components/gate/gate-cmc-skill-strip";
+import { GateCheckRadar } from "@/components/gate/gate-check-radar";
+import { GateStrategyLive } from "@/components/gate/gate-strategy-live";
+import { GateTimeframeDesk } from "@/components/gate/gate-timeframe-desk";
+import { resolveGatePermitStatus } from "@/lib/gate-permit-status";
+import { isTrack2PriorityMode, TRACK2_WALLET_PRINCIPLE } from "@/lib/meridian-track2-mode";
 import { effectiveCleared } from "@/lib/gate-effective-signal";
 import {
   clampGateLeverage,
@@ -58,6 +64,7 @@ type BacktestPayload = {
 
 export function GateConsole() {
   const router = useRouter();
+  const track2Priority = isTrack2PriorityMode();
   const userPickedSymbol = useRef<GateSymbol | null>(null);
   const [symbol, setSymbol] = useState<GateSymbol>("CAKE");
   const [tab, setTab] = useState<GateDeskTab>("overview");
@@ -97,6 +104,7 @@ export function GateConsole() {
 
   const skills = selected?.skills as GateSkillsPayload | undefined;
   const judgeConsensus = useMemo(() => extractJudgeConsensus(selected?.skills as GateSkillsPayload), [selected?.skills]);
+  const permitStatus = resolveGatePermitStatus(judgeConsensus);
   const cmcLive = benchmarks.some((b) => b.cmcLive);
   const { pulse: marketPulse, loading: pulseLoading } = useMarketPulse(symbol, 90_000);
   const { data: intelligence, loading: intelLoading, error: intelError, reload: reloadIntel } = useMeridianIntelligence(symbol, 120_000);
@@ -136,7 +144,7 @@ export function GateConsole() {
           : "DENY";
       const direction = positionRoute?.direction ?? "FLAT";
       const leverage = clampGateLeverage(2);
-      const confidence = positionRoute?.confidence ?? bench?.gate.confidence ?? 50;
+      const confidence = positionRoute?.confidence ?? bench?.gate.confidence ?? undefined;
       const autopilot = Boolean(opts?.autopilot ?? (permit === "GRANT" && direction === "LONG"));
       const action = autopilot ? "agent" : permit === "GRANT" && direction === "LONG" ? "buy" : "sell";
 
@@ -148,7 +156,7 @@ export function GateConsole() {
         permit: permit as "GRANT" | "DENY",
         autoStart: autopilot,
         confidence,
-        suggestedTbnb: computeGateSpendTbnb(0.05, leverage, confidence, direction),
+        suggestedTbnb: computeGateSpendTbnb(0.05, leverage, confidence ?? 0, direction),
       });
 
       const url = buildGateExecutionUrl({
@@ -236,6 +244,12 @@ export function GateConsole() {
           </div>
         )}
 
+        {track2Priority && (
+          <p className="mb-4 rounded-xl border border-cyan-400/20 bg-cyan-950/20 px-4 py-3 text-xs text-white/60">
+            Track 2 priority mode · CMC Strategy Skill surface · {TRACK2_WALLET_PRINCIPLE}
+          </p>
+        )}
+
         <div className="gate-desk-main">
           <GateConfigPanel
             symbol={symbol}
@@ -267,17 +281,10 @@ export function GateConsole() {
                 directionLoading={directionLoading}
                 gateRoute={gateRoute}
                 benchmarks={benchmarks}
-                permit={
-                  gatePermit.permitStatus ??
-                  (effectiveCleared(
-                    { signal: selected?.gate.signal ?? "HOLD" },
-                    skills,
-                  )
-                    ? "GRANT"
-                    : "DENY")
-                }
+                permit={permitStatus}
                 permitId={gatePermit.permitId}
                 arbitration={gatePermit.arbitration}
+                track2Priority={track2Priority}
                 onGoTab={setTab}
                 onOpenNexus={openNexusManual}
                 onOpenAutopilot={openGateAutopilot}
@@ -298,6 +305,7 @@ export function GateConsole() {
 
             {tab === "technical" && selected && (
               <div className="gate-v2-stack space-y-6">
+                <GateTimeframeDesk evidence={intelligence?.directionEvidence} loading={intelLoading} />
                 {skills && <GateTechnicalChambers skills={skills} intelligence={intelligence} />}
                 <GateCollapsibleCard
                   title="Bull vs Bear debate"
@@ -330,18 +338,56 @@ export function GateConsole() {
 
             {tab === "rules" && (
               <div className="gate-v2-stack space-y-6">
-                <GateConnectStrip
-                  symbol={symbol}
-                  permit={
-                    gatePermit.permitStatus ??
-                    (effectiveCleared({ signal: selected?.gate.signal ?? "HOLD" }, skills) ? "GRANT" : "DENY")
-                  }
-                  permitId={gatePermit.permitId}
-                  priceUsd={selected?.market.price}
-                  onOpenNexus={openNexusManual}
-                  onOpenAutopilot={openGateAutopilot}
-                  routerDirection={positionRoute?.direction ?? "FLAT"}
-                />
+                {selected && (
+                  <>
+                    <GateCmcSkillStrip selected={selected} cmcLive={cmcLive} skills={skills} />
+                    <GateCollapsibleCard
+                      title="Constitution checks"
+                      question="Which rules pass on this bar?"
+                      kicker="Rules & spec · live bar"
+                      summary={
+                        selected.gate.checksPassed != null
+                          ? `${selected.gate.checksPassed}/${selected.gate.checksTotal ?? 9} checks · tier ${selected.gate.tier}`
+                          : "Live constitution radar"
+                      }
+                      defaultOpen={false}
+                    >
+                      <GateCheckRadar
+                        checks={selected.gate.checks ?? []}
+                        confidence={selected.gate.confidence ?? undefined}
+                      />
+                    </GateCollapsibleCard>
+                    <GateStrategyLive
+                      symbol={symbol}
+                      loading={gateRouteLoading}
+                      error={routeError}
+                      gate={{
+                        signal: selected.gate.signal,
+                        tier: selected.gate.tier,
+                        regime: selected.gate.regime,
+                        thesis: selected.gate.thesis ?? skills?.composite?.thesis ?? "Awaiting live evaluation.",
+                        checksPassed: selected.gate.checksPassed,
+                        checksTotal: selected.gate.checksTotal,
+                      }}
+                      price={selected.market.price}
+                      change24h={selected.market.change24h}
+                      cmcLive={selected.cmcLive}
+                      positionLabel={positionRoute?.direction === "LONG" ? "LONG" : "FLAT"}
+                      onOpenNexus={track2Priority ? undefined : openNexusManual}
+                    />
+                  </>
+                )}
+                {!track2Priority && (
+                  <GateConnectStrip
+                    symbol={symbol}
+                    permit={permitStatus}
+                    permitId={gatePermit.permitId}
+                    priceUsd={selected?.market.price}
+                    onOpenNexus={openNexusManual}
+                    onOpenAutopilot={openGateAutopilot}
+                    routerDirection={positionRoute?.direction ?? "FLAT"}
+                  />
+                )}
                 <GateCmcArchitecturePanel />
                 <GateStrategySpec />
                 <GateOutputPanel

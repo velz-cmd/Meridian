@@ -64,7 +64,8 @@ export function GateTechnicalPanel({
   const passedWeight = checks.filter((c) => c.pass).reduce((s, c) => s + c.weight, 0);
   const totalWeight = checks.reduce((s, c) => s + c.weight, 0);
   const agreementPct = totalWeight > 0 ? Math.round((passedWeight / totalWeight) * 100) : 0;
-  const verdictConfidence = gate.confidence ?? skills?.composite.alignmentScore ?? agreementPct;
+  const verdictConfidence =
+    gate.confidence ?? skills?.composite.alignmentScore ?? (totalWeight > 0 ? agreementPct : null);
   const signalRows = buildGateSignalMeter(selected, route, skills);
   const rsi = selected.market.rsi ?? skills?.momentum?.metrics?.rsi;
   const macd = selected.market.macdSignal ?? skills?.momentum?.metrics?.macd;

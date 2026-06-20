@@ -3,7 +3,7 @@ import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 
 export type GateSignalRow = {
   name: string;
-  value: number;
+  value: number | null;
   max: number;
   direction: string;
   bull: boolean;
@@ -46,11 +46,11 @@ export function buildGateSignalMeter(
   const totalWeight = checks.reduce((s, c) => s + c.weight, 0);
   const agreementPct = totalWeight > 0 ? Math.round((passedWeight / totalWeight) * 100) : 0;
 
-  const fng = route?.fearGreed ?? m.fearGreed ?? skills?.momentum.metrics?.fearGreed ?? 50;
-  const fngMeta = fngDirection(fng);
+  const fngRaw = route?.fearGreed ?? m.fearGreed ?? skills?.momentum.metrics?.fearGreed ?? null;
+  const fngMeta = fngRaw != null ? fngDirection(fngRaw) : { direction: "DATA UNAVAILABLE", bull: false };
 
-  const rsi = m.rsi ?? skills?.momentum.metrics?.rsi ?? 50;
-  const rsiMeta = rsiDirection(rsi);
+  const rsiRaw = m.rsi ?? skills?.momentum.metrics?.rsi ?? null;
+  const rsiMeta = rsiRaw != null ? rsiDirection(rsiRaw) : { direction: "DATA UNAVAILABLE", bull: false };
 
   const macd = macdScore(m.macdSignal ?? skills?.momentum.metrics?.macd);
 
@@ -80,14 +80,14 @@ export function buildGateSignalMeter(
   return [
     {
       name: "Fear & Greed",
-      value: Math.round(fng),
+      value: fngRaw != null ? Math.round(fngRaw) : null,
       max: 100,
       direction: fngMeta.direction,
       bull: fngMeta.bull,
     },
     {
       name: "RSI (14)",
-      value: Math.round(rsi),
+      value: rsiRaw != null ? Math.round(rsiRaw) : null,
       max: 100,
       direction: rsiMeta.direction,
       bull: rsiMeta.bull,

@@ -9,7 +9,7 @@ export function GateVerdictBlock({
   thesis,
 }: {
   signal: string;
-  confidence: number;
+  confidence: number | null;
   regime?: string;
   thesis?: string;
 }) {
@@ -41,7 +41,7 @@ export function GateVerdictBlock({
               {label}
             </p>
             <p className="gate-verdict-conf">
-              Confidence {confidence}% · {(regime ?? "unknown").replace(/-/g, " ")} regime
+              Confidence {confidence != null ? `${confidence}%` : "—"} · {(regime ?? "unknown").replace(/-/g, " ")} regime
             </p>
             <p className="gate-verdict-reason">{thesis ?? reason}</p>
           </div>

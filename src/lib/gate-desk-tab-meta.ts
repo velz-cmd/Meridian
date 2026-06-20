@@ -27,8 +27,8 @@ const TAB_META_RAW: GateDeskTabMeta[] = [
     shortLabel: "Overview",
     rank: 1,
     tier: "primary",
-    question: "Should I care?",
-    features: ["Verdict", "Thesis", "Constitution", "Narrative", "Execution"],
+    question: "What should I do on my horizon?",
+    features: ["Router verdict", "Thesis", "Court", "Constitution", "Memory compact"],
     skills: ["Composite conviction"],
   },
   {
@@ -47,8 +47,8 @@ const TAB_META_RAW: GateDeskTabMeta[] = [
     shortLabel: "Technical",
     rank: 2,
     tier: "secondary",
-    question: "Why does MERIDIAN believe this?",
-    features: ["Bull vs Bear", "Chambers", "Skill evidence"],
+    question: "Why? Who disagrees?",
+    features: ["Timeframe desk", "Bull vs Bear", "Chambers", "Skill evidence"],
     skills: ["Momentum", "Regime", "RS", "Liquidity", "Sentiment", "Volatility"],
   },
   {
@@ -57,8 +57,8 @@ const TAB_META_RAW: GateDeskTabMeta[] = [
     shortLabel: "Rules",
     rank: 3,
     tier: "tertiary",
-    question: "How does MERIDIAN think?",
-    features: ["Constitution", "Weighting", "Risk rules", "CMC sources"],
+    question: "What are the backtestable rules?",
+    features: ["STRATEGY_SPEC", "CMC skills", "Live output", "Constitution checks"],
     skills: ["Gate checks", "Permit engine"],
   },
   {
@@ -67,8 +67,8 @@ const TAB_META_RAW: GateDeskTabMeta[] = [
     shortLabel: "Replay",
     rank: 3,
     tier: "tertiary",
-    question: "What would MERIDIAN have done?",
-    features: ["Timeline", "Equity curve", "Constitution proof"],
+    question: "Does the spec hold historically?",
+    features: ["Equity curve", "Constitution vs naive", "CLI reproduce"],
     skills: ["Backtest replay"],
   },
 ];

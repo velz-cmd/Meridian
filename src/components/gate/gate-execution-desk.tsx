@@ -64,7 +64,7 @@ export function GateExecutionDesk({
   const chapelProxy = CHAPEL_GATE_PROXY[sym] ?? null;
   const settlementSym = chapelProxySymbol(sym) ?? sym;
   const routeDir = route?.direction ?? "FLAT";
-  const confidence = route?.confidence ?? route?.gate?.confidence ?? 50;
+  const confidence = route?.confidence ?? route?.gate?.confidence ?? null;
 
   const [direction, setDirection] = useState<PositionDirection>(routeDir);
   const [leverage, setLeverage] = useState(2);
@@ -75,7 +75,7 @@ export function GateExecutionDesk({
 
   const derivatives = route?.derivatives;
   const suggestedTbnb = useMemo(
-    () => computeGateSpendTbnb(0.05, leverage, confidence, direction),
+    () => computeGateSpendTbnb(0.05, leverage, confidence ?? 0, direction),
     [leverage, confidence, direction],
   );
 
@@ -91,7 +91,7 @@ export function GateExecutionDesk({
         permit: resolvedPermit,
         permitId,
         autoStart,
-        confidence,
+        confidence: confidence ?? undefined,
         suggestedTbnb,
       });
       router.push(
@@ -213,7 +213,7 @@ export function GateExecutionDesk({
             ))}
           </div>
           <p className="mt-2 text-[10px] leading-relaxed text-white/40">
-            Sizes spot desk on NEXUS (~{suggestedTbnb.toFixed(4)} tBNB template at {confidence}% conf). Binance
+            Sizes spot desk on NEXUS (~{suggestedTbnb.toFixed(4)} tBNB template at {confidence != null ? `${confidence}%` : "—"} conf). Binance
             perp not on Chapel — funding/OI is macro context only.
           </p>
           {derivatives && (

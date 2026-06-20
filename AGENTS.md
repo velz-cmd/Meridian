@@ -92,3 +92,16 @@ When editing intelligence, copy, LLM prompts, or Gate accountability surfaces:
 - **Overview ONE TRUTH** = position router verdict; decision scores explain on Technical tab only.
 - **WAIT / UNKNOWN / FLAT** are valid. Trade quality > trade frequency.
 <!-- END:meridian-decision-engine -->
+
+<!-- BEGIN:meridian-track2-priority -->
+# MERIDIAN Track 2 Priority Mode
+
+When `NEXT_PUBLIC_MERIDIAN_TRACK2_PRIORITY=1`:
+
+- Gate = CMC Strategy Skill product surface; execution is secondary (progressive disclosure only).
+- Overview = position router ONE TRUTH; sub-tabs explain — never compete.
+- Multi-TF desk shows honest live/planned/DATA UNAVAILABLE labels until bars exist.
+- Wallets carry intelligence; they never own it.
+
+Full roadmap: `docs/MERIDIAN-ROADMAP-2026.md` · constants: `src/lib/meridian-track2-mode.ts`
+<!-- END:meridian-track2-priority -->
