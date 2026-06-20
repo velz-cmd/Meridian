@@ -78,7 +78,7 @@ export async function buildBnbAnalyticsPayload(): Promise<BnbAnalyticsPayload> {
   }
 
   return {
-    brand: "MERIDIAN · BNB Hack Track 2",
+    brand: "MERIDIAN",
     track: "Strategy Skills (CoinMarketCap) + BSC Testnet execution",
     generatedAt: new Date().toISOString(),
     live: {

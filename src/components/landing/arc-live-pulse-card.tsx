@@ -6,26 +6,36 @@ import { Loader2, Radio, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 
-type GateStatusPayload = {
-  ok?: boolean;
-  route?: { allocation?: { primary?: string }; regime?: string };
-  benchmarks?: { symbol: string; permit?: string; signal?: string }[];
+type GateRoutePayload = {
+  route?: { allocation?: { primary?: string | null }; regime?: string };
+  benchmarks?: { symbol: string; permit?: string }[];
+  degraded?: boolean;
 };
 
-/** Live gate pulse from /api/gate/status — no hardcoded marketing numbers. */
+/** Live strategy pulse from /api/gate/route — no hardcoded marketing numbers. */
 export function ArcLivePulseCard() {
-  const [data, setData] = useState<GateStatusPayload | null>(null);
+  const [data, setData] = useState<GateRoutePayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/gate/status", { cache: "no-store" })
-      .then((r) => r.json() as Promise<GateStatusPayload>)
+    void fetch("/api/gate/route", { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error("route unavailable");
+        return r.json() as Promise<GateRoutePayload>;
+      })
       .then((j) => {
-        if (!cancelled) setData(j);
+        if (!cancelled) {
+          setData(j);
+          setError(false);
+        }
       })
       .catch(() => {
-        if (!cancelled) setData(null);
+        if (!cancelled) {
+          setData(null);
+          setError(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -50,23 +60,33 @@ export function ArcLivePulseCard() {
       <div className="flex items-center gap-3">
         <ArcIcon3d icon={Zap} theme="home" size="sm" />
         <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-wider text-white/45">Gate desk · live</p>
+          <p className="text-[10px] uppercase tracking-wider text-white/45">Strategy · live</p>
           {loading ? (
             <p className="flex items-center gap-1.5 text-sm text-white/60">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing CMC…
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing…
             </p>
-          ) : data?.ok && lead ? (
+          ) : error ? (
+            <p className="text-sm text-white/50">Live scan unavailable</p>
+          ) : lead ? (
             <>
-              <p className="text-sm font-medium text-white">Lead {lead}</p>
-              <p className="font-mono text-[10px] text-emerald-400">
-                {regime ?? "regime —"} · {grants}/{benchCount || "—"} permits GRANT
+              <p className="text-sm font-medium text-white">Lead · {lead}</p>
+              <p className="font-mono text-[10px] text-white/45">
+                {regime?.replace(/-/g, " ") ?? "regime —"} · {grants}/{benchCount || "—"} cleared
               </p>
             </>
           ) : (
-            <p className="text-sm text-amber-200/90">DATA UNAVAILABLE</p>
+            <>
+              <p className="text-sm text-white/70">All symbols on hold</p>
+              <p className="font-mono text-[10px] text-white/45">
+                {regime?.replace(/-/g, " ") ?? "Awaiting ranking"} · {grants}/{benchCount || "—"} cleared
+              </p>
+            </>
           )}
+          {data?.degraded ? (
+            <p className="mt-0.5 text-[10px] text-white/35">Using cached quotes</p>
+          ) : null}
           <Link href="/gate" className="mt-1 inline-flex items-center gap-1 text-[10px] text-cyan-300/90 hover:underline">
-            <Radio className="h-3 w-3" /> Open strategy desk
+            <Radio className="h-3 w-3" /> Open Strategy desk
           </Link>
         </div>
       </div>

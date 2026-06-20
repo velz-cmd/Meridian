@@ -5,7 +5,6 @@ import {
   ArcSystemsShowcase,
 } from "@/components/landing/arc-home-sections";
 import { MeridianIntelligencePipeline } from "@/components/shared/meridian-intelligence-pipeline";
-import { MeridianSkillArchitectureHero } from "@/components/shared/meridian-skill-architecture-hero";
 
 export default function HomePage() {
   return (
@@ -14,7 +13,6 @@ export default function HomePage() {
       <div className="relative">
         <ArcEcosystemHero />
         <MeridianIntelligencePipeline />
-        <MeridianSkillArchitectureHero />
         <ArcSystemsShowcase />
         <ArcHomeFooter />
       </div>

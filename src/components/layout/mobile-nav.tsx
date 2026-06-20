@@ -5,13 +5,13 @@ import { usePathname } from "next/navigation";
 import { Home, LineChart, Menu, Scale, Sparkles, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { MERIDIAN_BUILT_FOR } from "@/lib/meridian-brand";
+import { MERIDIAN_MODULES, MERIDIAN_NAME } from "@/lib/meridian-brand";
 
 const links = [
   { href: "/", label: "Home", icon: Home, desc: "Overview" },
-  { href: "/gate", label: "Strategy", icon: Scale, desc: "CMC strategy skill" },
-  { href: "/nexus", label: "NEXUS", icon: Zap, desc: "AI trading agent" },
-  { href: "/prism", label: "PRISM", icon: LineChart, desc: "Macro forecasts" },
+  { href: "/gate", label: "Strategy", icon: Scale, desc: "Rules and replay" },
+  { href: "/nexus", label: "NEXUS", icon: Zap, desc: "Trade desk" },
+  { href: "/prism", label: "PRISM", icon: LineChart, desc: "Coming soon" },
 ] as const;
 
 export function MobileNav() {
@@ -84,7 +84,7 @@ export function MobileNav() {
           </nav>
 
           <p className="border-t border-white/10 px-5 py-4 text-center text-[11px] text-white/40">
-            MERIDIAN · {MERIDIAN_BUILT_FOR}
+            {MERIDIAN_NAME} · {MERIDIAN_MODULES}
           </p>
         </div>
       )}

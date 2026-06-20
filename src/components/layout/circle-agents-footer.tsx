@@ -28,7 +28,6 @@ export function CircleAgentsFooter({ className = "" }: { className?: string }) {
       >
         x402
       </a>
-      {" · USDC on Arc Testnet"}
     </p>
   );
 }

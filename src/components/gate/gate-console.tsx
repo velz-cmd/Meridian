@@ -36,7 +36,7 @@ import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
 import { deskDirectionLabel } from "@/lib/gate-desk-labels";
 import { effectiveGateSignal } from "@/lib/gate-effective-signal";
 import { resolveGatePermitStatus } from "@/lib/gate-permit-status";
-import { isTrack2PriorityMode, TRACK2_WALLET_PRINCIPLE } from "@/lib/meridian-track2-mode";
+import { isTrack2PriorityMode } from "@/lib/meridian-track2-mode";
 import { effectiveCleared } from "@/lib/gate-effective-signal";
 import {
   clampGateLeverage,
@@ -242,12 +242,6 @@ export function GateConsole() {
               Retry scan
             </button>
           </div>
-        )}
-
-        {track2Priority && (
-          <p className="mb-4 rounded-xl border border-cyan-400/20 bg-cyan-950/20 px-4 py-3 text-xs text-white/60">
-            Track 2 priority mode · CMC Strategy Skill surface · {TRACK2_WALLET_PRINCIPLE}
-          </p>
         )}
 
         <div className="gate-desk-main">

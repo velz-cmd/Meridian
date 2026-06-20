@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { BnbAnalyticsDashboard } from "@/components/analytics/bnb-analytics-dashboard";
 
 export const metadata: Metadata = {
-  title: "MERIDIAN · BNB Hack analytics",
+  title: "MERIDIAN · Analytics",
   description:
-    "Live traction dashboard — CMC gate scans, BSC Testnet Chapel swaps, Dune on-chain metrics, and platform usage for BNB Hack judges.",
+    "Product telemetry — gate scans, testnet trades, API usage, and platform activity.",
   openGraph: {
-    title: "MERIDIAN BNB analytics",
-    description: "Public stats for Strategy Skills track + BSC Testnet execution.",
+    title: "MERIDIAN analytics",
+    description: "Public usage and execution stats for the MERIDIAN platform.",
   },
 };
 

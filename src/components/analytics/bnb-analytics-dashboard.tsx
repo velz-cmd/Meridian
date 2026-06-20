@@ -91,7 +91,7 @@ export function BnbAnalyticsDashboard() {
           <div>
             <div className="mb-2 flex items-center gap-2">
               <ArcIcon3d icon={BarChart3} theme="nexus" size="sm" />
-              <p className="arc-caption text-cyan-300/85">BNB Hack · Live traction</p>
+              <p className="arc-caption text-cyan-300/85">Product analytics</p>
             </div>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               MERIDIAN <span className="text-white/55">analytics</span>

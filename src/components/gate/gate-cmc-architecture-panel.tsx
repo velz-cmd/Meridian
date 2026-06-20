@@ -6,7 +6,6 @@ import {
   MERIDIAN_FEATURE_COVERAGE,
   summarizeArchitectureCoverage,
 } from "@/lib/meridian-architecture";
-import { MERIDIAN_GOLDEN_RULES } from "@/lib/meridian-philosophy";
 import { cn } from "@/lib/utils";
 
 const SOURCE_STYLE = {
@@ -31,23 +30,14 @@ export function GateCmcArchitecturePanel({ compact = false }: { compact?: boolea
     <section className="rounded-2xl border border-cyan-400/15 bg-gradient-to-br from-cyan-950/20 to-black/40 overflow-hidden">
       <div className="border-b border-white/[0.06] px-4 py-4 sm:px-5">
         <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-300/90">
-          Track 2 architecture · CMC → MERIDIAN
+          How it works · CMC → MERIDIAN
         </p>
         <h2 className="mt-1 text-lg font-semibold text-white">
           {summary.tagline}
         </h2>
         <p className="mt-2 max-w-3xl text-sm text-white/55">
-          ~{summary.coveragePct}% of the intelligence stack is live — {summary.cmcSkillCount} CMC-backed skills feed
-          MERIDIAN reasoning, memory, and stress layers. Not another indicator dashboard.
+          {summary.cmcSkillCount} CMC-backed skills feed MERIDIAN reasoning, memory, and stress layers.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2 font-mono text-[10px]">
-          <span className="rounded-full border border-cyan-400/30 px-2 py-0.5 text-cyan-200">
-            {summary.featureLive}/{summary.featureTotal} features live
-          </span>
-          <span className="rounded-full border border-violet-400/30 px-2 py-0.5 text-violet-200">
-            {summary.cmcSkillCount} CMC skills
-          </span>
-        </div>
       </div>
 
       <div className={cn("grid gap-3 p-4 sm:p-5", compact ? "lg:grid-cols-2" : "lg:grid-cols-3")}>
@@ -105,14 +95,6 @@ export function GateCmcArchitecturePanel({ compact = false }: { compact?: boolea
             CMC cannot provide alone: smart-money wallets, orderbook depth, liquidations — MERIDIAN uses honest CMC
             proxies and labels sources on every skill.
           </p>
-          <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/25 px-3 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">Golden rules</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-4 text-[10px] text-white/45">
-              {MERIDIAN_GOLDEN_RULES.map((r) => (
-                <li key={r}>{r}</li>
-              ))}
-            </ol>
-          </div>
         </div>
       )}
     </section>
