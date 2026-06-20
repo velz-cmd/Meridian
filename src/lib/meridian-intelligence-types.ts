@@ -1,4 +1,5 @@
 /** MERIDIAN Market Memory Engine — unified intelligence payload */
+import type { MeridianTradeJournal } from "@/lib/meridian-trade-journal";
 
 import type { MeridianSkillEvidence } from "@/lib/meridian-skill-evidence";
 import type { MeridianDataQuality, MeridianVerdict } from "@/lib/meridian-philosophy";
@@ -197,6 +198,7 @@ export type MeridianIntelligencePayload = {
   marketMemory: MeridianMemoryMatch[];
   evolution: MeridianEvolutionHint | null;
   tradeAutopsy: MeridianTradeAutopsy[];
+  tradeJournal: MeridianTradeJournal;
   architecture: {
     tagline: string;
     coveragePct: number;

@@ -34,3 +34,16 @@ When editing `/gate`, `src/components/gate/**`, or MERIDIAN desk surfaces:
 6. **Data honesty:** live CMC labels, symbol-scoped intelligence, DATA UNAVAILABLE when missing, testnet execution disclosed.
 7. Typography: hero `text-4xl`, calm borders `white/[0.08]`, minimal mono — see design doc tokens.
 <!-- END:meridian-design-v2 -->
+
+<!-- BEGIN:meridian-north-star -->
+# MERIDIAN North Star — trust is the product
+
+When editing intelligence, copy, LLM prompts, or Gate accountability surfaces:
+
+1. Read **`docs/MERIDIAN-NORTH-STAR.md`** and **`src/lib/meridian-philosophy.ts`** first.
+2. **Optimize for trust over 1,000 trades** — not excitement on the next trade.
+3. **Never promise high accuracy** — show bull-bear spread, data quality, losses, and drawdowns.
+4. **WAIT and UNKNOWN are valid** — no trade beats a bad trade; reduce frequency, increase selectivity.
+5. **Accountability is mandatory** — trade journal + autopsy on Memory tab; never hide failures.
+6. **Daily value loop:** morning brief / court / twin → intraday updates → post-trade autopsy & stats.
+<!-- END:meridian-north-star -->

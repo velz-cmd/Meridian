@@ -12,8 +12,8 @@ import {
 } from "@/lib/meridian-intelligence-data";
 import { summarizeArchitectureCoverage } from "@/lib/meridian-architecture";
 import {
-  MERIDIAN_EXPLAINABILITY_QUESTIONS,
   MERIDIAN_GOLDEN_RULES,
+  MERIDIAN_PHILOSOPHY_BULLETS,
   assessDataQuality,
   resolveMeridianVerdict,
 } from "@/lib/meridian-philosophy";
@@ -23,6 +23,7 @@ import {
   type MeridianSkillEvidence,
 } from "@/lib/meridian-skill-evidence";
 import { buildTradeAutopsies } from "@/lib/meridian-trade-autopsy";
+import { buildTradeJournal } from "@/lib/meridian-trade-journal";
 import type { DemoTradeRecord } from "@/lib/demo-trading";
 import type {
   MeridianBullBearCourt,
@@ -90,7 +91,7 @@ export type IntelligenceInput = {
   trades?: DemoTradeRecord[];
 };
 
-const PHILOSOPHY = MERIDIAN_EXPLAINABILITY_QUESTIONS.map((q) => `${q}`);
+const PHILOSOPHY = [...MERIDIAN_PHILOSOPHY_BULLETS];
 
 function clamp(n: number, lo = 0, hi = 100) {
   return Math.max(lo, Math.min(hi, n));
@@ -674,6 +675,13 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     consensus,
   });
 
+  const tradeJournal = buildTradeJournal({
+    symbol: sym,
+    trades: input.trades ?? [],
+    autopsies: tradeAutopsy,
+    backtest: input.backtest,
+  });
+
   return {
     schema: "meridian-intelligence/v2",
     symbol: sym,
@@ -703,6 +711,7 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     marketMemory: memory,
     evolution: buildEvolution(input.backtest),
     tradeAutopsy,
+    tradeJournal,
     architecture: {
       tagline: arch.tagline,
       coveragePct: arch.coveragePct,

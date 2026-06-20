@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { MeridianIntelligencePayload } from "@/lib/meridian-intelligence-types";
 import { GateMarketTimeline } from "@/components/gate/gate-market-timeline";
+import { GateTradeJournalPanel } from "@/components/gate/gate-trade-journal-panel";
 import { cn } from "@/lib/utils";
 
 function Card({
@@ -117,6 +118,7 @@ export function GateIntelligenceDesk({
     provenance,
     skillEvidence,
     tradeAutopsy,
+    tradeJournal,
   } = data;
   const maxDecay = Math.max(1, ...convictionDecay.curve.map((c) => c.value));
 
@@ -415,25 +417,11 @@ export function GateIntelligenceDesk({
         </Card>
       )}
 
-      {tradeAutopsy.length > 0 && shows(view, "memory", "full") && (
-        <Card title="Trade Autopsy" icon={Scale} accent="border-violet-400/20">
-          <p className="mb-2 text-[10px] text-white/45">Expected vs actual — suggestions only, no auto-mutation.</p>
-          <ul className="space-y-2">
-            {tradeAutopsy.map((t) => (
-              <li key={t.tradeId} className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2 text-[11px]">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-mono text-violet-200">{t.tradeId.slice(0, 8)}</span>
-                  <span className="uppercase text-white/50">{t.outcome}</span>
-                </div>
-                <p className="mt-1 text-white/70">{t.lesson}</p>
-                {t.failedSkills.length > 0 && (
-                  <p className="mt-1 text-rose-300/80">Failed skills: {t.failedSkills.join(", ")}</p>
-                )}
-                <p className="mt-1 text-white/40">{t.suggestedImprovement}</p>
-              </li>
-            ))}
-          </ul>
-        </Card>
+      {shows(view, "memory", "full") && (
+        <GateTradeJournalPanel
+          journal={tradeJournal}
+          autopsies={tradeAutopsy.filter((a) => a.symbol === data.symbol)}
+        />
       )}
 
       {shows(view, "rules", "full") && (
