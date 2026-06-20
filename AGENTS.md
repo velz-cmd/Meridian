@@ -21,12 +21,27 @@ Golden rules: never hallucinate, never fabricate missing data, cite sources, pre
 Full rules: `src/lib/meridian-philosophy.ts` · API: `/api/meridian/intelligence`
 <!-- END:meridian-evidence-rules -->
 
+<!-- BEGIN:meridian-master-principles -->
+# MERIDIAN Master Principles — canonical standard
+
+Before any MERIDIAN product, UI, or intelligence change, read **`docs/MERIDIAN-MASTER-PRINCIPLES.md`**.
+
+- **Trust is the ultimate product** — optimize architecture over 1,000 trades, not the next trade.
+- **Do not delete** — never remove features, skills, cards, or APIs; reorganize with progressive disclosure.
+- **Design:** powerful underneath, calm on surface; one question per card; verdict/thesis primary, metrics tertiary.
+- **Engineering:** world-class polish — alignment, consistency, performance without sacrificing capability.
+- **Data:** never fabricate; truth over confidence; WAIT/UNKNOWN valid.
+- **Originality:** learn from Apple, Bloomberg, Linear, Stripe, etc. — apply principles, build uniquely MERIDIAN.
+
+Full constants: `src/lib/meridian-philosophy.ts` (`MERIDIAN_MASTER_PRINCIPLES`)
+<!-- END:meridian-master-principles -->
+
 <!-- BEGIN:meridian-design-v2 -->
 # MERIDIAN Gate UI — Design System V2
 
 When editing `/gate`, `src/components/gate/**`, or MERIDIAN desk surfaces:
 
-1. Read **`docs/MERIDIAN-DESIGN-V2.md`** first.
+1. Read **`docs/MERIDIAN-MASTER-PRINCIPLES.md`** and **`docs/MERIDIAN-DESIGN-V2.md`** first.
 2. **Never delete** skills, cards, metrics, tabs, or APIs — reorganize with progressive disclosure only.
 3. **One question per card.** Default = executive summary (score + stance + reason). Expand = full metrics.
 4. Use **`GateSkillLayerCard`** + **`buildGateSkillLayers()`** for skill UI — not dense metric grids in collapsed state.

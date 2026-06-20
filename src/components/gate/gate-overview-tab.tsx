@@ -17,6 +17,7 @@ import type { MarketPulse } from "@/lib/market-pulse";
 import type { PositionRoute } from "@/lib/position-router";
 import { effectiveGateSignal } from "@/lib/gate-effective-signal";
 import { GATE_SYMBOL_LABELS } from "@/lib/gate-constants";
+import { getGateDeskTabMeta } from "@/lib/gate-desk-tab-meta";
 import { cn } from "@/lib/utils";
 
 function formatGatePrice(price: number): string {
@@ -200,7 +201,9 @@ export function GateOverviewTab({
           <p className="mt-3 text-xs leading-relaxed text-white/50">{intel.explainability.whyNow}</p>
         )}
         <div className="mt-4">
-          <GateSectionLink onClick={() => onGoTab("technical")}>Full debate and evidence</GateSectionLink>
+          <GateSectionLink onClick={() => onGoTab("technical")} features={getGateDeskTabMeta("technical").features.slice(0, 3)}>
+            Full debate and evidence
+          </GateSectionLink>
         </div>
       </GateCollapsibleCard>
 
@@ -231,7 +234,9 @@ export function GateOverviewTab({
           ))}
         </ul>
         <div className="mt-4">
-          <GateSectionLink onClick={() => onGoTab("rules")}>Full rules and spec</GateSectionLink>
+          <GateSectionLink onClick={() => onGoTab("rules")} features={getGateDeskTabMeta("rules").features.slice(0, 3)}>
+            Full rules and spec
+          </GateSectionLink>
         </div>
       </GateCollapsibleCard>
 
@@ -258,7 +263,9 @@ export function GateOverviewTab({
           </div>
         ))}
         <div className="mt-3">
-          <GateSectionLink onClick={() => onGoTab("memory")}>Market memory and analogs</GateSectionLink>
+          <GateSectionLink onClick={() => onGoTab("memory")} features={getGateDeskTabMeta("memory").features.slice(0, 3)}>
+            Market memory and analogs
+          </GateSectionLink>
         </div>
       </GateCollapsibleCard>
 

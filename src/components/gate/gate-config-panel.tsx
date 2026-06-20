@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { ArcPanel } from "@/components/ui/arc-panel";
 import { GATE_SYMBOLS, GATE_SYMBOL_LABELS, type GateSymbol } from "@/lib/gate-constants";
+import { rankSymbolSkillHighlights, sortSymbolsByRank } from "@/lib/gate-desk-tab-meta";
 import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { effectivePosition } from "@/lib/gate-effective-signal";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
@@ -43,10 +44,11 @@ export function GateConfigPanel({
           </div>
         ) : (
           <div className="gate-symbol-grid">
-            {GATE_SYMBOLS.map((sym) => {
+            {sortSymbolsByRank([...GATE_SYMBOLS], rankBySym).map((sym) => {
               const bench = benchmarks.find((b) => b.symbol === sym);
               const rank = rankBySym[sym];
               const long = bench ? effectivePosition(bench.gate, bench.skills as never) === "LONG" : false;
+              const skillHighlights = rankSymbolSkillHighlights(bench);
               return (
                 <button
                   key={sym}
@@ -77,6 +79,24 @@ export function GateConfigPanel({
                       "—"
                     )}
                   </p>
+                  {skillHighlights.length > 0 && (
+                    <div className="gate-symbol-skills mt-1.5 flex flex-wrap gap-0.5">
+                      {skillHighlights.map((s) => (
+                        <span
+                          key={s.label}
+                          className={cn(
+                            "gate-symbol-skill-chip rounded border px-1 py-px text-[8px] font-medium",
+                            s.tone === "long" && "border-emerald-400/30 bg-emerald-500/15 text-emerald-200",
+                            s.tone === "flat" && "border-white/10 bg-white/[0.04] text-white/45",
+                            s.tone === "avoid" && "border-rose-400/25 bg-rose-500/10 text-rose-200/90",
+                          )}
+                          title={s.score != null ? `${s.label} · score ${s.score}` : s.label}
+                        >
+                          {s.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </button>
               );
             })}

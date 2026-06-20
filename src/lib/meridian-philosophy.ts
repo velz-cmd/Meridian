@@ -8,8 +8,11 @@ export type MeridianVerdict = "GRANT" | "DENY" | "WAIT" | "UNKNOWN";
 
 export type MeridianDataQuality = "complete" | "partial" | "degraded" | "unavailable";
 
+export const MERIDIAN_TAGLINE =
+  "MERIDIAN is a world-class market intelligence operating system — not an oracle, hype machine, or signal spammer." as const;
+
 export const MERIDIAN_NORTH_STAR =
-  "Become the most trusted market companion that users naturally want to open every day." as const;
+  "Build something users voluntarily open every day because it consistently helps them make better decisions." as const;
 
 export const MERIDIAN_PRIMARY_OBJECTIVE =
   "Help users make better decisions than they would have made alone — protect capital, improve consistency, reduce emotional trading." as const;
@@ -51,8 +54,53 @@ export const MERIDIAN_GOLDEN_RULES = [
   "Confidence is evidence strength — not probability of profit.",
 ] as const;
 
+/** Never simplify by subtraction — reorganize complexity instead */
+export const MERIDIAN_DO_NOT_DELETE = [
+  "Never remove features — reorganize with progressive disclosure",
+  "Never remove intelligence — surface summaries first, depth on expand",
+  "Never reduce capabilities — preserve 100% of MERIDIAN depth",
+  "Organize complexity — do not destroy it",
+] as const;
+
+export const MERIDIAN_DESIGN_TENETS = [
+  "Powerful underneath, calm on the surface",
+  "Complexity is acceptable — chaos is not",
+  "Depth is acceptable — confusion is not",
+  "One question per card — answers first, mechanics last",
+  "Avoid button clutter and developer-dashboard aesthetics",
+] as const;
+
+export const MERIDIAN_VISUAL_HIERARCHY = {
+  primary: ["Verdict", "Conviction", "Risk", "Thesis"],
+  secondary: ["Bull vs Bear Court", "Constitution", "Narratives", "Market Memory"],
+  tertiary: ["Indicators", "Metrics", "Raw calculations", "Research", "Weights"],
+} as const;
+
+export const MERIDIAN_UX_GOALS = [
+  "I understand what is happening",
+  "I know why the system thinks this",
+  "I trust the output",
+  "I can go deeper if I want",
+  "I am never overwhelmed",
+] as const;
+
+export const MERIDIAN_ULTIMATE_GOAL =
+  "Premium market intelligence OS — preserve intelligence, capabilities, and trust; optimize architecture, not features." as const;
+
+export const MERIDIAN_INSPIRATION = [
+  "Apple",
+  "CoinMarketCap",
+  "Bloomberg",
+  "Stripe",
+  "Linear",
+  "Arc Browser",
+  "TradingView",
+  "Notion",
+  "Palantir",
+] as const;
+
 export const MERIDIAN_CORE_PHILOSOPHY = {
-  tagline: "MERIDIAN is a market intelligence operating system — not an AI predictor.",
+  tagline: MERIDIAN_TAGLINE,
   northStar: MERIDIAN_NORTH_STAR,
   primaryObjective: MERIDIAN_PRIMARY_OBJECTIVE,
   trustHorizon: MERIDIAN_TRUST_HORIZON,
@@ -107,6 +155,20 @@ export const MERIDIAN_LLM_GUARDRAILS = [
   "Prefer WAIT over optimistic language when evidence is thin.",
   "Cite CoinMarketCap or skill name for every numeric claim.",
 ] as const;
+
+/** Canonical master principles — see docs/MERIDIAN-MASTER-PRINCIPLES.md */
+export const MERIDIAN_MASTER_PRINCIPLES = {
+  identity: MERIDIAN_TAGLINE,
+  northStar: MERIDIAN_NORTH_STAR,
+  trustHorizon: MERIDIAN_TRUST_HORIZON,
+  doNotDelete: MERIDIAN_DO_NOT_DELETE,
+  designTenets: MERIDIAN_DESIGN_TENETS,
+  visualHierarchy: MERIDIAN_VISUAL_HIERARCHY,
+  uxGoals: MERIDIAN_UX_GOALS,
+  ultimateGoal: MERIDIAN_ULTIMATE_GOAL,
+  qualityRules: MERIDIAN_QUALITY_RULES,
+  goldenRules: MERIDIAN_GOLDEN_RULES,
+} as const;
 
 /** Payload philosophy block — shipped to clients */
 export const MERIDIAN_PHILOSOPHY_BULLETS = [

@@ -2,6 +2,8 @@
 
 Premium market intelligence operating system — Apple clarity, Linear organization, Stripe polish, Bloomberg depth, Palantir intelligence.
 
+**Canonical parent doc:** [MERIDIAN Master Principles](./MERIDIAN-MASTER-PRINCIPLES.md)
+
 **This is a reorganization standard, not a simplification mandate.**
 
 ## Critical rule
@@ -114,4 +116,4 @@ Gate CSS tokens live in `src/styles/gate-skill.css` under `[data-gate-page]`.
 - [ ] Live vs testnet execution labeled
 - [ ] Missing CMC → explicit unavailable state
 
-See also: `src/lib/meridian-philosophy.ts`, `AGENTS.md`.
+See also: [MERIDIAN Master Principles](./MERIDIAN-MASTER-PRINCIPLES.md), `src/lib/meridian-philosophy.ts`, `AGENTS.md`.

@@ -69,6 +69,35 @@
   scrollbar-width: thin;
 }
 
+[data-gate-page] .gate-tab-item {
+  min-height: 2.75rem;
+}
+
+[data-gate-page] .gate-tab-item--primary-idle {
+  border-color: rgba(167, 139, 250, 0.12);
+}
+
+[data-gate-page] .arc-tab-item-active.arc-tab-item--primary {
+  border-color: rgba(167, 139, 250, 0.45);
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.12);
+}
+
+[data-gate-page] .arc-tab-item-active.arc-tab-item--tertiary {
+  opacity: 1;
+}
+
+[data-gate-page] .gate-tab-rank {
+  margin-left: 0.15rem;
+}
+
+[data-gate-page] .gate-tab-chips {
+  min-height: 0.875rem;
+}
+
+[data-gate-page] .gate-symbol-skills {
+  line-height: 1.2;
+}
+
 [data-gate-page] .gate-config-panel {
   display: flex;
   flex-direction: column;

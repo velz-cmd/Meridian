@@ -215,7 +215,7 @@ export function GateConsole() {
           />
 
           <div className="gate-workspace min-w-0">
-            <GateDeskTabs active={tab} onChange={setTab} />
+            <GateDeskTabs active={tab} onChange={setTab} skills={skills} />
 
             {tab === "overview" && (
               <GateOverviewTab
