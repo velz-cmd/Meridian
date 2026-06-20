@@ -402,7 +402,7 @@ export function NexusTradeHub({
         ) : (
           <div className="space-y-3 rounded-xl border border-violet-400/20 bg-violet-500/10 px-4 py-4">
             <p className="text-center text-sm text-white/70">
-              Connect Trust Wallet or MetaMask on {BSC_CHAIN_LABEL} to sign Chapel swaps
+              Connect your wallet on {BSC_CHAIN_LABEL} to sign Chapel swaps — Trust Wallet, MetaMask, or WalletConnect
             </p>
             <MeridianWalletConnect className="flex justify-center" label="Connect wallet · BSC Testnet" />
           </div>

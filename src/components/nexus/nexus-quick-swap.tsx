@@ -7,6 +7,7 @@ import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { nexusActionGlass, nexusGlassCta } from "@/lib/nexus-action-glass";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
 import { cn } from "@/lib/utils";
+import { MeridianWalletConnect } from "@/components/nexus/meridian-wallet-connect";
 import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
@@ -667,7 +668,12 @@ export function NexusQuickSwap({
               : `Sign swap ${pay?.symbol ?? "—"} → ${receive?.symbol ?? "—"}`}
         </button>
       ) : (
-        <p className="text-center text-xs text-white/50">Connect wallet (top right) to swap</p>
+        <div className="space-y-3 rounded-xl border border-violet-400/20 bg-violet-500/10 px-4 py-4">
+          <p className="text-center text-sm text-white/70">
+            Connect your wallet on {BSC_CHAIN_LABEL} to sign Chapel swaps — any wallet works
+          </p>
+          <MeridianWalletConnect className="flex justify-center" label="Connect wallet · BSC Testnet" />
+        </div>
       )}
 
       {success && (

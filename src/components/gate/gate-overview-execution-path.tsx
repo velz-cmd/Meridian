@@ -5,6 +5,8 @@ import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
 import { GateCollapsibleCard } from "@/components/gate/gate-collapsible-card";
 import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
 import { GateConnectStrip } from "@/components/gate/gate-connect-strip";
+import { GatePermitArbitration } from "@/components/gate/gate-permit-arbitration";
+import type { GateArbitration } from "@/hooks/use-gate-permit";
 import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
 import { effectiveGateSignal } from "@/lib/gate-effective-signal";
 import { GATE_PRODUCT } from "@/lib/gate-product-copy";
@@ -26,6 +28,9 @@ export function GateOverviewExecutionPath({
   gateRoute,
   benchmarks,
   permit,
+  permitId,
+  priceUsd,
+  arbitration,
   primaryAction,
   routerDirection,
   deskLabel,
@@ -40,6 +45,9 @@ export function GateOverviewExecutionPath({
   gateRoute: GateRoutePayload | null;
   benchmarks: GateBenchmarkFull[];
   permit?: "GRANT" | "DENY";
+  permitId?: string | null;
+  priceUsd?: number | null;
+  arbitration?: GateArbitration | null;
   primaryAction: string;
   routerDirection: PositionDirection;
   deskLabel: string;
@@ -53,7 +61,24 @@ export function GateOverviewExecutionPath({
 
   return (
     <section className="space-y-3">
-      <GateConnectStrip symbol={symbol} />
+      <GateConnectStrip
+        symbol={symbol}
+        permit={permit}
+        permitId={permitId}
+        priceUsd={priceUsd}
+        onOpenNexus={onOpenNexus}
+        onOpenAutopilot={onOpenAutopilot}
+        routerDirection={routerDirection}
+      />
+
+      {arbitration ? (
+        <GatePermitArbitration
+          symbol={symbol}
+          arbitration={arbitration}
+          granted={permit === "GRANT"}
+          priceUsd={priceUsd ?? undefined}
+        />
+      ) : null}
       <div className="gate-execution-cta flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-black/30 px-5 py-4 sm:px-6 sm:py-5">
         <div className="min-w-0">
           <GateSectionHead

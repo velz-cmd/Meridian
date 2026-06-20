@@ -34,7 +34,9 @@ import {
   saveGateExecutionIntent,
 } from "@/lib/gate-execution-intent";
 import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
+import { useGatePermit } from "@/hooks/use-gate-permit";
 import { useGateRoute } from "@/hooks/use-gate-route";
+import { GateConnectStrip } from "@/components/gate/gate-connect-strip";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
 import "@/styles/gate-skill.css";
 
@@ -99,6 +101,7 @@ export function GateConsole() {
   const { pulse: marketPulse, loading: pulseLoading } = useMarketPulse(symbol, 90_000);
   const { data: intelligence, loading: intelLoading, error: intelError, reload: reloadIntel } = useMeridianIntelligence(symbol, 120_000);
   const { route: positionRoute, loading: directionLoading } = usePositionRoute(symbol, { intervalMs: 90_000 });
+  const gatePermit = useGatePermit(symbol, 120_000);
 
   const runBacktest = useCallback(async (sym: GateSymbol) => {
     const id = ++btReq.current;
@@ -265,13 +268,16 @@ export function GateConsole() {
                 gateRoute={gateRoute}
                 benchmarks={benchmarks}
                 permit={
-                  effectiveCleared(
+                  gatePermit.permitStatus ??
+                  (effectiveCleared(
                     { signal: selected?.gate.signal ?? "HOLD" },
                     skills,
                   )
                     ? "GRANT"
-                    : "DENY"
+                    : "DENY")
                 }
+                permitId={gatePermit.permitId}
+                arbitration={gatePermit.arbitration}
                 onGoTab={setTab}
                 onOpenNexus={openNexusManual}
                 onOpenAutopilot={openGateAutopilot}
@@ -324,6 +330,18 @@ export function GateConsole() {
 
             {tab === "rules" && (
               <div className="gate-v2-stack space-y-6">
+                <GateConnectStrip
+                  symbol={symbol}
+                  permit={
+                    gatePermit.permitStatus ??
+                    (effectiveCleared({ signal: selected?.gate.signal ?? "HOLD" }, skills) ? "GRANT" : "DENY")
+                  }
+                  permitId={gatePermit.permitId}
+                  priceUsd={selected?.market.price}
+                  onOpenNexus={openNexusManual}
+                  onOpenAutopilot={openGateAutopilot}
+                  routerDirection={positionRoute?.direction ?? "FLAT"}
+                />
                 <GateCmcArchitecturePanel />
                 <GateStrategySpec />
                 <GateOutputPanel

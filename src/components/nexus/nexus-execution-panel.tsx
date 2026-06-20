@@ -3,6 +3,7 @@
 import { Bot, Brain, Loader2, Wallet, XCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAccount, useBalance } from "wagmi";
+import { MeridianWalletConnect } from "@/components/nexus/meridian-wallet-connect";
 import { useNexusAgentRuntime } from "@/components/nexus/nexus-agent-context";
 import { estimateRequiredUsdc, loadAutopilot } from "@/lib/nexus-autopilot";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
@@ -39,7 +40,10 @@ export function NexusExecutionPanel({ compact = false }: { compact?: boolean }) 
             </p>
           </>
         ) : (
-          <p className="mt-1 text-sm text-white/70">Connect wallet on {BSC_CHAIN_LABEL} to run autopilot.</p>
+          <div className="mt-2 space-y-2">
+            <p className="text-sm text-white/70">Connect any BSC wallet on {BSC_CHAIN_LABEL} to run autopilot.</p>
+            <MeridianWalletConnect compact label="Connect wallet" />
+          </div>
         )}
       </div>
 

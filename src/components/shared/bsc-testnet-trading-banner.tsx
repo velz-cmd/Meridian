@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAccount, useBalance } from "wagmi";
 import { Check, ExternalLink, Wallet } from "lucide-react";
+import { MeridianWalletConnect } from "@/components/nexus/meridian-wallet-connect";
 import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
 import { TRADING_SETTLEMENT, TRADING_WALLET_HINT } from "@/lib/trading-copy";
 import { cn } from "@/lib/utils";
@@ -91,6 +92,11 @@ export function BscTestnetTradingBanner({
                 {s.n}. {s.label}
               </p>
               <p className="truncate text-[10px] font-semibold text-white/75">{s.detail}</p>
+              {i === 0 && state === "current" && !isConnected && (
+                <div className="mt-1.5">
+                  <MeridianWalletConnect compact label="Connect" />
+                </div>
+              )}
             </div>
           );
         })}

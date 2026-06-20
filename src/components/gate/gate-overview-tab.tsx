@@ -14,6 +14,7 @@ import { GATE_SYMBOL_LABELS } from "@/lib/gate-constants";
 import { formatGatePrice, formatSignedPct } from "@/lib/gate-format";
 import { resolveGateOverviewTruth } from "@/lib/gate-overview-truth";
 import { getGateDeskTabMeta } from "@/lib/gate-desk-tab-meta";
+import type { GateArbitration } from "@/hooks/use-gate-permit";
 import { cn } from "@/lib/utils";
 
 function formatPct(n: number | undefined): string {
@@ -41,6 +42,8 @@ export function GateOverviewTab({
   gateRoute,
   benchmarks,
   permit,
+  permitId,
+  arbitration,
   onGoTab,
   onOpenNexus,
   onOpenAutopilot,
@@ -56,6 +59,8 @@ export function GateOverviewTab({
   gateRoute: GateRoutePayload | null;
   benchmarks: GateBenchmarkFull[];
   permit?: "GRANT" | "DENY";
+  permitId?: string | null;
+  arbitration?: GateArbitration | null;
   onGoTab: (tab: "memory" | "technical" | "rules" | "replay") => void;
   onOpenNexus: () => void;
   onOpenAutopilot?: () => void;
@@ -328,6 +333,9 @@ export function GateOverviewTab({
         gateRoute={gateRoute}
         benchmarks={benchmarks}
         permit={permit ?? (truth.permit === "GRANT" ? "GRANT" : "DENY")}
+        permitId={permitId}
+        priceUsd={livePrice}
+        arbitration={arbitration}
         primaryAction={truth.primaryAction}
         routerDirection={truth.direction}
         deskLabel={truth.deskLabel}
