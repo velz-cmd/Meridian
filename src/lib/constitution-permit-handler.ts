@@ -129,7 +129,7 @@ export async function buildConstitutionResponse(input: {
 
     return {
       product: "MERIDIAN Gate",
-      track: "BNB Hack · Strategy Skills (CoinMarketCap)",
+      track: CONSTITUTION_SKILL.hubTrack,
       skill: CONSTITUTION_SKILL.id,
       skillMeta: CONSTITUTION_SKILL,
       dataSource: "cmc-only",
@@ -187,7 +187,7 @@ export async function buildConstitutionResponse(input: {
 
   return {
     product: "MERIDIAN Constitution Permit",
-    track: "BNB Hack · Strategy Skills (CoinMarketCap)",
+    track: CONSTITUTION_SKILL.hubTrack,
     skill: CONSTITUTION_SKILL.id,
     skillMeta: CONSTITUTION_SKILL,
     dataSource: deskDex ? "desk-dex+cmc-macro" : cmcSnap ? "cmc-live+desk" : "desk+cmc-fallback",

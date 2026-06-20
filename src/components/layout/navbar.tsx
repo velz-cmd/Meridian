@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { BscTestnetStrip } from "@/components/nexus/bsc-testnet-strip";
 import { NexusWalletMenu } from "@/components/nexus/nexus-wallet-menu";
-import { MERIDIAN_BUILT_FOR, MERIDIAN_MODULES, MERIDIAN_NAME, MERIDIAN_TAGLINE } from "@/lib/meridian-brand";
+import { MERIDIAN_MODULES, MERIDIAN_NAME, MERIDIAN_TAGLINE } from "@/lib/meridian-brand";
 
 const links = [
   { href: "/", label: "Home", icon: Home },
@@ -31,10 +31,10 @@ export function Navbar() {
           <div className="min-w-0">
             <p className="text-sm font-bold tracking-[0.12em] text-white">{MERIDIAN_NAME}</p>
             <p className="hidden text-[10px] font-medium uppercase tracking-[0.2em] text-white/45 sm:block">
-              {MERIDIAN_TAGLINE} · {MERIDIAN_MODULES}
+              {MERIDIAN_TAGLINE}
             </p>
-            <p className="text-[9px] text-white/30 sm:hidden">{MERIDIAN_BUILT_FOR}</p>
-            <p className="hidden text-[9px] text-white/30 lg:block">{MERIDIAN_BUILT_FOR}</p>
+            <p className="text-[9px] text-white/30 sm:hidden">{MERIDIAN_MODULES}</p>
+            <p className="hidden text-[9px] text-white/30 lg:block">{MERIDIAN_MODULES}</p>
           </div>
         </Link>
 

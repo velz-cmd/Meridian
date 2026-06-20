@@ -127,8 +127,7 @@ export function GateOverviewExecutionPath({
         </p>
         {track2Priority ? (
           <p className="gate-meta-text mt-3 pl-[calc(0.75rem+3px)] text-white/45">
-            Technical · Memory · Rules · Replay explain this verdict. Wallet settlement is optional below — not Track 2
-            scoring.
+            Technical · Memory · Rules · Replay explain this verdict. Wallet settlement is optional below.
           </p>
         ) : null}
       </div>

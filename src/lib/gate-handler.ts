@@ -166,8 +166,8 @@ export async function buildGateEvaluateResponse(input: {
   const eval_ = await evaluateSymbol(symbol, agent, macro);
 
   return {
-    product: "MERIDIAN Momentum Constitution · CMC Strategy Skill",
-    track: "BNB Hack · Strategy Skills (CoinMarketCap)",
+    product: "MERIDIAN Strategy · Capital Router",
+    track: CONSTITUTION_SKILL.hubTrack,
     skill: CONSTITUTION_SKILL,
     dataIntegrity: "cmc-only-no-synthetic",
     meridianTruth: buildMeridianTruthEnvelope({
@@ -278,8 +278,8 @@ export async function buildGateRouteResponse(input: { agent?: AgentInput | null 
   );
 
   return {
-    product: "MERIDIAN Momentum Constitution · CMC Strategy Skill",
-    track: "BNB Hack · Strategy Skills (CoinMarketCap)",
+    product: "MERIDIAN Strategy · Capital Router",
+    track: CONSTITUTION_SKILL.hubTrack,
     skill: CONSTITUTION_SKILL,
     dataIntegrity: batch.degraded ? "degraded-cache-or-venue" : "cmc-only-no-synthetic",
     degraded: batch.degraded ?? false,
@@ -305,8 +305,8 @@ export async function buildGateBacktestResponse(input: { symbol: string; days?: 
   const result = await runHistoricalBacktest({ symbol, days, includeCompare: true });
 
   return {
-    product: "MERIDIAN Momentum Constitution · CMC Strategy Skill",
-    track: "BNB Hack · Strategy Skills (CoinMarketCap)",
+    product: "MERIDIAN Strategy · Capital Router",
+    track: CONSTITUTION_SKILL.hubTrack,
     skill: CONSTITUTION_SKILL,
     symbol,
     days,
@@ -441,7 +441,7 @@ export async function buildGatePipelineResponse() {
 
   return {
     product: "MERIDIAN · Full Stack Strategy Skill",
-    track: "BNB Hack · Strategy Skills (CoinMarketCap)",
+    track: CONSTITUTION_SKILL.hubTrack,
     skill: CONSTITUTION_SKILL,
     stack: GATE_STACK_SUMMARY,
     layers,
