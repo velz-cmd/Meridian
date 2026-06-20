@@ -7,14 +7,8 @@ import {
   resolveHorizonContext,
   type GateHorizonId,
 } from "@/lib/gate-desk-labels";
+import { spotStateTone } from "@/lib/meridian-desk-states";
 import { cn } from "@/lib/utils";
-
-function voteTone(vote: string) {
-  if (vote === "LONG") return "text-emerald-300";
-  if (vote === "EXIT") return "text-rose-300";
-  if (vote === "HOLD") return "text-white/80";
-  return "text-white/45";
-}
 
 export function GateHorizonPicker({
   horizon,
@@ -47,7 +41,7 @@ export function GateHorizonPicker({
   );
 }
 
-/** All-window strip — every real CMC window at a glance (so nothing looks hidden/contradictory) */
+/** All-window strip — every real CMC window at a glance (horizons may disagree) */
 export function GateHorizonAllWindows({
   evidence,
   market,
@@ -66,6 +60,7 @@ export function GateHorizonAllWindows({
       {GATE_HORIZON_OPTIONS.map((opt) => {
         const ctx = resolveHorizonContext(evidence, opt.id, market);
         const isActive = opt.id === active;
+        const state = ctx.dominantVote;
         return (
           <button
             key={opt.id}
@@ -82,8 +77,13 @@ export function GateHorizonAllWindows({
               <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">{opt.label}</span>
               <span className="text-[9px] text-white/35">{opt.timeframe}</span>
             </div>
-            <p className={cn("mt-1 text-lg font-bold", voteTone(ctx.dominantVote))}>
-              {loading ? "…" : ctx.dominantVote}
+            <p
+              className={cn(
+                "mt-1 text-sm font-bold leading-tight",
+                state === "—" ? "text-white/45" : spotStateTone(state),
+              )}
+            >
+              {loading ? "…" : state}
             </p>
             <p
               className={cn(
@@ -127,10 +127,10 @@ export function GateHorizonContext({
   return (
     <section className="rounded-2xl border border-white/[0.08] bg-black/25 px-4 py-4 sm:px-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-        Price trend · real CMC windows
+        Desk state · real CMC windows
       </p>
       <p className="mt-1 text-sm text-white/70">
-        Each window is a single live CMC % move — stable, not a fabricated micro-bar blend.
+        Scalp · day trade · swing · position may disagree — that is normal multi-scale behavior.
       </p>
       <GateHorizonAllWindows
         evidence={evidence}

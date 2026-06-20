@@ -362,8 +362,8 @@ export function GateConsole() {
                       cmcLive={selected.cmcLive}
                       positionLabel={
                         positionRoute?.direction
-                          ? (deskDirectionLabel(positionRoute.direction) as "LONG" | "HOLD" | "EXIT")
-                          : "HOLD"
+                          ? deskDirectionLabel(positionRoute.direction)
+                          : "WAIT"
                       }
                       onOpenNexus={track2Priority ? undefined : openNexusManual}
                     />

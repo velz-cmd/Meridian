@@ -42,7 +42,7 @@ export function GateBenchmarkDesk({
   const selectedRank = rankBySym[selected];
   const selectedPos = selectedBench
     ? deskSignalLabel(effectiveGateSignal(selectedBench.gate, selectedBench.skills as never))
-    : "HOLD";
+    : "WAIT";
   const selectedChecks = selectedBench
     ? `${selectedBench.gate.checksPassed}/${selectedBench.gate.checksTotal} rules`
     : "—";

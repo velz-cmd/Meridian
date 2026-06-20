@@ -1,5 +1,5 @@
 /**
- * Overview truth — hero signal follows selected horizon (live CMC).
+ * Overview truth — hero follows selected horizon (live CMC desk state).
  * Execution permit/router stays separate for Chapel settlement honesty.
  */
 import type { GateJudgeConsensus } from "@/lib/gate-consensus-payload";
@@ -11,19 +11,31 @@ import {
   horizonDeskLabel,
   resolveHorizonContext,
   traderStanceToDirection,
-  type DeskTraderStance,
-  type GateHorizonId,
 } from "@/lib/gate-desk-labels";
+import type { GateHorizonId } from "@/lib/gate-desk-labels";
+import {
+  buildCourtDeskSummary,
+  buildFourPillars,
+  convictionBand,
+  convictionBandDetail,
+  resolveReviewHoursLabel,
+  resolveVerdictTier,
+  type CourtDeskSummary,
+  type DeskVerdictTier,
+  type FourPillar,
+  type SpotDeskState,
+} from "@/lib/meridian-desk-states";
 import type { PositionDirection, PositionRoute } from "@/lib/position-router";
 
 export type GateOverviewTruth = {
   deskLabel: string;
-  /** Hero direction — horizon live CMC when available */
   direction: PositionDirection;
-  displayDirection: string;
-  /** Constitution router — execution settlement only */
+  displayDirection: SpotDeskState;
+  verdictTier: DeskVerdictTier;
+  convictionBand: ReturnType<typeof convictionBand>;
+  reviewLabel: string;
   executionDirection: PositionDirection;
-  executionDisplay: DeskTraderStance;
+  executionDisplay: SpotDeskState;
   permit: "GRANT" | "DENY" | "WAIT";
   riskRegime: string;
   conviction: number | string;
@@ -38,12 +50,13 @@ export type GateOverviewTruth = {
   horizonLabel: string;
   liveBarSummary: string;
   horizonNote: string;
+  courtSummary: CourtDeskSummary | null;
+  pillars: FourPillar[];
 };
 
 export function routerDeskLabel(direction: PositionDirection): string {
-  if (direction === "LONG") return "DESK LONG";
-  if (direction === "SHORT") return "DESK SHORT";
-  return "DESK HOLD";
+  const state = deskDirectionLabel(direction);
+  return `DESK ${state}`;
 }
 
 function resolvePermit(
@@ -60,40 +73,44 @@ function resolvePermit(
 function constitutionBiasLabel(judgeConsensus: GateJudgeConsensus | null | undefined): string {
   if (!judgeConsensus?.weights) return "Bias pending";
   const { longPct, bearPct, holdPct } = judgeConsensus.weights;
-  if (longPct >= bearPct + 12) return `Bias favors long (${longPct}% long weight)`;
-  if (bearPct >= longPct + 12) return `Bias favors de-risk (${bearPct}% bear weight)`;
-  if (holdPct >= 40) return `Bias mixed · ${holdPct}% hold weight`;
-  return "Bias neutral";
+  if (longPct >= bearPct + 12) return `Long weight ${longPct}%`;
+  if (bearPct >= longPct + 12) return `Bear weight ${bearPct}%`;
+  if (holdPct >= 40) return `Mixed · ${holdPct}% neutral weight`;
+  return "Neutral weight";
 }
 
 export function resolvePrimaryAction(input: {
-  displayDirection: DeskTraderStance | "—";
+  displayDirection: SpotDeskState | "—";
   windowLabel: string;
   changeLabel: string;
   permit: "GRANT" | "DENY" | "WAIT";
+  verdictTier: DeskVerdictTier;
   sizeNote?: string | null;
   reviewHours?: number;
 }): string {
-  const { displayDirection, windowLabel, changeLabel, permit, sizeNote, reviewHours } = input;
+  const { displayDirection, windowLabel, changeLabel, permit, verdictTier, sizeNote, reviewHours } = input;
   const window = `${windowLabel} ${changeLabel}`;
+  const review = resolveReviewHoursLabel(reviewHours);
 
-  if (permit === "GRANT") {
-    if (displayDirection === "EXIT") {
-      return sizeNote ?? `Trim into strength — ${window} trend, permit GRANT. Reduce on Chapel.`;
-    }
-    return sizeNote ?? `Entry cleared — ${window} trend, permit GRANT. Size on Chapel when liquidity confirms.`;
+  if (displayDirection === "—") {
+    return "Live CMC timeframe data syncing — no action until a window prints.";
   }
 
-  if (displayDirection === "LONG") {
-    return `${window} trend is up, but permit ${permit} — wait for constitution to clear before adding size.`;
+  switch (displayDirection) {
+    case "ACCUMULATE":
+      return permit === "GRANT"
+        ? sizeNote ?? `Accumulate zone — ${window}. ${verdictTier}. ${review}.`
+        : `${window} favors accumulation, but permit ${permit} — wait for constitution. ${review}.`;
+    case "HOLD POSITION":
+      return `Hold position — ${window} trend intact. ${review}.`;
+    case "REDUCE":
+      return `Reduce exposure — ${window} momentum weakening. Permit ${permit}. ${review}.`;
+    case "EXIT":
+      return `Exit — ${window} thesis failing. No fresh size. ${review}.`;
+    case "WAIT":
+    default:
+      return `No edge — ${window} mixed or flat. ${verdictTier}. ${review}.`;
   }
-  if (displayDirection === "EXIT") {
-    return `${window} trend is down — de-risk or stay out. Permit ${permit}, no fresh entry.`;
-  }
-  if (displayDirection === "HOLD") {
-    return `${window} flat (${changeLabel}) and permit ${permit} — no edge. Review after ${reviewHours ?? 24}h.`;
-  }
-  return "Live CMC timeframe data syncing — no action until a window prints.";
 }
 
 export function resolveGateOverviewTruth(input: {
@@ -111,7 +128,10 @@ export function resolveGateOverviewTruth(input: {
     input.selected?.gate.regime ??
     input.selected?.skills?.regime?.regime ??
     "neutral";
-  const horizonHours = input.intel?.convictionDecay.reviewAfterHours ?? 24;
+  const horizonHours =
+    typeof input.intel?.convictionDecay.reviewAfterHours === "number"
+      ? input.intel.convictionDecay.reviewAfterHours
+      : 24;
   const checksPassed = input.selected?.gate.checksPassed ?? null;
   const checksTotal = input.selected?.gate.checksTotal ?? null;
   const tier = input.selected?.gate.tier ?? input.positionRoute?.gate?.tier ?? null;
@@ -130,16 +150,62 @@ export function resolveGateOverviewTruth(input: {
   };
   const horizonCtx = resolveHorizonContext(input.intel?.directionEvidence, horizonId, market);
 
-  const displayDirection: DeskTraderStance =
-    horizonCtx.dominantVote !== "—" ? horizonCtx.dominantVote : "HOLD";
+  const displayDirection: SpotDeskState =
+    horizonCtx.dominantVote !== "—" ? horizonCtx.dominantVote : "WAIT";
   const direction = traderStanceToDirection(displayDirection);
-  const deskLabel = horizonDeskLabel(horizonCtx.windowLabel);
+  const deskLabel = horizonDeskLabel(horizonCtx.horizonLabel);
 
-  const conviction =
-    input.positionRoute?.confidence ??
-    input.intel?.confidence.conviction ??
-    input.selected?.gate.confidence ??
-    "—";
+  const convictionNum =
+    typeof input.positionRoute?.confidence === "number"
+      ? input.positionRoute.confidence
+      : typeof input.intel?.confidence.conviction === "number"
+        ? input.intel.confidence.conviction
+        : typeof input.selected?.gate.confidence === "number"
+          ? input.selected.gate.confidence
+          : null;
+
+  const conviction = convictionNum ?? "—";
+  const band = convictionBand(convictionNum);
+
+  const longLayerCount =
+    input.judgeConsensus?.layers.filter((l) => l.signal === "ENTER_LONG").length ?? 0;
+  const bearLayerCount =
+    input.judgeConsensus?.layers.filter((l) => l.signal === "EXIT" || l.signal === "AVOID").length ?? 0;
+
+  const verdictTier = resolveVerdictTier({
+    longScore: input.intel?.directionEvidence?.longScore ?? 0,
+    shortScore: input.intel?.directionEvidence?.shortScore ?? 0,
+    longLayerCount,
+    bearLayerCount,
+    conviction: convictionNum ?? 0,
+    conflict: input.intel?.directionEvidence?.conflict ?? "moderate",
+    vetoes: input.intel?.directionEvidence?.vetoes ?? [],
+    permit,
+  });
+
+  const courtSummary = input.intel
+    ? buildCourtDeskSummary({
+        court: input.intel.bullBearCourt,
+        consensus: input.judgeConsensus,
+        verdictTier,
+      })
+    : null;
+
+  const skillsAny = input.selected?.skills as
+    | {
+        trend?: { signal?: string };
+        liquidity?: { signal?: string };
+        relativeStrength?: { signal?: string };
+      }
+    | undefined;
+
+  const pillars = buildFourPillars({
+    regime: riskRegime,
+    trendSignal: skillsAny?.trend?.signal ?? input.selected?.gate.signal,
+    rsSignal: skillsAny?.relativeStrength?.signal,
+    liquiditySignal: skillsAny?.liquidity?.signal,
+    fearGreed: input.intel?.genome.fearGreed ?? input.selected?.market.fearGreed,
+  });
 
   const summary = buildHorizonSummary({
     ctx: horizonCtx,
@@ -158,18 +224,22 @@ export function resolveGateOverviewTruth(input: {
     deskLabel,
     direction,
     displayDirection,
+    verdictTier,
+    convictionBand: band,
+    reviewLabel: resolveReviewHoursLabel(typeof horizonHours === "number" ? horizonHours : 24),
     executionDirection,
     executionDisplay,
     permit,
     riskRegime,
     conviction,
     horizonHours,
-    summary,
+    summary: `${summary} Conviction: ${band} — ${convictionBandDetail(band)}`,
     primaryAction: resolvePrimaryAction({
       displayDirection,
       windowLabel: horizonCtx.windowLabel,
       changeLabel: horizonCtx.changeLabel,
       permit,
+      verdictTier,
       sizeNote: input.positionRoute?.sizeNote,
       reviewHours: typeof horizonHours === "number" ? horizonHours : 24,
     }),
@@ -181,5 +251,7 @@ export function resolveGateOverviewTruth(input: {
     horizonLabel: horizonCtx.horizonLabel,
     liveBarSummary: horizonCtx.liveVoteSummary,
     horizonNote: horizonCtx.note,
+    courtSummary,
+    pillars,
   };
 }

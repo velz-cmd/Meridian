@@ -19,16 +19,20 @@ export type MeridianTimeHorizonBucket =
   | "position"
   | "mixed";
 
-/** Nine decision layers — weights sum to 100. Regime and liquidity have veto paths. */
+/**
+ * Nine decision layers — hierarchy-weighted (sum 100).
+ * L1 regime + structure dominate; L2 trend/momentum/RS; L3 liquidity/sentiment.
+ * Risk overrides opportunity via veto paths.
+ */
 export const MERIDIAN_DECISION_LAYER_WEIGHTS = {
-  regime: 14,
-  trend: 13,
-  momentum: 11,
-  liquidity: 12,
-  relativeStrength: 11,
-  structure: 10,
-  narrative: 9,
-  memory: 10,
+  regime: 20,
+  structure: 16,
+  trend: 12,
+  momentum: 10,
+  relativeStrength: 10,
+  liquidity: 8,
+  narrative: 6,
+  memory: 8,
   court: 10,
 } as const;
 
@@ -103,7 +107,7 @@ function voteFromChange(
   ch: number | undefined,
   bucket: MeridianTimeHorizonBucket,
   source: "live-cmc" | "planned",
-  threshold = 1.5,
+  threshold = 1.2,
 ): MeridianTimeframeVote {
   if (ch == null || Number.isNaN(ch)) return { timeframe: tf, direction: "NEUTRAL", bucket, source };
   if (ch >= threshold) return { timeframe: tf, direction: "LONG", bucket, source };
@@ -123,10 +127,10 @@ function buildTimeframeVotes(input: {
   change30d?: number;
 }): MeridianTimeframeVote[] {
   return [
-    voteFromChange("1h", input.change1h, "intraday", "live-cmc", 1.0),
-    voteFromChange("24h", input.change24h, "intraday", "live-cmc", 2.5),
-    voteFromChange("7d", input.change7d, "swing", "live-cmc", 4.0),
-    voteFromChange("30d", input.change30d, "position", "live-cmc", 8.0),
+    voteFromChange("1h", input.change1h, "intraday", "live-cmc", 0.45),
+    voteFromChange("24h", input.change24h, "intraday", "live-cmc", 1.2),
+    voteFromChange("7d", input.change7d, "swing", "live-cmc", 2.8),
+    voteFromChange("30d", input.change30d, "position", "live-cmc", 5.5),
   ];
 }
 
@@ -180,7 +184,7 @@ export function buildMeridianDirectionEvidence(input: {
   market?: { change1h?: number; change24h?: number; change7d?: number; change30d?: number };
 }): MeridianDirectionEvidence {
   const flatNote =
-    "HOLD is valid — MERIDIAN does not force LONG or EXIT when live CMC evidence is mixed across horizons.";
+    "WAIT is valid — horizons may disagree. Lower timeframes time entries; higher timeframes set context.";
 
   const dataQualityScore = dataQualityScoreFrom(input.dataQuality);
 
@@ -263,56 +267,73 @@ export function buildMeridianDirectionEvidence(input: {
   const conflictScore = clamp(Math.round(100 - spread + uncertainty * 0.25));
   const conflict = conflictLevel(spread, uncertainty, conflictScore);
 
-  const STRONG = 68;
-  const WEAK = 38;
-  const MAX_UNCERTAIN = 28;
+  const STRONG = 62;
+  const TACTICAL = 50;
+  const WEAK = 42;
+  const MAX_UNCERTAIN = 38;
+
+  const longLayers = layers.filter((l) => l.signal === "ENTER_LONG").length;
+  const bearLayers = layers.filter((l) => l.signal === "EXIT" || l.signal === "AVOID").length;
 
   let verdict: MeridianEvidenceDirection = "FLAT";
-  let verdictLabel = "FLAT — mixed or weak evidence";
+  let verdictLabel = "WAIT — mixed or weak evidence";
 
   const hasHardVeto =
     input.liquidityOk === false ||
     (input.blockers?.length ?? 0) > 0 ||
     input.regime === "risk-off";
 
-  if (hasHardVeto || conflict === "high") {
+  if (hasHardVeto) {
     verdict = "FLAT";
-    verdictLabel = "FLAT — disagreement or veto (disciplined abstention)";
+    verdictLabel = "WAIT — risk or structure veto (no edge)";
   } else if (
+    longLayers >= 7 &&
     longScore >= STRONG &&
     shortScore <= WEAK &&
     uncertainty <= MAX_UNCERTAIN &&
-    longScore - shortScore >= 18
+    longScore - shortScore >= 12
   ) {
     verdict = input.consensus?.permit.status === "GRANT" && input.consensus.cleared ? "LONG" : "FLAT";
     verdictLabel =
-      verdict === "LONG"
-        ? "LONG — strong evidence"
-        : "FLAT — long lean but constitution not cleared";
+      verdict === "LONG" ? "Strong Long — 7+ layers aligned" : "Tactical Long lean — permit not cleared";
   } else if (
+    longLayers >= 5 &&
+    longScore >= TACTICAL &&
+    shortScore <= WEAK + 8 &&
+    longScore > shortScore + 6
+  ) {
+    verdict =
+      input.consensus?.permit.status === "GRANT" && input.consensus.cleared
+        ? "LONG"
+        : conflict === "high"
+          ? "FLAT"
+          : "FLAT";
+    verdictLabel =
+      verdict === "LONG"
+        ? "Tactical Long — 5–6 layers agree"
+        : "Tactical Long lean — WAIT for permit or lower conflict";
+  } else if (
+    bearLayers >= 7 &&
     shortScore >= STRONG &&
     longScore <= WEAK &&
-    uncertainty <= MAX_UNCERTAIN &&
-    shortScore - longScore >= 18
+    shortScore - longScore >= 12
   ) {
     verdict = "SHORT";
-    verdictLabel = "SHORT — de-risk / rotate evidence";
-  } else if (longScore >= 55 && shortScore >= 45 && conflict !== "low") {
+    verdictLabel = "Strong Short — bear stack dominant";
+  } else if (bearLayers >= 5 && shortScore >= TACTICAL && shortScore > longScore + 6) {
+    verdict = "SHORT";
+    verdictLabel = "Tactical Short — de-risk bias";
+  } else if (conflict === "high") {
     verdict = "FLAT";
-    verdictLabel = "FLAT — scores too close; conflict dominates";
+    verdictLabel = "WAIT — layers disagree; no forced alignment";
   } else {
     verdict = "FLAT";
-    verdictLabel = "FLAT — no strong directional edge";
+    verdictLabel = "WAIT — no actionable edge";
   }
 
-  if (input.dataQuality === "degraded" && conflict !== "low") {
+  if (input.dataQuality === "degraded" && conflict === "high") {
     verdict = "FLAT";
-    verdictLabel = "FLAT — degraded data; prefer abstention";
-  }
-
-  if (timeHorizonBucket === "mixed" && conflict !== "low") {
-    verdict = "FLAT";
-    verdictLabel = "FLAT — timeframe conflict; higher TF anchors horizon";
+    verdictLabel = "WAIT — degraded data; abstain";
   }
 
   const rationale = [

@@ -1,9 +1,14 @@
 /**
  * Trader-facing labels for Gate desk — internal engine keeps LONG / SHORT / FLAT.
- * Display: LONG · HOLD · EXIT (spot exit bias, not perp short).
+ * Display uses professional spot desk states (ACCUMULATE · WAIT · REDUCE · EXIT).
  */
 import type { MeridianDirectionEvidence } from "@/lib/meridian-direction-engine";
 import type { PositionDirection } from "@/lib/position-router";
+import {
+  resolveHorizonSpotState,
+  spotStateReason,
+  type SpotDeskState,
+} from "@/lib/meridian-desk-states";
 
 export type GateHorizonId = "intraday" | "daily" | "swing" | "position";
 
@@ -17,48 +22,56 @@ export const GATE_HORIZON_OPTIONS: {
   timeframe: string;
   changeKey: HorizonChangeKey;
 }[] = [
-  { id: "intraday", label: "Intraday", sub: "1h", timeframe: "1h", changeKey: "change1h" },
-  { id: "daily", label: "Daily", sub: "24h", timeframe: "24h", changeKey: "change24h" },
-  { id: "swing", label: "Swing", sub: "7d", timeframe: "7d", changeKey: "change7d" },
-  { id: "position", label: "Position", sub: "30d", timeframe: "30d", changeKey: "change30d" },
+  { id: "intraday", label: "Scalp", sub: "1h window", timeframe: "1h", changeKey: "change1h" },
+  { id: "daily", label: "Day trade", sub: "24h window", timeframe: "24h", changeKey: "change24h" },
+  { id: "swing", label: "Swing", sub: "7d window", timeframe: "7d", changeKey: "change7d" },
+  { id: "position", label: "Position", sub: "30d window", timeframe: "30d", changeKey: "change30d" },
 ];
 
+/** @deprecated use SpotDeskState — kept for internal router mapping */
 export type DeskTraderStance = "LONG" | "HOLD" | "EXIT";
 
-/** Map internal router direction to trader-facing label */
-export function deskDirectionLabel(direction: PositionDirection): DeskTraderStance {
-  if (direction === "LONG") return "LONG";
-  if (direction === "SHORT") return "EXIT";
+export function spotToLegacyStance(state: SpotDeskState): DeskTraderStance {
+  if (state === "ACCUMULATE" || state === "HOLD POSITION") return "LONG";
+  if (state === "EXIT" || state === "REDUCE") return "EXIT";
   return "HOLD";
 }
 
-/** Map constitution or composite gate signal to trader label */
-export function deskSignalLabel(signal: string | undefined | null): DeskTraderStance {
-  const s = (signal ?? "HOLD").toUpperCase().replace(/ /g, "_");
-  if (s === "ENTER_LONG" || s === "LONG") return "LONG";
-  if (s === "EXIT" || s === "AVOID" || s === "SHORT") return "EXIT";
-  return "HOLD";
+export function legacyStanceToSpot(stance: DeskTraderStance): SpotDeskState {
+  if (stance === "LONG") return "ACCUMULATE";
+  if (stance === "EXIT") return "EXIT";
+  return "WAIT";
+}
+
+/** Map internal router direction to spot desk state */
+export function deskDirectionLabel(direction: PositionDirection): SpotDeskState {
+  if (direction === "LONG") return "ACCUMULATE";
+  if (direction === "SHORT") return "REDUCE";
+  return "WAIT";
+}
+
+/** Map constitution or composite gate signal to spot desk state */
+export function deskSignalLabel(signal: string | undefined | null): SpotDeskState {
+  const s = (signal ?? "WAIT").toUpperCase().replace(/ /g, "_");
+  if (s === "ENTER_LONG" || s === "LONG") return "ACCUMULATE";
+  if (s === "EXIT" || s === "AVOID") return "EXIT";
+  if (s === "REDUCE") return "REDUCE";
+  if (s === "HOLD_POSITION" || s === "HOLD POSITION") return "HOLD POSITION";
+  return "WAIT";
 }
 
 /** Exposure line under symbol (settlement context) */
 export function deskExposureLabel(direction: PositionDirection): string {
   if (direction === "LONG") return "Long · spot exposure";
-  if (direction === "SHORT") return "Exit · reduce spot";
-  return "Hold · no position";
+  if (direction === "SHORT") return "Reduce · rotate to cash";
+  return "Flat · no position";
 }
 
-/** Capital router primary — FLAT reads as HOLD for traders */
-export function deskRouterPickValue(primary: string | undefined | null): string {
+/** Capital router primary — FLAT reads as WAIT (no edge) */
+export function deskRouterPickValue(primary: string | undefined | null): SpotDeskState | string {
   const p = (primary ?? "").trim().toUpperCase();
-  if (!p || p === "FLAT" || p === "—") return "HOLD";
+  if (!p || p === "FLAT" || p === "—" || p === "WAIT") return "WAIT";
   return primary!.trim();
-}
-
-function voteToLabel(dir: string): string {
-  if (dir === "LONG") return "LONG";
-  if (dir === "SHORT" || dir === "EXIT") return "EXIT";
-  if (dir === "FLAT" || dir === "HOLD" || dir === "WAIT") return "HOLD";
-  return "—";
 }
 
 export type HorizonMarket = {
@@ -70,11 +83,9 @@ export type HorizonMarket = {
 
 export type GateHorizonContext = {
   horizonLabel: string;
-  /** Real CMC window backing this horizon, e.g. "24h" */
   windowLabel: string;
-  /** Trend read for the window — LONG / HOLD / EXIT (stable, one real number) */
-  dominantVote: DeskTraderStance | "—";
-  /** Signed % move for the window, e.g. "+2.31%" */
+  /** Actionable spot desk state for this window */
+  dominantVote: SpotDeskState | "—";
   changeLabel: string;
   changeValue: number | null;
   liveVoteSummary: string;
@@ -83,9 +94,13 @@ export type GateHorizonContext = {
   dataQuality: number | null;
 };
 
-export function traderStanceToDirection(stance: DeskTraderStance): PositionDirection {
-  if (stance === "LONG") return "LONG";
-  if (stance === "EXIT") return "SHORT";
+export function traderStanceToDirection(state: SpotDeskState | DeskTraderStance): PositionDirection {
+  const spot: SpotDeskState =
+    state === "LONG" || state === "HOLD" || state === "EXIT"
+      ? legacyStanceToSpot(state as DeskTraderStance)
+      : state;
+  if (spot === "ACCUMULATE" || spot === "HOLD POSITION") return "LONG";
+  if (spot === "EXIT" || spot === "REDUCE") return "SHORT";
   return "FLAT";
 }
 
@@ -94,13 +109,13 @@ function formatChangePct(ch: number): string {
 }
 
 /**
- * Trend read for ONE real CMC window. Stable across refreshes — a single live
- * number with a meaningful neutral band, never a fabricated vote blend.
+ * Actionable spot state for ONE real CMC window. Horizons may disagree — that is normal.
  */
 export function resolveHorizonContext(
   evidence: MeridianDirectionEvidence | null | undefined,
   horizonId: GateHorizonId,
   market?: HorizonMarket,
+  hasOpenPosition = false,
 ): GateHorizonContext {
   const opt = GATE_HORIZON_OPTIONS.find((o) => o.id === horizonId)!;
   const change = market?.[opt.changeKey];
@@ -120,27 +135,17 @@ export function resolveHorizonContext(
     };
   }
 
-  const vote = evidence?.timeframeVotes.find((v) => v.timeframe === opt.timeframe);
-  let dominant: DeskTraderStance | "—";
-  if (vote && vote.direction !== "NEUTRAL") {
-    dominant = voteToLabel(vote.direction) as DeskTraderStance;
-  } else if (hasChange) {
-    dominant = "HOLD";
-  } else {
-    dominant = "—";
-  }
+  const dominant: SpotDeskState | "—" = hasChange
+    ? resolveHorizonSpotState(change!, horizonId, hasOpenPosition)
+    : "—";
 
   const changeLabel = hasChange ? formatChangePct(change!) : "DATA UNAVAILABLE";
-  const liveVoteSummary = hasChange ? `${opt.timeframe} ${changeLabel} → ${dominant}` : "DATA UNAVAILABLE";
+  const liveVoteSummary = hasChange ? `${opt.label} · ${changeLabel} → ${dominant}` : "DATA UNAVAILABLE";
 
   const note =
-    !hasChange
+    dominant === "—"
       ? "No live CMC value for this window yet."
-      : dominant === "LONG"
-        ? `${opt.label} window up ${changeLabel} on live CMC.`
-        : dominant === "EXIT"
-          ? `${opt.label} window down ${changeLabel} on live CMC.`
-          : `${opt.label} window flat (${changeLabel}) — inside the trend band.`;
+      : spotStateReason(dominant, changeLabel, opt.label);
 
   return {
     horizonLabel: opt.label,
@@ -155,11 +160,11 @@ export function resolveHorizonContext(
   };
 }
 
-export function horizonDeskLabel(windowLabel: string): string {
-  return `${windowLabel.toUpperCase()} TREND`;
+export function horizonDeskLabel(horizonLabel: string): string {
+  return `${horizonLabel.toUpperCase()} · DESK STATE`;
 }
 
-/** Single coherent sentence — trend (price) and permit (rules) as two clear axes. */
+/** Single coherent sentence — desk state (price) and permit (rules) as two clear axes. */
 export function buildHorizonSummary(input: {
   ctx: GateHorizonContext;
   symbol: string;
@@ -174,19 +179,14 @@ export function buildHorizonSummary(input: {
   const checks =
     checksPassed != null && checksTotal != null ? `${checksPassed}/${checksTotal} constitution checks` : "constitution pending";
 
-  const trend =
-    ctx.dominantVote === "LONG"
-      ? `${symbol} ${ctx.windowLabel} ${ctx.changeLabel} → trend LONG`
-      : ctx.dominantVote === "EXIT"
-        ? `${symbol} ${ctx.windowLabel} ${ctx.changeLabel} → trend EXIT`
-        : `${symbol} ${ctx.windowLabel} ${ctx.changeLabel} → trend HOLD`;
+  const stateLine = `${symbol} · ${ctx.horizonLabel} ${ctx.changeLabel} → ${ctx.dominantVote}`;
 
   const permitLine =
     permit === "GRANT"
-      ? `Strategy permit GRANT · ${checks} — entry cleared.`
+      ? `Permit GRANT · ${checks} — entry cleared.`
       : permit === "WAIT"
-        ? `Strategy permit WAIT · ${checks} — abstain until evidence clears.`
-        : `Strategy permit DENY · ${checks} — rules not cleared, this is price trend, not a buy order.`;
+        ? `Permit WAIT · ${checks} — no edge for new size yet.`
+        : `Permit DENY · ${checks} — rules block entry; desk state is price context only.`;
 
-  return `${trend} (live CMC). ${permitLine}`;
+  return `${stateLine} (live CMC). ${permitLine}`;
 }

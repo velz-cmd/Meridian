@@ -23,6 +23,7 @@ export function GateLiveStats({
   const holdCount = Math.max(0, ranked.length - longCount);
   const primaryRaw = route?.allocation?.primary ?? ranked[0]?.symbol ?? "—";
   const routerPick = deskRouterPickValue(primaryRaw);
+  const routerState = typeof routerPick === "string" && routerPick !== "WAIT" ? routerPick : "WAIT";
   const primaryPct = route?.allocation?.splitPrimaryPct;
   const regime = route?.regime ?? "neutral";
   const fg = route?.fearGreed;
@@ -45,20 +46,20 @@ export function GateLiveStats({
     },
     {
       label: "Router pick",
-      value: loading ? "…" : routerPick,
+      value: loading ? "…" : routerState,
       sub:
-        routerPick === "HOLD"
-          ? GATE_PRODUCT.rankingFlat
+        routerState === "WAIT"
+          ? GATE_PRODUCT.rankingFlat.replace("hold cash", "wait — no symbol clears")
           : primaryPct != null
             ? `${primaryRaw} · ${primaryPct}% notional · ${regime.replace(/-/g, " ")}`
             : `${primaryRaw} · ${regime.replace(/-/g, " ")}`,
-      accent: routerPick === "HOLD" ? "text-white/80" : "text-emerald-300",
+      accent: routerState === "WAIT" ? "text-white/70" : "text-emerald-300",
     },
     {
       label: "Permits today",
       value: loading ? "…" : `${longCount} clear`,
-      sub: `${holdCount} hold · sentiment ${fgLabel}`,
-      accent: longCount > 0 ? "text-emerald-300" : "text-white/80",
+      sub: `${holdCount} wait · sentiment ${fgLabel}`,
+      accent: longCount > 0 ? "text-emerald-300" : "text-white/70",
     },
     {
       label: "Benchmarks",
