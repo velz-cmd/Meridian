@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Radar, Sparkles, Zap } from "lucide-react";
+import { Droplets, Home, Scale, Zap } from "lucide-react";
 import { arcNavIconTheme } from "@/components/layout/arc-theme-sync";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/prism", label: "PRISM", icon: Radar },
+  { href: "/gate", label: "Strategy", icon: Scale },
   { href: "/nexus", label: "NEXUS", icon: Zap },
 ] as const;
 
@@ -54,14 +54,14 @@ export function MobileBottomNav() {
           );
         })}
         <a
-          href="https://faucet.circle.com/"
+          href="https://testnet.bnbchain.org/faucet-smart"
           target="_blank"
           rel="noreferrer"
           className="flex min-h-[52px] min-w-[72px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-semibold text-white/50 transition hover:text-white/80 active:scale-95"
           data-cursor-hover
         >
-          <ArcIcon3d icon={Sparkles} theme="neutral" size="sm" static className="!h-7 !w-7" />
-          Faucet
+          <ArcIcon3d icon={Droplets} theme="neutral" size="sm" static className="!h-7 !w-7" />
+          tBNB
         </a>
       </div>
     </nav>

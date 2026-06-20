@@ -84,7 +84,7 @@ export function MobileNav() {
           </nav>
 
           <p className="border-t border-white/10 px-5 py-4 text-center text-[11px] text-white/40">
-            MERIDIAN · NEXUS + PRISM · {MERIDIAN_BUILT_FOR}
+            MERIDIAN · {MERIDIAN_BUILT_FOR}
           </p>
         </div>
       )}

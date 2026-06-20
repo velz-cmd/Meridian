@@ -3,12 +3,10 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Activity,
   ArrowUpRight,
   Brain,
   Globe2,
   LineChart,
-  Radar,
   Radio,
   ScanLine,
   Shield,
@@ -44,7 +42,7 @@ export function ArcEcosystemHero() {
         >
           <div className="mb-5 flex items-center gap-3 sm:justify-start">
             <ArcIcon3d icon={Sparkles} theme="home" size="sm" />
-            <p className="arc-caption text-violet-300/85">MERIDIAN · Agent Intelligence OS</p>
+            <p className="arc-caption text-cyan-300/85">MERIDIAN · CoinMarketCap Strategy Skill · BNB Chain</p>
           </div>
 
           <h1 className="arc-display text-left text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.45)] max-lg:text-[2rem] max-lg:leading-[1.08]">
@@ -53,24 +51,24 @@ export function ArcEcosystemHero() {
           </h1>
 
           <p className="mt-4 max-w-xl text-left text-[15px] leading-relaxed text-[var(--arc-text-muted)] sm:mt-5 sm:text-lg">
-            Agents chase momentum without a rule book. MERIDIAN watches live BSC benchmarks, scores
-            conviction, routes capital to one name, and blocks the wallet until the constitution
-            passes.
+            A BNB Hack Track 2 strategy skill: MERIDIAN turns live CoinMarketCap data into
+            backtestable entry and exit rules, ranks BSC benchmarks, scores conviction, and blocks
+            the wallet until the constitution passes.
           </p>
 
           <ArcDeployedBadge />
 
           <ul className="arc-hero-bullets mt-5 max-w-lg space-y-2.5 text-left text-sm leading-relaxed text-white/55 sm:mt-6">
-            <li>Four BSC leaders ranked every refresh — not the same BUY on every ticker</li>
-            <li>Nine rule checks + three skills before any testnet swap is allowed</li>
-            <li>One market row from router → feed → constitution desk → trade panel</li>
+            <li>Live CoinMarketCap quotes, RSI, MACD, and Fear &amp; Greed feed eight deterministic skills</li>
+            <li>Nine Constitution checks GRANT or DENY before any BSC Testnet swap</li>
+            <li>90-day backtest proof — same rules in SKILL.md, CLI, API, and live desk</li>
           </ul>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link href="/gate" className="w-full sm:w-auto">
               <Button variant="default" size="lg" className="arc-btn-pill min-h-[54px] w-full gap-2 px-8 sm:w-auto">
                 <LineChart className="h-5 w-5" strokeWidth={1.5} />
-                Open momentum router
+                Open Strategy desk
                 <ArrowUpRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -142,39 +140,41 @@ export function ArcSystemsShowcase() {
     <section className="relative z-10 mx-auto max-w-[1680px] px-4 pb-16 sm:px-6 sm:pb-20 max-lg:pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <div className="grid gap-6 lg:grid-cols-2">
         <motion.div whileHover={{ y: -4 }} className="arc-panel relative overflow-hidden p-5 sm:p-6 lg:p-8">
-          <div className="arc-panel-stripe arc-panel-stripe-nexus absolute inset-x-0 top-0" />
+          <div className="arc-panel-stripe arc-panel-stripe-home absolute inset-x-0 top-0" />
+          <Badge className="border-cyan-400/30 bg-cyan-500/10 text-cyan-100">TRACK 2 · STRATEGY SKILL</Badge>
+          <div className="relative mt-5 flex items-start gap-4">
+            <ArcIcon3d icon={LineChart} theme="home" size="lg" />
+            <div>
+              <h2 className="text-2xl font-semibold text-white">CoinMarketCap Strategy desk</h2>
+              <p className="mt-3 text-sm leading-relaxed text-white/58">
+                Live CMC data → eight skills → Constitution permit. Rank BNB · CAKE · FLOKI · XVS,
+                run the 90-day backtest, and hand off to execution when cleared.
+              </p>
+            </div>
+          </div>
+          <Link href="/gate" className="relative mt-8 inline-block">
+            <Button variant="default" className="arc-btn-pill gap-2">
+              Open Strategy desk <ArrowUpRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </motion.div>
+
+        <motion.div whileHover={{ y: -4 }} className="arc-panel relative overflow-hidden p-5 sm:p-6 lg:p-8">
+          <div className="arc-panel-stripe arc-panel-stripe-nexus absolute inset-x-0 top-0 opacity-80" />
           <Badge variant="nexus">NEXUS</Badge>
           <div className="relative mt-5 flex items-start gap-4">
             <ArcIcon3d icon={Zap} theme="nexus" size="lg" />
             <div>
               <h2 className="text-2xl font-semibold text-white">Constitution desk</h2>
               <p className="mt-3 text-sm leading-relaxed text-white/58">
-                Live feed, chart, agent reasoning, and permit-gated buy/sell on BSC Testnet.
+                Where the skill executes — live feed, chart, agent reasoning, and permit-gated
+                buy/sell on BSC Testnet.
               </p>
             </div>
           </div>
           <Link href="/nexus" className="relative mt-8 inline-block">
             <Button variant="nexus" className="arc-btn-pill gap-2">
               Open desk <ArrowUpRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </motion.div>
-
-        <motion.div whileHover={{ y: -4 }} className="arc-panel relative overflow-hidden p-5 sm:p-6 lg:p-8">
-          <div className="arc-panel-stripe arc-panel-stripe-home absolute inset-x-0 top-0 opacity-80" />
-          <Badge className="border-white/20 bg-white/10 text-white">GATE</Badge>
-          <div className="relative mt-5 flex items-start gap-4">
-            <ArcIcon3d icon={LineChart} theme="home" size="lg" />
-            <div>
-              <h2 className="text-2xl font-semibold text-white">Momentum router</h2>
-              <p className="mt-3 text-sm leading-relaxed text-white/58">
-                Rank BNB · CAKE · FLOKI · XVS by rule checks — hand off to execution when cleared.
-              </p>
-            </div>
-          </div>
-          <Link href="/gate" className="relative mt-8 inline-block">
-            <Button variant="default" className="arc-btn-pill gap-2">
-              Open router <ArrowUpRight className="h-4 w-4" />
             </Button>
           </Link>
         </motion.div>
@@ -192,7 +192,7 @@ export function ArcHomeFooter() {
           <div>
             <p className="font-mono text-sm font-semibold tracking-[0.18em] text-white">MERIDIAN</p>
             <p className="arc-caption mt-1">
-              NEXUS + PRISM · Built for ARC Circle · Arc Testnet
+              CoinMarketCap × BNB Chain · BNB Hack Track 2
               {process.env.NEXT_PUBLIC_MERIDIAN_BUILD &&
               process.env.NEXT_PUBLIC_MERIDIAN_BUILD !== "dev" ? (
                 <span className="ml-1 font-mono text-white/30">
@@ -200,9 +200,18 @@ export function ArcHomeFooter() {
                 </span>
               ) : null}
             </p>
+            <p className="mt-0.5 font-mono text-[10px] text-white/30">
+              Also: NEXUS terminal · PRISM oracle · Arc Testnet (v0.7.1)
+            </p>
           </div>
         </div>
         <nav className="flex flex-wrap gap-6 font-mono text-xs uppercase tracking-widest text-white/50">
+          <Link href="/gate" className="transition hover:text-cyan-300">
+            Strategy
+          </Link>
+          <Link href="/analytics" className="transition hover:text-cyan-300">
+            Analytics
+          </Link>
           <Link href="/nexus" className="transition hover:text-emerald-300">
             NEXUS
           </Link>
