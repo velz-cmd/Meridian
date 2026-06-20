@@ -41,6 +41,8 @@ Golden rules: never hallucinate, prefer WAIT over fake certainty, skills provide
 
 ## Deliverables (submission checklist)
 
+**Judge quick start:** [`JUDGE-ONE-PAGER.md`](./JUDGE-ONE-PAGER.md) — 2-minute click path, curl reproduce, script when UI shows HOLD.
+
 | Required | Path |
 |----------|------|
 | **CMC Skill (LLM-authored)** | `bnb-hack/skills/nexus-momentum-gate/SKILL.md` |
