@@ -5,7 +5,7 @@ import { Clock } from "lucide-react";
 import { HISTORICAL_ANALOGS } from "@/lib/meridian-intelligence-data";
 import { cn } from "@/lib/utils";
 
-/** What MERIDIAN would reference for each stored analog period — demo replay, not live prediction. */
+/** Stored historical episodes for similarity search — not live predictions. Library spans 2023–2026. */
 export function GateMarketTimeline({ symbol }: { symbol: string }) {
   const periods = useMemo(
     () =>
@@ -21,7 +21,7 @@ export function GateMarketTimeline({ symbol }: { symbol: string }) {
     [symbol],
   );
 
-  const [idx, setIdx] = useState(periods.length - 2);
+  const [idx, setIdx] = useState(periods.length - 1);
 
   const active = periods[idx] ?? periods[0]!;
 
@@ -32,7 +32,8 @@ export function GateMarketTimeline({ symbol }: { symbol: string }) {
         <h3 className="text-sm font-semibold text-white">Market Replay · historical reference</h3>
       </div>
       <p className="mb-3 text-[10px] text-white/45">
-        Slide through stored analog periods — references only, not predictions. Constitution rules unchanged.
+        Slide through stored historical episodes (Oct 2023 → Jun 2026). Similarity engine compares today&apos;s live
+        CMC snapshot to these — references only, not trade signals.
       </p>
       <input
         type="range"

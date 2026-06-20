@@ -56,6 +56,7 @@ export type GateBenchmarkFull = {
   market: {
     price: number;
     change24h: number;
+    change7d?: number;
     fearGreed?: number;
     rsi?: number;
     macdSignal?: string;

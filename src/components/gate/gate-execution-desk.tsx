@@ -20,6 +20,7 @@ import {
   saveGateExecutionIntent,
   type GateDeskAction,
 } from "@/lib/gate-execution-intent";
+import { chapelProxySymbol, CHAPEL_GATE_PROXY } from "@/lib/chapel-execution-router";
 import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import type { PositionDirection, PositionRoute } from "@/lib/position-router";
 import { positionExposureLabel } from "@/lib/position-router";
@@ -60,6 +61,8 @@ export function GateExecutionDesk({
   const router = useRouter();
   const sym = symbol.replace(/^\$/, "").trim().toUpperCase();
   const tradable = gateSymbolTradableOnTestnet(sym);
+  const chapelProxy = CHAPEL_GATE_PROXY[sym] ?? null;
+  const settlementSym = chapelProxySymbol(sym) ?? sym;
   const routeDir = route?.direction ?? "FLAT";
   const confidence = route?.confidence ?? route?.gate?.confidence ?? 50;
 
@@ -231,6 +234,13 @@ export function GateExecutionDesk({
           )}
         </div>
 
+        {chapelProxy && (
+          <p className="mb-3 rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-3 py-2 text-[11px] text-cyan-100">
+            {sym} thesis uses live CMC data. Chapel has no {sym} pool — wallet swap routes through {chapelProxy} on
+            BSC Testnet while keeping {sym} gate signals.
+          </p>
+        )}
+
         {!tradable && (
           <p className="mb-3 rounded-lg border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100">
             {sym} is gate-eval only on Chapel — open NEXUS for constitution view; swap BNB or CAKE on testnet.
@@ -238,7 +248,7 @@ export function GateExecutionDesk({
         )}
 
         <p className="mb-2 font-mono text-[9px] uppercase tracking-wider text-white/38">
-          Settlement on NEXUS · PancakeSwap Chapel (wallet Buy / Sell / Autopilot)
+          Settlement on NEXUS · PancakeSwap Chapel ({settlementSym} · wallet Buy / Sell / Autopilot)
         </p>
         <div className="grid gap-2 sm:grid-cols-3">
           <button

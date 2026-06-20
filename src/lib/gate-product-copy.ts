@@ -7,7 +7,7 @@ export const GATE_PRODUCT = {
   kicker: "MERIDIAN",
   title: "Strategy skill desk",
   subtitle:
-    "Live CMC data → deterministic rules → historical replay → NEXUS execution when cleared.",
+    "Live CMC market data (today) → deterministic skills → historical analogs → NEXUS testnet execution when cleared.",
   rankingTitle: "Today's ranking",
   rankingFlat: "No symbol clears entry rules — stay flat.",
   rankingActive: (primary: string, pct: number, secondary?: string, secPct?: number) =>

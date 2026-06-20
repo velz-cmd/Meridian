@@ -1,6 +1,6 @@
 "use client";
 
-import { Scale, GitBranch, Shield, Layers } from "lucide-react";
+import { Activity, Scale, GitBranch, Shield, Layers } from "lucide-react";
 import { NexusAgentPulseStrip } from "@/components/nexus/nexus-agent-pulse-strip";
 import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
 import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
@@ -17,7 +17,22 @@ import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types
 import type { MarketPulse } from "@/lib/market-pulse";
 import type { PositionRoute } from "@/lib/position-router";
 import { effectiveGateSignal } from "@/lib/gate-effective-signal";
+import { GATE_SYMBOL_LABELS } from "@/lib/gate-constants";
 import { cn } from "@/lib/utils";
+
+function formatGatePrice(price: number): string {
+  if (price <= 0) return "—";
+  if (price >= 1000) return price.toFixed(2);
+  if (price >= 1) return price.toFixed(3);
+  if (price >= 0.01) return price.toFixed(4);
+  return price.toFixed(8);
+}
+
+function formatPct(n: number | undefined): string {
+  if (n == null || Number.isNaN(n)) return "—";
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}${n.toFixed(2)}%`;
+}
 
 type BacktestPayload = Parameters<typeof GateOutputPanel>[0]["backtest"];
 
@@ -64,29 +79,47 @@ export function GateOverviewTab({
   onRunBacktest: () => void;
   onGoTab: (tab: "memory" | "technical" | "rules" | "replay") => void;
 }) {
-  const verdict = intelligence?.verdict ?? (judgeConsensus?.permit.status === "GRANT" ? "GRANT" : "DENY");
-  const conviction = intelligence?.confidence.conviction ?? selected?.gate.confidence ?? "—";
-  const spread = intelligence?.confidence.bullBearSpread ?? judgeConsensus?.weights.bearPct ?? "—";
-  const horizon = intelligence?.convictionDecay.reviewAfterHours ?? "—";
-  const riskRegime = intelligence?.genome.regime ?? selected?.gate.regime ?? "neutral";
+  const symUpper = symbol.toUpperCase();
+  const intel = intelligence?.symbol?.toUpperCase() === symUpper ? intelligence : null;
+  const intelPending = intelLoading && !intel;
+
+  const verdict =
+    intel?.verdict ??
+    (judgeConsensus?.permit.status === "GRANT"
+      ? "GRANT"
+      : judgeConsensus?.permit.status === "DENY"
+        ? "DENY"
+        : selected?.gate && effectiveGateSignal(selected.gate, selected?.skills as GateSkillsPayload) === "ENTER_LONG"
+          ? "GRANT"
+          : "WAIT");
+  const conviction = intel?.confidence.conviction ?? selected?.gate.confidence ?? selected?.conviction ?? "—";
+  const spread = intel?.confidence.bullBearSpread ?? judgeConsensus?.weights.bearPct ?? "—";
+  const horizon = intel?.convictionDecay.reviewAfterHours ?? "—";
+  const riskRegime = intel?.genome.regime ?? selected?.gate.regime ?? selected?.skills?.regime?.regime ?? "neutral";
   const thesis =
-    intelligence?.explainability.why ??
-    skills?.composite.thesis ??
+    intel?.explainability.why ??
+    skills?.composite?.thesis ??
     selected?.gate.thesis ??
     "Awaiting live gate evaluation.";
 
   const constitutionActive =
-    intelligence?.constitution.filter((a) => a.status === "active").length ??
+    intel?.constitution.filter((a) => a.status === "active").length ??
     judgeConsensus?.votes.long ??
     0;
-  const constitutionTotal = intelligence?.constitution.length ?? 6;
-  const constitutionViolated = intelligence?.constitution.filter((a) => a.status === "violated").length ?? 0;
+  const constitutionTotal = intel?.constitution.length ?? 6;
+  const constitutionViolated = intel?.constitution.filter((a) => a.status === "violated").length ?? 0;
 
   const narrativeLeader =
-    intelligence?.narrativeFlow.likelyNextLeader.narrative ??
-    intelligence?.genome.narrative ??
+    intel?.narrativeFlow.likelyNextLeader.narrative ??
+    intel?.genome.narrative ??
     "—";
-  const migration = intelligence?.narrativeFlow.migration[0];
+  const migration = intel?.narrativeFlow.migration[0];
+
+  const livePrice = selected?.market.price ?? 0;
+  const live24h = selected?.market.change24h;
+  const live7d = selected?.market.change7d;
+  const cmcLive = selected?.cmcLive ?? false;
+  const asOf = new Date().toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
   const verdictColor =
     verdict === "GRANT"
@@ -99,18 +132,58 @@ export function GateOverviewTab({
 
   return (
     <div className="space-y-4">
+      {/* Live market strip — symbol-scoped CMC snapshot */}
+      <section className="rounded-2xl border border-cyan-400/25 bg-cyan-500/5 px-4 py-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <Activity className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-200/80">
+                Live market · {GATE_SYMBOL_LABELS[symUpper as keyof typeof GATE_SYMBOL_LABELS] ?? symUpper}
+              </p>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-white">
+                ${formatGatePrice(livePrice)}
+                <span className="ml-3 text-sm font-normal text-white/55">
+                  24h {formatPct(live24h)}
+                  {live7d != null && <> · 7d {formatPct(live7d)}</>}
+                </span>
+              </p>
+              <p className="mt-1 text-[11px] text-white/45">
+                {cmcLive ? "CMC live feed" : "CMC unavailable — venue fallback"}
+                {intelPending ? " · refreshing intelligence…" : intel ? " · intelligence synced" : ""}
+                {" · "}
+                As of {asOf}
+              </p>
+            </div>
+          </div>
+          {selected?.gate && (
+            <div className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-right">
+              <p className="font-mono text-[9px] uppercase text-white/40">Gate signal</p>
+              <p className="text-sm font-semibold text-white">{selected.gate.signal.replace(/_/g, " ")}</p>
+              <p className="font-mono text-[10px] text-white/45">
+                {selected.gate.checksPassed}/{selected.gate.checksTotal} checks
+              </p>
+            </div>
+          )}
+        </div>
+        <p className="mt-2 font-mono text-[9px] text-white/35">
+          Analysis uses live CMC quotes for all four BSC benchmarks (BNB · CAKE · FLOKI · XVS Venus). Swaps settle on
+          BSC Testnet (Chapel) — not mainnet paper trading.
+        </p>
+      </section>
+
       {/* 1. Verdict — answer first */}
       <section className={cn("rounded-2xl border px-5 py-5", verdictColor)}>
         <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/60">Hero verdict</p>
         <p className="mt-2 text-3xl font-bold text-white">{verdict}</p>
         <p className="mt-2 max-w-2xl text-sm text-white/80">
-          {intelligence?.verdictReason ?? judgeConsensus?.permit.reason ?? "Live constitution + skill consensus."}
+          {intel?.verdictReason ?? judgeConsensus?.permit.reason ?? selected?.gate.thesis ?? "Live constitution + skill consensus."}
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <GateStatPill label="Conviction" value={String(conviction)} sub="Evidence-derived" />
           <GateStatPill label="Bull–Bear spread" value={String(spread)} sub="Not probability" />
-          <GateStatPill label="Risk regime" value={riskRegime} sub={`F&G ${intelligence?.genome.fearGreed ?? "—"}`} />
-          <GateStatPill label="Expected horizon" value={`${horizon}h`} sub={`Thesis ${intelligence?.convictionDecay.status ?? "—"}`} />
+          <GateStatPill label="Risk regime" value={riskRegime} sub={`F&G ${intel?.genome.fearGreed ?? selected?.market.fearGreed ?? "—"}`} />
+          <GateStatPill label="Expected horizon" value={`${horizon}h`} sub={`Thesis ${intel?.convictionDecay.status ?? "—"}`} />
           <GateStatPill
             label="Permit"
             value={judgeConsensus?.permit.status ?? "—"}
@@ -128,8 +201,8 @@ export function GateOverviewTab({
         accent="border-violet-400/20"
       >
         <p className="text-sm leading-relaxed text-white/75">{thesis}</p>
-        {intelligence?.explainability.whyNow && (
-          <p className="mt-3 text-xs text-white/50">{intelligence.explainability.whyNow}</p>
+        {intel?.explainability.whyNow && (
+          <p className="mt-3 text-xs text-white/50">{intel.explainability.whyNow}</p>
         )}
         <button type="button" className="mt-3 text-xs text-cyan-300 hover:underline" onClick={() => onGoTab("technical")}>
           Full debate & evidence → Technical tab
@@ -150,7 +223,7 @@ export function GateOverviewTab({
         accent="border-amber-400/15"
       >
         <ul className="space-y-2 text-[11px]">
-          {(intelligence?.constitution ?? []).map((a) => (
+          {(intel?.constitution ?? []).map((a) => (
             <li key={a.id} className="flex justify-between gap-2 rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2">
               <span className="text-white/80">
                 Article {a.id} · {a.title}
@@ -177,7 +250,7 @@ export function GateOverviewTab({
         icon={GitBranch}
         accent="border-cyan-400/15"
       >
-        {intelligence?.narrativeFlow.radar.slice(0, 4).map((n) => (
+        {intel?.narrativeFlow.radar.slice(0, 4).map((n) => (
           <div key={n.id} className="mb-2 flex items-center gap-2 text-xs">
             <span className="w-14 text-white/50">{n.label}</span>
             <div className="h-1.5 flex-1 rounded-full bg-white/10">

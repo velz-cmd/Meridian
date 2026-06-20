@@ -217,6 +217,7 @@ function evalToRouteBenchmark(
     market: {
       price: snapshot.price ?? 0,
       change24h: snapshot.change24h ?? 0,
+      change7d: snapshot.change7d ?? 0,
       fearGreed: snapshot.fearGreed,
       rsi: snapshot.rsi,
       macdSignal: snapshot.macdSignal,

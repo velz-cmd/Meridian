@@ -166,12 +166,12 @@ function buildGenome(input: IntelligenceInput): MeridianGenome {
   };
 }
 
-function buildMarketTwin(genome: MeridianGenome, _symbol: string): MeridianMarketTwin {
+function buildMarketTwin(genome: MeridianGenome, _symbol: string, change7d: number | null): MeridianMarketTwin {
   const breadth = genome.breadth ?? 50;
   const live = {
     fearGreed: genome.fearGreed ?? 50,
     rsi: genome.rsi ?? 50,
-    change7d: 0,
+    change7d: change7d ?? 0,
     breadth,
     regime: genome.regime,
   };
@@ -631,7 +631,7 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
 
   const breadthInfo = computeBreadth(input.ranked);
   const arch = summarizeArchitectureCoverage();
-  const marketTwin = buildMarketTwin(genome, sym);
+  const marketTwin = buildMarketTwin(genome, sym, input.market?.change7d ?? null);
   const bullBearCourt = buildCourt(consensus, conviction);
   const convictionDecay = buildConvictionDecay(conviction);
   const provenance = buildProvenance(input, skillEvidence);

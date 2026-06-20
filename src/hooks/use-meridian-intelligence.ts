@@ -24,10 +24,12 @@ export function useMeridianIntelligence(symbol: string, refreshMs = 120_000) {
   }, [symbol]);
 
   useEffect(() => {
+    setData(null);
+    setError(null);
     void reload();
     const id = window.setInterval(() => void reload(), refreshMs);
     return () => window.clearInterval(id);
-  }, [reload, refreshMs]);
+  }, [reload, refreshMs, symbol]);
 
   return { data, loading, error, reload };
 }

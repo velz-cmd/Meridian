@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { ArcPanel } from "@/components/ui/arc-panel";
-import { GATE_SYMBOLS, type GateSymbol } from "@/lib/gate-constants";
+import { GATE_SYMBOLS, GATE_SYMBOL_LABELS, type GateSymbol } from "@/lib/gate-constants";
 import { GATE_PRODUCT, gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { effectivePosition } from "@/lib/gate-effective-signal";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
@@ -55,7 +55,7 @@ export function GateConfigPanel({
                   className={cn("gate-symbol-card", symbol === sym && "active")}
                 >
                   <div className="flex items-baseline justify-between gap-1">
-                    <span className="gate-symbol-name">{sym}</span>
+                    <span className="gate-symbol-name">{GATE_SYMBOL_LABELS[sym]}</span>
                     {rank && <span className="gate-symbol-rank">#{rank.rank}</span>}
                   </div>
                   <p className="gate-symbol-meta">

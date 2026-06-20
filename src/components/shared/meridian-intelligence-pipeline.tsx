@@ -64,7 +64,7 @@ export function MeridianIntelligencePipeline() {
 
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { t: "Market Twin", d: "88% similar to Jan 2024 — your algorithm, not a CMC endpoint" },
+            { t: "Market Twin", d: "Live CMC snapshot vs historical episodes (2023–2026) — MERIDIAN algorithm, not a CMC endpoint" },
             { t: "Bull vs Bear Court", d: "9-layer weighted debate — architecture, not prompts" },
             { t: "Constitution", d: "6/9 votes · bear cap 15% · risk-off half size" },
             { t: "90-day Replay", d: "Constitution vs naive agent — backtest proof" },

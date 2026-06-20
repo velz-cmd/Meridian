@@ -3,6 +3,14 @@ export const GATE_SYMBOLS = ["BNB", "CAKE", "FLOKI", "XVS"] as const;
 
 export type GateSymbol = (typeof GATE_SYMBOLS)[number];
 
+/** Display labels — XVS is Venus (not XVX). */
+export const GATE_SYMBOL_LABELS: Record<GateSymbol, string> = {
+  BNB: "BNB",
+  CAKE: "CAKE",
+  FLOKI: "FLOKI",
+  XVS: "XVS · Venus",
+};
+
 export function isGateSymbol(symbol: string): symbol is GateSymbol {
   return (GATE_SYMBOLS as readonly string[]).includes(symbol.toUpperCase());
 }
