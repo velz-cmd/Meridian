@@ -77,3 +77,15 @@ When editing intelligence, copy, LLM prompts, or Gate accountability surfaces:
 5. **Accountability is mandatory** — trade journal + autopsy on Memory tab; never hide failures.
 6. **Daily value loop:** morning brief / court / twin → intraday updates → post-trade autopsy & stats.
 <!-- END:meridian-north-star -->
+
+<!-- BEGIN:cursor-cloud -->
+## Cursor Cloud specific instructions
+
+Single **Next.js 16 (Turbopack)** app, package manager **npm** (`package-lock.json`). No Docker, no database, and no external services are required to run it locally. The update script (`npm install` + creating `.env.local` from `.env.example` if missing) already runs before each session.
+
+- **Run dev:** `npm run dev` → http://localhost:3000 (see `package.json` for all scripts). NEXUS and PRISM run in **heuristic demo mode** using live public data (DexScreener/GDELT) when AI/data keys are absent — no paid keys needed to demo core flows.
+- **Build / lint:** `npm run build` and `npm run lint`. Lint currently reports pre-existing errors/warnings in `src/lib/**` (e.g. `social-intel.ts`, `token-detection.ts`) unrelated to environment setup — do not treat these as setup breakage.
+- **Key-gated routes:** `/api/gate/evaluate` and `/api/gate/backtest` (the `/gate` MERIDIAN demo) return HTTP 400 `Set CMC_API_KEY or CMC_PRO_API_KEY` without a CoinMarketCap key. To exercise core functionality without keys, use the NEXUS console (`/nexus`) and its `/api/nexus/feed`, `/api/nexus/trending` routes, which serve live agent BUY/SELL/HOLD/AVOID decisions in demo mode. Supabase keys are only needed for cross-session persistence.
+- **Optional secrets** (set in the Secrets panel to unlock more): `CMC_API_KEY` (Gate), `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` (LLM narration), `NEWS_API_KEY`, `BIRDEYE_API_KEY`, `CIRCLE_API_KEY`, Supabase keys. Full list in `.env.example`.
+- **Windows-only scripts:** several `package.json` scripts (`finish`, `sync:supabase`, `sync:cmc-vercel`, `sync:dune-vercel` wrappers) invoke PowerShell and will not run on the Linux VM — ignore them here.
+<!-- END:cursor-cloud -->
