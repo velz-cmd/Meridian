@@ -9,27 +9,25 @@ import { GateCmcArchitecturePanel } from "@/components/gate/gate-cmc-architectur
 import { GateConfigPanel } from "@/components/gate/gate-config-panel";
 import { GateDeskHero } from "@/components/gate/gate-desk-hero";
 import { GateDeskTabs, type GateDeskTab } from "@/components/gate/gate-desk-tabs";
-import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
 import { GateConsensusPanel } from "@/components/gate/gate-consensus-panel";
-import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
 import { extractJudgeConsensus } from "@/lib/gate-consensus-payload";
-import { GateCmcSkillStrip } from "@/components/gate/gate-cmc-skill-strip";
-import { GateSkillStack } from "@/components/gate/gate-skill-stack";
 import { GateTechnicalPanel } from "@/components/gate/gate-technical-panel";
-import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
 import { usePositionRoute } from "@/hooks/use-position-route";
 import { GateLiveStats } from "@/components/gate/gate-live-stats";
 import { GateOutputPanel } from "@/components/gate/gate-output-panel";
-import { NexusAgentPulseStrip } from "@/components/nexus/nexus-agent-pulse-strip";
 import { useMarketPulse } from "@/hooks/use-market-pulse";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
+import { GateOverviewTab } from "@/components/gate/gate-overview-tab";
+import { GateStrategySpec } from "@/components/gate/gate-strategy-spec";
+import { GateTechnicalChambers } from "@/components/gate/gate-technical-chambers";
+import { GateCollapsibleCard } from "@/components/gate/gate-collapsible-card";
 import { GateIntelligenceDesk } from "@/components/gate/gate-intelligence-desk";
 import { useMeridianIntelligence } from "@/hooks/use-meridian-intelligence";
 import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { trackMeridianEvent } from "@/lib/product-analytics-client";
 import { type GateSymbol } from "@/lib/gate-constants";
 import { buildGateExecutionUrl } from "@/lib/gate-nexus-bridge";
-import { effectiveCleared, effectiveGateSignal } from "@/lib/gate-effective-signal";
+import { effectiveCleared } from "@/lib/gate-effective-signal";
 import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { useGateRoute } from "@/hooks/use-gate-route";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
@@ -220,70 +218,77 @@ export function GateConsole() {
             <GateDeskTabs active={tab} onChange={setTab} />
 
             {tab === "overview" && (
-              <div className="space-y-3">
-                <NexusAgentPulseStrip pulse={marketPulse} loading={pulseLoading} symbol={symbol} compact />
-                <GateExecutionDesk
-                  symbol={symbol}
-                  route={positionRoute}
-                  loading={directionLoading}
-                  deskSignal={selected ? effectiveGateSignal(selected.gate, skills) : undefined}
-                  permit={
-                    effectiveCleared(
-                      { signal: selected?.gate.signal ?? "HOLD" },
-                      skills,
-                    )
-                      ? "GRANT"
-                      : "DENY"
-                  }
-                />
-                <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact strategyOnly />
-                {selected && (
-                  <>
-                    <GateConsensusPanel consensus={judgeConsensus} />
-                    <GateCapitalRotation benchmarks={benchmarks} route={gateRoute} />
-                    <GateCmcSkillStrip selected={selected} cmcLive={selected.cmcLive} skills={skills} />
-                    {skills && <GateSkillStack skills={skills} constitutionSignal={selected.gate.signal} />}
-                  </>
-                )}
-                <GateOutputPanel
-                  selected={selected}
-                  route={gateRoute}
-                  skills={skills ?? null}
-                  loading={gateRouteLoading}
-                  backtest={backtest}
-                  backtestLoading={btLoading}
-                  backtestRequested={btRequested}
-                  onQuickSelect={handleSelectSymbol}
-                  onRunBacktest={() => void runBacktest(symbol)}
-                  section="overview"
-                />
-              </div>
+              <GateOverviewTab
+                symbol={symbol}
+                selected={selected}
+                skills={skills}
+                judgeConsensus={judgeConsensus}
+                intelligence={intelligence}
+                intelLoading={intelLoading}
+                route={gateRoute}
+                positionRoute={positionRoute}
+                directionLoading={directionLoading}
+                marketPulse={marketPulse}
+                pulseLoading={pulseLoading}
+                gateRoute={gateRoute}
+                benchmarks={benchmarks}
+                gateRouteLoading={gateRouteLoading}
+                backtest={backtest}
+                backtestLoading={btLoading}
+                backtestRequested={btRequested}
+                onQuickSelect={handleSelectSymbol}
+                onRunBacktest={() => void runBacktest(symbol)}
+                onGoTab={setTab}
+              />
             )}
 
             {tab === "memory" && (
               <div className="space-y-4">
-                <GateCmcArchitecturePanel compact />
                 <GateIntelligenceDesk
                   data={intelligence}
                   loading={intelLoading}
                   error={intelError}
                   onReload={() => void reloadIntel()}
+                  view="memory"
                 />
               </div>
             )}
 
             {tab === "technical" && selected && (
-              <GateTechnicalPanel
-                selected={selected}
-                route={gateRoute}
-                skills={skills ?? null}
-                onOpenNexus={openInNexus}
-              />
+              <div className="space-y-4">
+                {skills && <GateTechnicalChambers skills={skills} intelligence={intelligence} />}
+                <GateCollapsibleCard
+                  title="Bull vs Bear debate"
+                  question="Who disagrees?"
+                  summary={
+                    judgeConsensus
+                      ? `${judgeConsensus.weights.longPct}% long · ${judgeConsensus.weights.bearPct}% bear · ${judgeConsensus.permit.status}`
+                      : "Live court consensus"
+                  }
+                  defaultOpen={false}
+                >
+                  <GateConsensusPanel consensus={judgeConsensus} />
+                </GateCollapsibleCard>
+                <GateTechnicalPanel
+                  selected={selected}
+                  route={gateRoute}
+                  skills={skills ?? null}
+                  onOpenNexus={openInNexus}
+                />
+                <GateIntelligenceDesk
+                  data={intelligence}
+                  loading={intelLoading}
+                  error={intelError}
+                  onReload={() => void reloadIntel()}
+                  view="technical"
+                />
+              </div>
             )}
 
             {tab === "rules" && (
               <div className="space-y-4">
                 <GateCmcArchitecturePanel />
+                <GateStrategySpec />
                 <GateOutputPanel
                   selected={selected}
                   route={gateRoute}
@@ -296,22 +301,38 @@ export function GateConsole() {
                   onRunBacktest={() => void runBacktest(symbol)}
                   section="rules"
                 />
+                <GateIntelligenceDesk
+                  data={intelligence}
+                  loading={intelLoading}
+                  error={intelError}
+                  onReload={() => void reloadIntel()}
+                  view="rules"
+                />
               </div>
             )}
 
             {tab === "replay" && (
-              <GateOutputPanel
-                selected={selected}
-                route={gateRoute}
-                skills={skills ?? null}
-                loading={gateRouteLoading}
-                backtest={backtest}
-                backtestLoading={btLoading}
-                backtestRequested={btRequested}
-                onQuickSelect={handleSelectSymbol}
-                onRunBacktest={() => void runBacktest(symbol)}
-                section="replay"
-              />
+              <div className="space-y-4">
+                <GateOutputPanel
+                  selected={selected}
+                  route={gateRoute}
+                  skills={skills ?? null}
+                  loading={gateRouteLoading}
+                  backtest={backtest}
+                  backtestLoading={btLoading}
+                  backtestRequested={btRequested}
+                  onQuickSelect={handleSelectSymbol}
+                  onRunBacktest={() => void runBacktest(symbol)}
+                  section="replay"
+                />
+                <GateIntelligenceDesk
+                  data={intelligence}
+                  loading={intelLoading}
+                  error={intelError}
+                  onReload={() => void reloadIntel()}
+                  view="replay"
+                />
+              </div>
             )}
           </div>
         </div>

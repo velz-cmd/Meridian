@@ -48,16 +48,31 @@ function StatPill({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
+export type IntelligenceDeskView = "memory" | "technical" | "rules" | "replay" | "full";
+
+function shows(view: IntelligenceDeskView, ...allowed: IntelligenceDeskView[]) {
+  return view === "full" || allowed.includes(view);
+}
+
+const VIEW_LABELS: Record<Exclude<IntelligenceDeskView, "full">, string> = {
+  memory: "Market Memory",
+  technical: "Technical & Reasoning",
+  rules: "Rules & Spec",
+  replay: "90-Day Replay",
+};
+
 export function GateIntelligenceDesk({
   data,
   loading,
   error,
   onReload,
+  view = "full",
 }: {
   data: MeridianIntelligencePayload | null;
   loading: boolean;
   error: string | null;
   onReload?: () => void;
+  view?: IntelligenceDeskView;
 }) {
   if (loading && !data) {
     return (
@@ -83,7 +98,26 @@ export function GateIntelligenceDesk({
 
   if (!data) return null;
 
-  const { genome, marketTwin, bullBearCourt, narrativeFlow, timeMachine, thesisDna, convictionDecay, counterfactuals, constitution, marketMemory, evolution, verdict, verdictReason, confidence, explainability, provenance, skillEvidence, tradeAutopsy } = data;
+  const {
+    genome,
+    marketTwin,
+    bullBearCourt,
+    narrativeFlow,
+    timeMachine,
+    thesisDna,
+    convictionDecay,
+    counterfactuals,
+    constitution,
+    marketMemory,
+    evolution,
+    verdict,
+    verdictReason,
+    confidence,
+    explainability,
+    provenance,
+    skillEvidence,
+    tradeAutopsy,
+  } = data;
   const maxDecay = Math.max(1, ...convictionDecay.curve.map((c) => c.value));
 
   const verdictColor =
@@ -97,32 +131,15 @@ export function GateIntelligenceDesk({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-violet-400/25 bg-gradient-to-br from-violet-950/40 to-black/40 p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      {view !== "full" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-400/20 bg-violet-950/30 px-4 py-3">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-violet-300/90">
-              MERIDIAN · Market Memory Engine
+              MERIDIAN · {VIEW_LABELS[view]}
             </p>
-            <h2 className="mt-1 text-xl font-semibold text-white">
-              {data.symbol} intelligence · <span className="text-white/50">{genome.id}</span>
-            </h2>
-            <p className="mt-2 max-w-2xl text-xs text-white/55">
-              CMC skills → Bull/Bear Court → Memory & stress. Not “what to buy” — why, who disagrees, what breaks it.
+            <p className="mt-0.5 text-sm font-semibold text-white">
+              {data.symbol} · {genome.id}
             </p>
-            {data.architecture && (
-              <p className="mt-1 font-mono text-[10px] text-cyan-300/70">
-                {data.architecture.tagline} · {data.architecture.cmcSkillCount} CMC skills · breadth{" "}
-                {data.architecture.breadthPct ?? "UNKNOWN"} · {data.architecture.featuresLive} features live
-              </p>
-            )}
-            <p className="mt-2 font-mono text-[10px] text-white/40">
-              Source: {provenance.source} · updated {provenance.freshnessLabel} · completeness{" "}
-              {provenance.dataCompletenessPct}% · quality {provenance.dataQuality}
-              {provenance.cmcLive ? " · CMC live" : " · venue/cached"}
-            </p>
-            {provenance.staleWarning && (
-              <p className="mt-1 text-[10px] text-amber-300/90">{provenance.staleWarning}</p>
-            )}
           </div>
           {onReload && (
             <button
@@ -134,25 +151,66 @@ export function GateIntelligenceDesk({
             </button>
           )}
         </div>
-        <div className={cn("mt-4 rounded-xl border px-4 py-3", verdictColor)}>
-          <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">Final verdict · evidence engine</p>
-          <p className="mt-1 text-lg font-bold">{verdict}</p>
-          <p className="mt-1 text-xs opacity-90">{verdictReason}</p>
-        </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <StatPill label="Regime" value={genome.regime} sub={`F&G ${genome.fearGreed ?? "UNKNOWN"}`} />
-          <StatPill label="Breadth" value={genome.breadth != null ? `${genome.breadth}%` : "UNKNOWN"} sub={genome.breadthLabel} />
-          <StatPill label="Conviction" value={String(confidence.conviction)} sub={`Thesis ${convictionDecay.status}`} />
-          <StatPill label="Twin similarity" value={`${confidence.historicalSimilarity}%`} sub={marketTwin.period} />
-        </div>
-        <div className="mt-2 grid gap-2 sm:grid-cols-3">
-          <StatPill label="Bull–Bear spread" value={String(confidence.bullBearSpread)} sub="Not probability" />
-          <StatPill label="Data completeness" value={`${confidence.dataCompletenessPct}%`} sub={confidence.note} />
-          <StatPill label="Net court conviction" value={String(bullBearCourt.netConviction)} sub={bullBearCourt.conflictNote} />
-        </div>
-      </div>
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {shows(view, "full") && (
+        <div className="rounded-2xl border border-violet-400/25 bg-gradient-to-br from-violet-950/40 to-black/40 p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-violet-300/90">
+                MERIDIAN · Market Memory Engine
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-white">
+                {data.symbol} intelligence · <span className="text-white/50">{genome.id}</span>
+              </h2>
+              <p className="mt-2 max-w-2xl text-xs text-white/55">
+                CMC skills → Bull/Bear Court → Memory & stress. Not “what to buy” — why, who disagrees, what breaks it.
+              </p>
+              {data.architecture && (
+                <p className="mt-1 font-mono text-[10px] text-cyan-300/70">
+                  {data.architecture.tagline} · {data.architecture.cmcSkillCount} CMC skills · breadth{" "}
+                  {data.architecture.breadthPct ?? "UNKNOWN"} · {data.architecture.featuresLive} features live
+                </p>
+              )}
+              <p className="mt-2 font-mono text-[10px] text-white/40">
+                Source: {provenance.source} · updated {provenance.freshnessLabel} · completeness{" "}
+                {provenance.dataCompletenessPct}% · quality {provenance.dataQuality}
+                {provenance.cmcLive ? " · CMC live" : " · venue/cached"}
+              </p>
+              {provenance.staleWarning && (
+                <p className="mt-1 text-[10px] text-amber-300/90">{provenance.staleWarning}</p>
+              )}
+            </div>
+            {onReload && (
+              <button
+                type="button"
+                onClick={onReload}
+                className="rounded-lg border border-white/12 px-3 py-1.5 text-xs text-white/70 hover:border-violet-400/40"
+              >
+                Refresh
+              </button>
+            )}
+          </div>
+          <div className={cn("mt-4 rounded-xl border px-4 py-3", verdictColor)}>
+            <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">Final verdict · evidence engine</p>
+            <p className="mt-1 text-lg font-bold">{verdict}</p>
+            <p className="mt-1 text-xs opacity-90">{verdictReason}</p>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <StatPill label="Regime" value={genome.regime} sub={`F&G ${genome.fearGreed ?? "UNKNOWN"}`} />
+            <StatPill label="Breadth" value={genome.breadth != null ? `${genome.breadth}%` : "UNKNOWN"} sub={genome.breadthLabel} />
+            <StatPill label="Conviction" value={String(confidence.conviction)} sub={`Thesis ${convictionDecay.status}`} />
+            <StatPill label="Twin similarity" value={`${confidence.historicalSimilarity}%`} sub={marketTwin.period} />
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            <StatPill label="Bull–Bear spread" value={String(confidence.bullBearSpread)} sub="Not probability" />
+            <StatPill label="Data completeness" value={`${confidence.dataCompletenessPct}%`} sub={confidence.note} />
+            <StatPill label="Net court conviction" value={String(bullBearCourt.netConviction)} sub={bullBearCourt.conflictNote} />
+          </div>
+        </div>
+      )}
+
+      {shows(view, "memory", "full") && (
         <Card title="Market Twin" icon={TrendingUp} accent="border-cyan-400/20">
           <p className="mb-2 font-mono text-[8px] uppercase text-violet-300/60">MERIDIAN · historical analog</p>
           <p className="text-sm text-cyan-100">
@@ -178,7 +236,9 @@ export function GateIntelligenceDesk({
             ))}
           </div>
         </Card>
+      )}
 
+      {shows(view, "technical", "full") && (
         <Card title="Bull vs Bear Court" icon={Scale} accent="border-amber-400/20">
           <p className="mb-2 font-mono text-[8px] uppercase text-amber-300/60">MERIDIAN · 9 CMC skill layers as attorneys</p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -210,105 +270,113 @@ export function GateIntelligenceDesk({
             <p className="mt-1 text-[11px] text-amber-200/80">Dissent: {bullBearCourt.dissent.join(" · ")}</p>
           )}
         </Card>
-      </div>
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Narrative Flow" icon={GitBranch}>
-          <p className="mb-2 font-mono text-[8px] uppercase text-cyan-300/60">CMC + MERIDIAN · category rotation</p>
-          <div className="space-y-2">
-            {narrativeFlow.radar.slice(0, 6).map((n) => (
-              <div key={n.id} className="flex items-center gap-2 text-xs">
-                <span className="w-12 font-mono text-white/60">{n.label}</span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-violet-500/70" style={{ width: `${n.strength}%` }} />
+      {shows(view, "memory", "replay", "full") && (
+        <div className={cn("grid gap-4", view === "full" ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
+          <Card title="Narrative Flow" icon={GitBranch}>
+            <p className="mb-2 font-mono text-[8px] uppercase text-cyan-300/60">CMC + MERIDIAN · category rotation</p>
+            <div className="space-y-2">
+              {narrativeFlow.radar.slice(0, 6).map((n) => (
+                <div key={n.id} className="flex items-center gap-2 text-xs">
+                  <span className="w-12 font-mono text-white/60">{n.label}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full rounded-full bg-violet-500/70" style={{ width: `${n.strength}%` }} />
+                  </div>
+                  <span className="w-8 text-right tabular-nums text-white/45">{n.strength}</span>
                 </div>
-                <span className="w-8 text-right tabular-nums text-white/45">{n.strength}</span>
-              </div>
-            ))}
-          </div>
-          {narrativeFlow.migration[0] && (
-            <p className="mt-3 text-[11px] text-cyan-200/90">
-              Capital migration: {narrativeFlow.migration[0].from} → {narrativeFlow.migration[0].to} · strength{" "}
-              {narrativeFlow.migration[0].strength}
-            </p>
-          )}
-          <p className="mt-1 text-[10px] text-white/45">
-            Likely leader: {narrativeFlow.likelyNextLeader.narrative} (conviction {narrativeFlow.likelyNextLeader.conviction})
-          </p>
-        </Card>
-
-        <Card title="Conviction Decay" icon={Clock}>
-          <p className="text-2xl font-bold tabular-nums text-white">{convictionDecay.current}</p>
-          <p className="text-[10px] text-white/45">Review after {convictionDecay.reviewAfterHours}h · {convictionDecay.status}</p>
-          <div className="mt-3 flex h-20 items-end gap-2">
-            {convictionDecay.curve.map((c) => (
-              <div key={c.hours} className="flex flex-1 flex-col items-center gap-1">
-                <div
-                  className="w-full rounded-t bg-amber-500/50"
-                  style={{ height: `${Math.max(8, (c.value / maxDecay) * 100)}%` }}
-                  title={`${c.label}: ${c.value}`}
-                />
-                <span className="text-[8px] text-white/35">{c.label}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card title="Thesis DNA" icon={Dna}>
-          <dl className="space-y-1.5 text-[11px]">
-            <div className="flex justify-between"><dt className="text-white/45">ID</dt><dd className="font-mono text-violet-200">{thesisDna.id}</dd></div>
-            <div className="flex justify-between"><dt className="text-white/45">Momentum</dt><dd>{thesisDna.momentum}</dd></div>
-            <div className="flex justify-between"><dt className="text-white/45">RS</dt><dd>{thesisDna.relativeStrength}</dd></div>
-            <div className="flex justify-between"><dt className="text-white/45">Volatility</dt><dd>{thesisDna.volatility}</dd></div>
-            <div className="flex justify-between"><dt className="text-white/45">Liquidity</dt><dd>{thesisDna.liquidity}</dd></div>
-          </dl>
-          {thesisDna.resemblanceNote && (
-            <p className="mt-2 text-[10px] leading-snug text-amber-200/85">{thesisDna.resemblanceNote}</p>
-          )}
-        </Card>
-      </div>
-
-      <Card title="Skill Evidence (8 calculators)" icon={Shield} accent="border-cyan-400/15">
-        <p className="mb-3 text-[10px] text-white/45">Skills provide evidence only — Constitution decides. No BUY/SELL from skills.</p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {skillEvidence.map((s) => (
-            <div
-              key={s.skill}
-              className={cn(
-                "rounded-xl border px-3 py-2 text-[11px]",
-                s.dataUnavailable ? "border-amber-400/30 bg-amber-500/5" : "border-white/[0.06] bg-black/25",
-              )}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-white">{s.skill}</span>
-                <span className="font-mono text-cyan-200">{s.score}</span>
-              </div>
-              <p className="mt-0.5 font-mono text-[9px] text-white/40">
-                stance {s.stance} · conf {s.confidence} · {s.dataSource}
-                {s.dataUnavailable ? " · DATA UNAVAILABLE" : ""}
-              </p>
-              <ul className="mt-1 space-y-0.5 text-[10px] text-white/50">
-                {s.evidence.slice(0, 4).map((e) => (
-                  <li key={e}>· {e}</li>
-                ))}
-              </ul>
+              ))}
             </div>
-          ))}
+            {narrativeFlow.migration[0] && (
+              <p className="mt-3 text-[11px] text-cyan-200/90">
+                Capital migration: {narrativeFlow.migration[0].from} → {narrativeFlow.migration[0].to} · strength{" "}
+                {narrativeFlow.migration[0].strength}
+              </p>
+            )}
+            <p className="mt-1 text-[10px] text-white/45">
+              Likely leader: {narrativeFlow.likelyNextLeader.narrative} (conviction {narrativeFlow.likelyNextLeader.conviction})
+            </p>
+          </Card>
+
+          <Card title="Conviction Decay" icon={Clock}>
+            <p className="text-2xl font-bold tabular-nums text-white">{convictionDecay.current}</p>
+            <p className="text-[10px] text-white/45">Review after {convictionDecay.reviewAfterHours}h · {convictionDecay.status}</p>
+            <div className="mt-3 flex h-20 items-end gap-2">
+              {convictionDecay.curve.map((c) => (
+                <div key={c.hours} className="flex flex-1 flex-col items-center gap-1">
+                  <div
+                    className="w-full rounded-t bg-amber-500/50"
+                    style={{ height: `${Math.max(8, (c.value / maxDecay) * 100)}%` }}
+                    title={`${c.label}: ${c.value}`}
+                  />
+                  <span className="text-[8px] text-white/35">{c.label}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {shows(view, "memory", "full") && (
+            <Card title="Thesis DNA" icon={Dna}>
+              <dl className="space-y-1.5 text-[11px]">
+                <div className="flex justify-between"><dt className="text-white/45">ID</dt><dd className="font-mono text-violet-200">{thesisDna.id}</dd></div>
+                <div className="flex justify-between"><dt className="text-white/45">Momentum</dt><dd>{thesisDna.momentum}</dd></div>
+                <div className="flex justify-between"><dt className="text-white/45">RS</dt><dd>{thesisDna.relativeStrength}</dd></div>
+                <div className="flex justify-between"><dt className="text-white/45">Volatility</dt><dd>{thesisDna.volatility}</dd></div>
+                <div className="flex justify-between"><dt className="text-white/45">Liquidity</dt><dd>{thesisDna.liquidity}</dd></div>
+              </dl>
+              {thesisDna.resemblanceNote && (
+                <p className="mt-2 text-[10px] leading-snug text-amber-200/85">{thesisDna.resemblanceNote}</p>
+              )}
+            </Card>
+          )}
         </div>
-      </Card>
+      )}
 
-      <Card title="Explainability" icon={Brain}>
-        <dl className="space-y-2 text-[11px]">
-          <div><dt className="text-white/40">Why</dt><dd className="text-white/80">{explainability.why}</dd></div>
-          <div><dt className="text-white/40">Why now</dt><dd className="text-white/80">{explainability.whyNow}</dd></div>
-          <div><dt className="text-white/40">Who disagrees</dt><dd className="text-amber-200/90">{explainability.whoDisagrees.length ? explainability.whoDisagrees.join(" · ") : "No active dissent"}</dd></div>
-          <div><dt className="text-white/40">What breaks the thesis</dt><dd className="text-rose-200/80">{explainability.thesisBreakers.join(" · ")}</dd></div>
-          <div><dt className="text-white/40">Validity</dt><dd>{explainability.validityHours}h review window</dd></div>
-          <div><dt className="text-white/40">Seen before</dt><dd>{explainability.seenBefore}</dd></div>
-        </dl>
-      </Card>
+      {shows(view, "technical", "full") && (
+        <Card title="Skill Evidence (8 calculators)" icon={Shield} accent="border-cyan-400/15">
+          <p className="mb-3 text-[10px] text-white/45">Skills provide evidence only — Constitution decides. No BUY/SELL from skills.</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {skillEvidence.map((s) => (
+              <div
+                key={s.skill}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-[11px]",
+                  s.dataUnavailable ? "border-amber-400/30 bg-amber-500/5" : "border-white/[0.06] bg-black/25",
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-white">{s.skill}</span>
+                  <span className="font-mono text-cyan-200">{s.score}</span>
+                </div>
+                <p className="mt-0.5 font-mono text-[9px] text-white/40">
+                  stance {s.stance} · conf {s.confidence} · {s.dataSource}
+                  {s.dataUnavailable ? " · DATA UNAVAILABLE" : ""}
+                </p>
+                <ul className="mt-1 space-y-0.5 text-[10px] text-white/50">
+                  {s.evidence.slice(0, 4).map((e) => (
+                    <li key={e}>· {e}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
-      {timeMachine && (
+      {shows(view, "technical", "full") && (
+        <Card title="Explainability" icon={Brain}>
+          <dl className="space-y-2 text-[11px]">
+            <div><dt className="text-white/40">Why</dt><dd className="text-white/80">{explainability.why}</dd></div>
+            <div><dt className="text-white/40">Why now</dt><dd className="text-white/80">{explainability.whyNow}</dd></div>
+            <div><dt className="text-white/40">Who disagrees</dt><dd className="text-amber-200/90">{explainability.whoDisagrees.length ? explainability.whoDisagrees.join(" · ") : "No active dissent"}</dd></div>
+            <div><dt className="text-white/40">What breaks the thesis</dt><dd className="text-rose-200/80">{explainability.thesisBreakers.join(" · ")}</dd></div>
+            <div><dt className="text-white/40">Validity</dt><dd>{explainability.validityHours}h review window</dd></div>
+            <div><dt className="text-white/40">Seen before</dt><dd>{explainability.seenBefore}</dd></div>
+          </dl>
+        </Card>
+      )}
+
+      {timeMachine && shows(view, "memory", "replay", "full") && (
         <Card title="Time Machine · forward analog" icon={Sparkles} accent="border-emerald-400/15">
           <div className="grid gap-2 sm:grid-cols-4">
             <StatPill label="Avg return" value={`+${timeMachine.avgReturnPct}%`} />
@@ -319,33 +387,35 @@ export function GateIntelligenceDesk({
         </Card>
       )}
 
-      <GateMarketTimeline symbol={data.symbol} />
+      {shows(view, "memory", "replay", "full") && <GateMarketTimeline symbol={data.symbol} />}
 
-      <Card title="Counterfactual Universe" icon={Zap}>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {counterfactuals.map((c) => (
-            <div key={c.scenario} className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-2 text-xs">
-              <p className="font-medium text-white/80">{c.scenario}</p>
-              {c.status === "recompute_failed" ? (
-                <p className="mt-1 font-mono text-[11px] text-amber-300">Recompute failed — no synthetic delta</p>
-              ) : (
-                <p className="mt-1 font-mono text-[11px]">
-                  <span className="text-white/50">{c.convictionBefore}</span>
-                  {" → "}
-                  <span className={(c.delta ?? 0) >= 0 ? "text-emerald-300" : "text-rose-300"}>{c.convictionAfter}</span>
-                  <span className="text-white/40">
-                    {" "}
-                    ({(c.delta ?? 0) >= 0 ? "+" : ""}
-                    {c.delta}) · {c.sensitivity} sensitivity
-                  </span>
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </Card>
+      {shows(view, "technical", "replay", "full") && (
+        <Card title="Counterfactual Universe" icon={Zap}>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {counterfactuals.map((c) => (
+              <div key={c.scenario} className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-2 text-xs">
+                <p className="font-medium text-white/80">{c.scenario}</p>
+                {c.status === "recompute_failed" ? (
+                  <p className="mt-1 font-mono text-[11px] text-amber-300">Recompute failed — no synthetic delta</p>
+                ) : (
+                  <p className="mt-1 font-mono text-[11px]">
+                    <span className="text-white/50">{c.convictionBefore}</span>
+                    {" → "}
+                    <span className={(c.delta ?? 0) >= 0 ? "text-emerald-300" : "text-rose-300"}>{c.convictionAfter}</span>
+                    <span className="text-white/40">
+                      {" "}
+                      ({(c.delta ?? 0) >= 0 ? "+" : ""}
+                      {c.delta}) · {c.sensitivity} sensitivity
+                    </span>
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
-      {tradeAutopsy.length > 0 && (
+      {tradeAutopsy.length > 0 && shows(view, "memory", "full") && (
         <Card title="Trade Autopsy" icon={Scale} accent="border-violet-400/20">
           <p className="mb-2 text-[10px] text-white/45">Expected vs actual — suggestions only, no auto-mutation.</p>
           <ul className="space-y-2">
@@ -366,7 +436,7 @@ export function GateIntelligenceDesk({
         </Card>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {shows(view, "rules", "full") && (
         <Card title="Market Constitution" icon={Scale}>
           <ul className="space-y-2">
             {constitution.map((a) => (
@@ -390,7 +460,9 @@ export function GateIntelligenceDesk({
             ))}
           </ul>
         </Card>
+      )}
 
+      {shows(view, "memory", "replay", "full") && (
         <Card title="Market Memory" icon={Brain}>
           <ul className="space-y-2">
             {marketMemory.map((m) => (
@@ -415,21 +487,56 @@ export function GateIntelligenceDesk({
             </div>
           )}
         </Card>
-      </div>
+      )}
 
-      <details className="rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
-        <summary className="cursor-pointer text-xs font-semibold text-white/60">Golden rules · explainability questions</summary>
-        <ol className="mt-2 list-decimal space-y-1 pl-4 text-[11px] text-white/45">
-          {data.goldenRules?.map((r) => (
-            <li key={r}>{r}</li>
-          ))}
-        </ol>
-        <ol className="mt-3 list-decimal space-y-1 pl-4 text-[11px] text-white/45">
-          {data.philosophy.map((p) => (
-            <li key={p}>{p}</li>
-          ))}
-        </ol>
-      </details>
+      {shows(view, "rules", "full") && (
+        <details className="rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
+          <summary className="cursor-pointer text-xs font-semibold text-white/60">Data provenance · {provenance.source}</summary>
+          <p className="mt-2 text-[11px] text-white/45">
+            Updated {provenance.freshnessLabel} · completeness {provenance.dataCompletenessPct}% · quality {provenance.dataQuality}
+            {provenance.cmcLive ? " · CMC live" : " · venue/cached"}
+          </p>
+          {provenance.staleWarning && <p className="mt-1 text-[10px] text-amber-300/90">{provenance.staleWarning}</p>}
+          {data.architecture && (
+            <p className="mt-2 font-mono text-[10px] text-cyan-300/70">
+              {data.architecture.tagline} · {data.architecture.cmcSkillCount} CMC skills · breadth{" "}
+              {data.architecture.breadthPct ?? "UNKNOWN"} · {data.architecture.featuresLive} features live
+            </p>
+          )}
+        </details>
+      )}
+
+      {shows(view, "rules", "full") && (
+        <details className="rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
+          <summary className="cursor-pointer text-xs font-semibold text-white/60">Golden rules · explainability questions</summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-4 text-[11px] text-white/45">
+            {data.goldenRules?.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ol>
+          <ol className="mt-3 list-decimal space-y-1 pl-4 text-[11px] text-white/45">
+            {data.philosophy.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ol>
+        </details>
+      )}
+
+      {shows(view, "full") && (
+        <details className="rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
+          <summary className="cursor-pointer text-xs font-semibold text-white/60">Golden rules · explainability questions</summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-4 text-[11px] text-white/45">
+            {data.goldenRules?.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ol>
+          <ol className="mt-3 list-decimal space-y-1 pl-4 text-[11px] text-white/45">
+            {data.philosophy.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ol>
+        </details>
+      )}
     </div>
   );
 }
