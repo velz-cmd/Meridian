@@ -291,7 +291,7 @@ export async function fetchGateSnapshotsBatch(symbols) {
       }
     }
     const fgStale = cache.get("fg:latest");
-    const fearGreed = fgStale?.data?.data?.value ?? 50;
+    const fearGreed = fgStale?.data?.data?.value ?? null;
     try {
       const venue = await fetchVenueGateSnapshotsBatch(syms, fearGreed);
       return venue;
@@ -305,7 +305,7 @@ async function buildBatchOutFromCmcQuotes(syms, quotes, cmcLiveFlag) {
   const fearGreed =
     cache.get("fg:latest")?.data?.data?.value ??
     quotes?.data?.BNB?.quote?.USD?.fearGreed ??
-    50;
+    null;
   /** @type {Record<string, { snapshot: object; sources: Record<string, string | number | null>; cmcLive: boolean }>} */
   const out = {};
   for (const sym of syms) {
@@ -375,7 +375,7 @@ export async function fetchLiveSnapshot(symbol) {
 
   const row = quotes.data?.[sym];
   if (!row) throw new Error(`No quote for ${sym}`);
-  return quoteRowToSnapshot(sym, row, fgRes.data?.value ?? 50);
+  return quoteRowToSnapshot(sym, row, fgRes.data?.value ?? null);
 }
 
 export async function fetchHistoricalDaily(id, days) {

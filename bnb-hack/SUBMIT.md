@@ -58,15 +58,25 @@ Golden rules: never hallucinate, prefer WAIT over fake certainty, skills provide
 
 ---
 
-## Demo (2-minute video script)
+## Demo (2-minute video script — strict order)
 
-1. Open **https://trader-arc.vercel.app/gate** — “market data → strategy” (0:00)
-2. Show **entry / exit / position rules** on page (0:15)
-3. Toggle **BNB** — today’s strategy output: LONG or FLAT + thesis (0:30)
-4. Scroll **90-day backtest** — strategy vs naive agent (0:50)
-5. GitHub **SKILL.md** — CMC MCP workflow (1:10)
-6. Open **Memory tab** — Market Twin, Bull/Bear Court, verdict, skill evidence (1:00)
-7. Terminal: `npm run bnb:backtest -- --symbol BNB --days 90` (1:45)
+1. GitHub **SKILL.md** + **STRATEGY_SPEC.md** (0:00–0:20)
+2. `/gate` **Rules** — entry/exit/position rules + live CMC output + 8 CMC skills strip (0:20–0:45)
+3. **Replay** — 90-day constitution vs naive agent + equity chart (0:45–1:10)
+4. **Overview** — ONE TRUTH router + court spread (1:10–1:30)
+5. **Technical** — Timeframe desk (live/planned labels) + directionEvidence (1:30–1:50)
+6. **Memory** — Twin reference disclaimer (1:50–2:00)
+7. *(Optional 10 sec)* collapsed execution — “bonus BSC testnet, any wallet”
+
+### Agent Hub bonus (~30 sec)
+
+On **Rules** tab: open SKILL.md MCP tool list → terminal curl from Reproduce panel → same output as live desk.
+
+```bash
+curl "https://trader-arc.vercel.app/api/gate/evaluate?symbol=BNB"
+curl "https://trader-arc.vercel.app/api/gate/skills?symbol=CAKE"
+npm run bnb:backtest -- --symbol BNB --days 90
+```
 
 ---
 
@@ -115,7 +125,7 @@ npm run bnb:backtest -- --symbol BNB --days 90
 | Field | Value |
 |-------|--------|
 | **Title** | MERIDIAN Momentum Constitution — CMC Strategy Skill |
-| **Tagline** | CoinMarketCap data → entry/exit rules → Quantopian-style backtest |
+| **Tagline** | CMC Strategy Skill · backtestable spec · market memory OS |
 | **Demo** | https://trader-arc.vercel.app/gate |
 | **Analytics** | https://trader-arc.vercel.app/analytics |
 | **Track** | Strategy Skills |

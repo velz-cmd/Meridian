@@ -20,8 +20,10 @@ import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { ArcLivePulseCard } from "@/components/landing/arc-live-pulse-card";
 import { ArcPortalHero } from "@/components/landing/arc-portal-hero";
 import { ArcDeployedBadge } from "@/components/landing/arc-deployed-badge";
+import { GITHUB_SKILL_URL, isTrack2PriorityMode } from "@/lib/meridian-track2-mode";
 
 export function ArcEcosystemHero() {
+  const track2 = isTrack2PriorityMode();
   return (
     <section className="arc-home-hero-shell relative mx-auto max-w-[1680px] px-4 pb-8 pt-2 sm:px-6 sm:pb-10 max-lg:pb-6">
       <div className="arc-home-hero-grid">
@@ -51,9 +53,9 @@ export function ArcEcosystemHero() {
           </h1>
 
           <p className="mt-4 max-w-xl text-left text-[15px] leading-relaxed text-[var(--arc-text-muted)] sm:mt-5 sm:text-lg">
-            A BNB Hack Track 2 strategy skill: MERIDIAN turns live CoinMarketCap data into
-            backtestable entry and exit rules, ranks BSC benchmarks, scores conviction, and blocks
-            the wallet until the constitution passes.
+            {track2
+              ? "CMC Strategy Skill · backtestable spec · market memory OS — live CoinMarketCap data into eight deterministic skills, auditable constitution, and 90-day replay proof."
+              : "A BNB Hack Track 2 strategy skill: MERIDIAN turns live CoinMarketCap data into backtestable entry and exit rules, ranks BSC benchmarks, scores conviction, and blocks the wallet until the constitution passes."}
           </p>
 
           <ArcDeployedBadge />
@@ -72,12 +74,21 @@ export function ArcEcosystemHero() {
                 <ArrowUpRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/nexus" className="w-full sm:w-auto">
-              <Button variant="outline" size="lg" className="arc-btn-pill min-h-[54px] w-full gap-2 border-white/15 px-8 sm:w-auto">
-                <Zap className="h-5 w-5" strokeWidth={1.5} />
-                Constitution desk
+            <a href={GITHUB_SKILL_URL} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="arc-btn-pill min-h-[54px] w-full gap-2 border-cyan-400/25 px-8 sm:w-auto">
+                <Shield className="h-5 w-5" strokeWidth={1.5} />
+                GitHub SKILL.md
+                <ArrowUpRight className="h-4 w-4" />
               </Button>
-            </Link>
+            </a>
+            {!track2 && (
+              <Link href="/nexus" className="w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="arc-btn-pill min-h-[54px] w-full gap-2 border-white/15 px-8 sm:w-auto">
+                  <Zap className="h-5 w-5" strokeWidth={1.5} />
+                  Constitution desk
+                </Button>
+              </Link>
+            )}
           </div>
         </motion.div>
       </div>

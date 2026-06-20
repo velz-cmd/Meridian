@@ -60,7 +60,7 @@ export type MeridianBullBearCourt = {
 export type MeridianNarrativeNode = {
   id: string;
   label: string;
-  strength: number;
+  strength: number | null;
   trend: "rising" | "falling" | "stable";
   source: "cmc-derived" | "benchmark-derived";
 };

@@ -34,7 +34,7 @@ function resolvePermit(
   intel: MeridianIntelligencePayload | null,
 ): "GRANT" | "DENY" | "WAIT" {
   const fromConsensus = judgeConsensus?.permit.status;
-  if (fromConsensus === "GRANT" || fromConsensus === "DENY") return fromConsensus;
+  if (fromConsensus === "GRANT" || fromConsensus === "DENY" || fromConsensus === "WAIT") return fromConsensus;
   if (intel?.verdict === "GRANT") return "GRANT";
   if (intel?.verdict === "DENY") return "DENY";
   return "WAIT";
@@ -128,8 +128,8 @@ export function resolveGateOverviewTruth(input: {
     }),
     updatedAt,
     constitutionBias: constitutionBiasLabel(input.judgeConsensus),
-    checksPassed: input.selected?.gate.checksPassed ?? input.judgeConsensus?.votes.long ?? null,
-    checksTotal: input.selected?.gate.checksTotal ?? input.judgeConsensus?.votes.total ?? null,
+    checksPassed: input.selected?.gate.checksPassed ?? null,
+    checksTotal: input.selected?.gate.checksTotal ?? null,
     tier: input.selected?.gate.tier ?? input.positionRoute?.gate?.tier ?? null,
   };
 }

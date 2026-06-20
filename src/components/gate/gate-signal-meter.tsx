@@ -10,22 +10,23 @@ export function GateSignalMeter({
 }: {
   rows: GateSignalRow[];
   verdict: string;
-  verdictConfidence: number;
+  verdictConfidence: number | null;
 }) {
   const chipClass =
     verdict === "LONG" ? "green" : verdict === "EXIT" || verdict === "AVOID" ? "red" : "accent";
+  const confLabel = verdictConfidence != null ? `${verdictConfidence}%` : "—";
 
   return (
     <div className="gate-signal-block">
       <div className="gate-signal-block-header">
         <span className="gate-signal-block-title">Live signal composite</span>
         <span className={cn("gate-meta-chip", chipClass)}>
-          {verdict} · {verdictConfidence}%
+          {verdict} · {confLabel}
         </span>
       </div>
       <div className="gate-signal-block-body">
         {rows.map((sig) => {
-          const pct = Math.min((sig.value / sig.max) * 100, 100);
+          const pct = sig.value != null ? Math.min((sig.value / sig.max) * 100, 100) : 0;
           const col = sig.bull ? "var(--gate-green)" : "var(--gate-red)";
           return (
             <div key={sig.name} className="gate-signal-row">
@@ -34,7 +35,7 @@ export function GateSignalMeter({
                 <div className="gate-signal-bar" style={{ width: `${pct}%`, background: col }} />
               </div>
               <span className="gate-signal-val" style={{ color: col }}>
-                {sig.value}
+                {sig.value ?? "—"}
               </span>
               <span
                 className="gate-signal-dir"

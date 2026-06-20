@@ -15,6 +15,7 @@ import { formatGatePrice, formatSignedPct } from "@/lib/gate-format";
 import { resolveGateOverviewTruth } from "@/lib/gate-overview-truth";
 import { getGateDeskTabMeta } from "@/lib/gate-desk-tab-meta";
 import type { GateArbitration } from "@/hooks/use-gate-permit";
+import type { GatePermitStatus } from "@/lib/gate-permit-status";
 import { cn } from "@/lib/utils";
 
 function formatPct(n: number | undefined): string {
@@ -47,6 +48,7 @@ export function GateOverviewTab({
   onGoTab,
   onOpenNexus,
   onOpenAutopilot,
+  track2Priority = false,
 }: {
   symbol: string;
   selected?: GateBenchmarkFull;
@@ -58,9 +60,10 @@ export function GateOverviewTab({
   directionLoading: boolean;
   gateRoute: GateRoutePayload | null;
   benchmarks: GateBenchmarkFull[];
-  permit?: "GRANT" | "DENY";
+  permit?: GatePermitStatus;
   permitId?: string | null;
   arbitration?: GateArbitration | null;
+  track2Priority?: boolean;
   onGoTab: (tab: "memory" | "technical" | "rules" | "replay") => void;
   onOpenNexus: () => void;
   onOpenAutopilot?: () => void;
@@ -84,7 +87,7 @@ export function GateOverviewTab({
 
   const constitutionActive =
     intel?.constitution.filter((a) => a.status === "active").length ??
-    judgeConsensus?.votes.long ??
+    truth.checksPassed ??
     0;
   const constitutionTotal = intel?.constitution.length ?? 6;
   const constitutionViolated = intel?.constitution.filter((a) => a.status === "violated").length ?? 0;
@@ -271,9 +274,14 @@ export function GateOverviewTab({
           <div key={n.id} className="mb-2 flex items-center gap-2 text-xs">
             <span className="w-14 text-white/50">{n.label}</span>
             <div className="h-1.5 flex-1 rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-violet-500/50" style={{ width: `${n.strength}%` }} />
+              <div
+                className="h-full rounded-full bg-violet-500/50"
+                style={{ width: `${n.strength != null ? n.strength : 0}%` }}
+              />
             </div>
-            <span className="w-8 text-right tabular-nums text-white/40">{n.strength}</span>
+            <span className="w-8 text-right tabular-nums text-white/40">
+              {n.strength != null ? n.strength : "—"}
+            </span>
           </div>
         )) ?? <p className="gate-body-text text-white/45">Narrative radar syncs with intelligence.</p>}
       </GateCollapsibleCard>
@@ -332,13 +340,14 @@ export function GateOverviewTab({
         directionLoading={directionLoading}
         gateRoute={gateRoute}
         benchmarks={benchmarks}
-        permit={permit ?? (truth.permit === "GRANT" ? "GRANT" : "DENY")}
+        permit={permit ?? truth.permit}
         permitId={permitId}
         priceUsd={livePrice}
         arbitration={arbitration}
         primaryAction={truth.primaryAction}
         routerDirection={truth.direction}
         deskLabel={truth.deskLabel}
+        track2Priority={track2Priority}
         onOpenNexus={onOpenNexus}
         onOpenAutopilot={onOpenAutopilot}
       />

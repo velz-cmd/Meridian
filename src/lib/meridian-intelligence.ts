@@ -198,10 +198,26 @@ function buildCounterfactualSnapshot(input: IntelligenceInput, sym: string): Rec
 }
 
 function buildMarketTwin(genome: MeridianGenome, _symbol: string, change7d: number | null): MeridianMarketTwin {
-  const breadth = genome.breadth ?? 50;
+  if (genome.breadth == null || genome.fearGreed == null || genome.rsi == null) {
+    return {
+      label: "DATA UNAVAILABLE",
+      period: "—",
+      similarity: 0,
+      confidence: "Low",
+      outcomes: [],
+      differences: ["Live genome inputs incomplete — twin match abstains."],
+      implication: "Await CMC live quotes before referencing historical analog.",
+      disclaimer:
+        "Reference library episode — not live CMC, not a forecast, not the 90-day strategy backtest on Replay tab.",
+      avgHistoricalReturnPct: 0,
+      worstHistoricalReturnPct: 0,
+      sampleSize: 0,
+    };
+  }
+  const breadth = genome.breadth;
   const live = {
-    fearGreed: genome.fearGreed ?? 50,
-    rsi: genome.rsi ?? 50,
+    fearGreed: genome.fearGreed,
+    rsi: genome.rsi,
     change7d: change7d ?? 0,
     breadth,
     regime: genome.regime,
@@ -324,13 +340,19 @@ function buildNarrativeFlow(ranked: IntelligenceInput["ranked"], symbol: string)
     if (bucket && r.conviction != null) bucketStrength[bucket] = clamp(r.conviction + 15);
   }
 
-  const radar = NARRATIVE_BUCKETS.map((id) => ({
-    id,
-    label: id,
-    strength: Math.round(bucketStrength[id] ?? 40),
-    trend: (bucketStrength[id] ?? 40) > 55 ? ("rising" as const) : ("stable" as const),
-    source: "benchmark-derived" as const,
-  })).sort((a, b) => b.strength - a.strength);
+  const hasRanked = (ranked?.length ?? 0) > 0;
+
+  const radar = NARRATIVE_BUCKETS.map((id) => {
+    const raw = bucketStrength[id];
+    const strength = hasRanked && raw != null ? Math.round(raw) : null;
+    return {
+      id,
+      label: id,
+      strength,
+      trend: strength != null && strength > 55 ? ("rising" as const) : ("stable" as const),
+      source: "benchmark-derived" as const,
+    };
+  }).sort((a, b) => (b.strength ?? -1) - (a.strength ?? -1));
 
   const migration: MeridianNarrativeFlow["migration"] = [];
   if ((ranked?.length ?? 0) >= 2) {
@@ -341,7 +363,7 @@ function buildNarrativeFlow(ranked: IntelligenceInput["ranked"], symbol: string)
       migration.push({
         from,
         to,
-        strength: clamp((sorted[0]!.conviction ?? 50) - (sorted.at(-1)!.conviction ?? 30)),
+        strength: clamp((sorted[0]!.conviction ?? 0) - (sorted.at(-1)!.conviction ?? 0)),
         source: "derived",
       });
     }
@@ -350,7 +372,10 @@ function buildNarrativeFlow(ranked: IntelligenceInput["ranked"], symbol: string)
   return {
     radar,
     migration,
-    likelyNextLeader: { narrative: leaderNarr, conviction: clamp(leader?.conviction ?? 50) },
+    likelyNextLeader: {
+      narrative: leaderNarr,
+      conviction: leader?.conviction != null ? clamp(leader.conviction) : 0,
+    },
   };
 }
 
@@ -490,10 +515,11 @@ function buildConstitution(
 }
 
 function buildMemory(genome: MeridianGenome): MeridianMemoryMatch[] {
-  const breadth = genome.breadth ?? 50;
+  if (genome.breadth == null || genome.fearGreed == null) return [];
+  const breadth = genome.breadth;
   return MEMORY_GENOMES.map((g) => {
     const sim = Math.round(
-      (1 - Math.abs((genome.fearGreed ?? 50) - g.fearGreed) / 100) * 40 +
+      (1 - Math.abs(genome.fearGreed! - g.fearGreed) / 100) * 40 +
         (1 - Math.abs(breadth - g.breadth) / 100) * 35 +
         (genome.regime === g.regime ? 25 : 10),
     );
@@ -617,21 +643,21 @@ function buildExplainability(input: {
   decay: MeridianConvictionDecay;
   gate?: IntelligenceInput["gate"];
   skills?: IntelligenceInput["skills"];
+  counterfactuals: MeridianCounterfactual[];
 }): MeridianExplainability {
   const sym = input.symbol;
   const thesis = input.skills?.composite?.thesis ?? input.gate?.thesis ?? "Awaiting gate evaluation.";
   const blockers = input.skills?.composite?.blockers ?? input.consensus?.blockers ?? [];
+  const stressBreakers = input.counterfactuals
+    .filter((c) => c.scenario !== "Baseline unavailable" && c.status !== "recompute_failed")
+    .slice(0, 3)
+    .map((c) => `Stress: ${c.scenario}`);
 
   return {
     why: thesis,
     whyNow: `${sym} in ${input.genome.regime} regime · F&G ${input.genome.fearGreed ?? "UNKNOWN"} · breadth ${input.genome.breadth ?? "UNKNOWN"}`,
     whoDisagrees: input.court.dissent,
-    thesisBreakers: [
-      ...blockers.map((b) => `Blocker: ${b}`),
-      "Stress: BTC −5%",
-      "Stress: volume collapse",
-      "Stress: F&G shock",
-    ].slice(0, 6),
+    thesisBreakers: [...blockers.map((b) => `Blocker: ${b}`), ...stressBreakers].slice(0, 6),
     validityHours: input.decay.reviewAfterHours,
     seenBefore: `${input.marketTwin.label} (${input.marketTwin.similarity}% similar)`,
     historicalResemblance: input.marketTwin.disclaimer,
@@ -687,6 +713,7 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     decay: convictionDecay,
     gate: input.gate,
     skills: input.skills,
+    counterfactuals,
   });
 
   const permitStatus = consensus?.permit.status;

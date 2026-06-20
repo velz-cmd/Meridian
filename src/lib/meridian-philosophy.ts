@@ -206,6 +206,17 @@ export const MERIDIAN_LLM_GUARDRAILS = [
   "Placeholder reasoning is forbidden — cite skills, APIs, or mark unavailable.",
 ] as const;
 
+/** Track 2 Priority Mode — Gate product posture for BNB Hack judges */
+export const MERIDIAN_TRACK2_PRIORITY = {
+  flag: "NEXT_PUBLIC_MERIDIAN_TRACK2_PRIORITY",
+  enabledValue: "1",
+  gateIsPrimary: "Gate = CMC Strategy Skill product surface.",
+  executionSecondary: "Execution is secondary. Strategy intelligence is primary.",
+  overviewOneTruth: "Overview = router ONE TRUTH. Sub-tabs explain. Never compete.",
+  multiTimeframeHonesty: "Multi-TF: different horizons, different truths — honest sources only.",
+  walletPrinciple: "Wallets carry intelligence; they never own it.",
+} as const;
+
 /** Canonical master principles — see docs/MERIDIAN-MASTER-PRINCIPLES.md */
 export const MERIDIAN_MASTER_PRINCIPLES = {
   identity: MERIDIAN_TAGLINE,
@@ -223,6 +234,7 @@ export const MERIDIAN_MASTER_PRINCIPLES = {
   truthLaw: MERIDIAN_TRUTH_LAW,
   truthForbidden: MERIDIAN_TRUTH_FORBIDDEN,
   truthRequirements: MERIDIAN_TRUTH_REQUIREMENTS,
+  track2Priority: MERIDIAN_TRACK2_PRIORITY,
 } as const;
 
 /** Payload philosophy block — shipped to clients */

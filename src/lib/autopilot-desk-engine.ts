@@ -49,7 +49,7 @@ export type AutopilotDeskCycle = {
   venue: AutopilotVenue;
   action: AutopilotDeskAction;
   direction: PositionDirection;
-  confidence: number;
+  confidence: number | null;
   thesis: string;
   notPrediction: true;
   method: string;

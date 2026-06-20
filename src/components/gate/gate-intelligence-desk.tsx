@@ -178,7 +178,9 @@ export function GateIntelligenceDesk({
             )}
           </div>
           <div className={cn("mt-4 rounded-xl border px-4 py-3", verdictColor)}>
-            <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">Final verdict · evidence engine</p>
+            <p className="font-mono text-[10px] uppercase tracking-wider opacity-80">
+              Constitution permit · non-executive
+            </p>
             <p className="mt-1 text-lg font-bold">{verdict}</p>
             <p className="mt-1 text-xs opacity-90">{verdictReason}</p>
           </div>

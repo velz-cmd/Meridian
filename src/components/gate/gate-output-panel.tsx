@@ -169,7 +169,13 @@ export function GateOutputPanel({
   const passedWeight = checks.filter((c) => c.pass).reduce((s, c) => s + c.weight, 0);
   const totalWeight = checks.reduce((s, c) => s + c.weight, 0);
   const agreementPct = totalWeight > 0 ? Math.round((passedWeight / totalWeight) * 100) : 0;
-  const verdictConfidence = long ? effectiveConfidence(gate, skills) : Math.min(effectiveConfidence(gate, skills), gate.confidence ?? 50);
+  const verdictConfidence = long
+    ? effectiveConfidence(gate, skills)
+    : (() => {
+        const base = effectiveConfidence(gate, skills);
+        if (base == null) return gate.confidence ?? null;
+        return gate.confidence != null ? Math.min(base, gate.confidence) : base;
+      })();
   const signalRows = buildGateSignalMeter(selected, route, skills);
   const verdictLabel = long ? "LONG" : displaySignal === "EXIT" ? "EXIT" : displaySignal === "AVOID" ? "AVOID" : "FLAT";
 
@@ -200,7 +206,7 @@ export function GateOutputPanel({
     backtest.backtest &&
     backtest.backtest.totalReturnPct < backtest.compare.naiveAgent.totalReturnPct;
 
-  const fng = route?.fearGreed ?? selected.market.fearGreed ?? 50;
+  const fng = route?.fearGreed ?? selected.market.fearGreed ?? null;
 
   return (
     <div className="gate-output-panel">
@@ -225,7 +231,7 @@ export function GateOutputPanel({
             </div>
           </div>
           <div className="gate-score-ring">
-            <div className="gate-score-value">{verdictConfidence}</div>
+            <div className="gate-score-value">{verdictConfidence ?? "—"}</div>
             <div className="gate-score-label">{long ? "Alignment" : "Conviction"}</div>
           </div>
         </div>
@@ -244,8 +250,17 @@ export function GateOutputPanel({
           </div>
           <div className="gate-stat-card">
             <p className="gate-stat-label">Fear & Greed</p>
-            <p className={cn("gate-stat-value", fng > 60 ? "red" : fng < 40 ? "green" : "accent")}>{fng}</p>
-            <p className="gate-stat-sub">{fng > 60 ? "Greed" : fng < 40 ? "Fear" : "Neutral"}</p>
+            <p
+              className={cn(
+                "gate-stat-value",
+                fng == null ? "accent" : fng > 60 ? "red" : fng < 40 ? "green" : "accent",
+              )}
+            >
+              {fng ?? "—"}
+            </p>
+            <p className="gate-stat-sub">
+              {fng == null ? "DATA UNAVAILABLE" : fng > 60 ? "Greed" : fng < 40 ? "Fear" : "Neutral"}
+            </p>
             {selected.cmcLive && <LiveDot />}
           </div>
           <div className="gate-stat-card">
