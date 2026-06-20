@@ -49,6 +49,7 @@ function checkEvidence(checks: RawSkill["checks"]): string[] {
 }
 
 function computeScore(skill: RawSkill): number {
+  if (skill.dataUnavailable || skill.dataSource === "pending") return 0;
   if (skill.checksTotal && skill.checksPassed != null) {
     return Math.round((skill.checksPassed / skill.checksTotal) * 100);
   }
@@ -56,7 +57,7 @@ function computeScore(skill: RawSkill): number {
   if (skill.socialHeat != null && skill.flowScore != null) {
     return Math.round((skill.socialHeat + skill.flowScore) / 2);
   }
-  return 50;
+  return 0;
 }
 
 function computeConfidence(skill: RawSkill): number {

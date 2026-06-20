@@ -37,7 +37,16 @@ export function NexusAgentPulseStrip({
     );
   }
 
-  if (!pulse?.ok) return null;
+  if (!pulse) return null;
+
+  if (!pulse.ok) {
+    return (
+      <div className="nexus-agent-pulse rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">
+        <p className="font-semibold">Agent market pulse · degraded</p>
+        <p className="mt-1 text-white/70">{pulse.headline}</p>
+      </div>
+    );
+  }
 
   const Icon =
     pulse.agentStance === "LONG" ? TrendingUp : pulse.agentStance === "DE_RISK" ? ShieldAlert : Radio;
@@ -55,7 +64,7 @@ export function NexusAgentPulseStrip({
           <div className="flex min-w-0 items-start gap-2.5">
             <ArcIcon3d icon={Icon} theme="nexus" size="sm" className="!h-8 !w-8 shrink-0" />
             <div className="min-w-0">
-              <p className="arc-caption text-cyan-300/80">Agent market pulse · live</p>
+              <p className="arc-caption text-cyan-300/80">Agent market pulse · CMC macro</p>
               <p className="mt-0.5 text-sm font-semibold leading-snug text-white">{pulse.headline}</p>
               {pulse.flushProxyUsd60m != null && pulse.flushProxyUsd60m >= 5_000_000 && (
                 <p className="mt-1 font-mono text-[10px] text-white/45">

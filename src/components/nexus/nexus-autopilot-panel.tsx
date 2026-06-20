@@ -926,7 +926,7 @@ export function NexusAutopilotPanel({
         );
         toast({
           type: "success",
-          title: "Autopilot live",
+          title: "Testnet desk active",
           message: `${cfg.venue === "futures" ? "Futures signals" : "Spot Chapel"} · ${capLabel} · confirm each cycle in wallet.`,
         });
         await runCycleRef.current("recurring");
@@ -1642,7 +1642,7 @@ export function NexusAutopilotPanel({
           <span className="text-base font-semibold text-white">NEXUS Autopilot</span>
           {config.recurringEnabled && (
             <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-200">
-              RECURRING LIVE
+              TESTNET ACTIVE
             </span>
           )}
         </div>

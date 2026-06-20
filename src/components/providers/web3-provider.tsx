@@ -1,17 +1,20 @@
 "use client";
 
+import "@rainbow-me/rainbowkit/styles.css";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider, createConfig, http } from "wagmi";
-import { injected } from "wagmi/connectors";
+import { RainbowKitProvider, darkTheme, getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { WagmiProvider } from "wagmi";
 import { bsc } from "@/lib/bsc-chain";
 
-/** BSC Testnet — Trust Wallet / MetaMask (BNB Hack) */
-const config = createConfig({
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
+
+/** BSC Testnet — Trust Wallet (WC) + MetaMask (injected) · BNB Hack */
+const config = getDefaultConfig({
+  appName: "MERIDIAN Gate",
+  appDescription: "CoinMarketCap strategy desk · BSC Testnet Chapel settlement",
+  projectId: projectId || "00000000000000000000000000000000",
   chains: [bsc],
-  connectors: [injected({ shimDisconnect: true })],
-  transports: {
-    [bsc.id]: http(bsc.rpcUrls.default.http[0]),
-  },
   ssr: false,
 });
 
@@ -20,7 +23,18 @@ const queryClient = new QueryClient();
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider
+          theme={darkTheme({
+            accentColor: "#8b5cf6",
+            accentColorForeground: "white",
+            borderRadius: "medium",
+          })}
+          modalSize="compact"
+        >
+          {children}
+        </RainbowKitProvider>
+      </QueryClientProvider>
     </WagmiProvider>
   );
 }

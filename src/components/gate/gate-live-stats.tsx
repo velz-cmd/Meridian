@@ -23,7 +23,8 @@ export function GateLiveStats({
   const primary = route?.allocation?.primary ?? ranked[0]?.symbol ?? "—";
   const primaryPct = route?.allocation?.splitPrimaryPct;
   const regime = route?.regime ?? "neutral";
-  const fg = route?.fearGreed ?? 50;
+  const fg = route?.fearGreed;
+  const fgLabel = fg != null ? String(Math.round(fg)) : "DATA UNAVAILABLE";
 
   const refreshed = generatedAt
     ? new Date(generatedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
@@ -48,12 +49,12 @@ export function GateLiveStats({
     {
       label: "Permits today",
       value: loading ? "…" : `${longCount} clear`,
-      sub: `${flatCount} blocked · sentiment ${fg}`,
+      sub: `${flatCount} blocked · sentiment ${fgLabel}`,
       accent: longCount > 0 ? "text-emerald-300" : "text-white/80",
     },
     {
       label: "Benchmarks",
-      value: loading ? "…" : String(ranked.length || 4),
+      value: loading ? "…" : ranked.length ? String(ranked.length) : "—",
       sub: "BNB · CAKE · FLOKI · XVS",
       accent: "text-white/90",
     },

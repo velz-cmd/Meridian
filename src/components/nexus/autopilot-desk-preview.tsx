@@ -76,7 +76,7 @@ export function AutopilotDeskPreview({
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-cyan-200/85">
           <Activity className="h-3.5 w-3.5" />
-          Live desk · {venue} · real data rules
+          Testnet desk · {venue} · CMC + gate rules
         </p>
         {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-300" />}
       </div>

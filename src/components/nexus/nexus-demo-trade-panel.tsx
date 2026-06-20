@@ -12,7 +12,7 @@ import { useConstitution } from "@/contexts/nexus-constitution-context";
 import { ArcIcon3d } from "@/components/ui/arc-icon-3d";
 import { nexusGlassCta } from "@/lib/nexus-action-glass";
 import { NEXUS_TRADE_ICONS } from "@/lib/nexus-trade-icons";
-import { Button } from "@/components/ui/button";
+import { MeridianWalletConnect } from "@/components/nexus/meridian-wallet-connect";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
@@ -400,7 +400,12 @@ export function NexusTradeHub({
             {constitutionBlocked ? "Permit DENY — buy blocked" : tradeOnChain ? `Sign ${side === "buy" ? "Buy" : "Sell"} in wallet` : "Not on BSC Testnet"}
           </button>
         ) : (
-          <p className="text-center text-sm text-white/60">Connect wallet on {BSC_CHAIN_LABEL} to trade</p>
+          <div className="space-y-3 rounded-xl border border-violet-400/20 bg-violet-500/10 px-4 py-4">
+            <p className="text-center text-sm text-white/70">
+              Connect Trust Wallet or MetaMask on {BSC_CHAIN_LABEL} to sign Chapel swaps
+            </p>
+            <MeridianWalletConnect className="flex justify-center" label="Connect wallet · BSC Testnet" />
+          </div>
         )}
         {constitutionBlocked && (
           <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-100">

@@ -257,7 +257,9 @@ export function GateOutputPanel({
           </div>
           <div className="gate-stat-card">
             <p className="gate-stat-label">Edge</p>
-            <p className="gate-stat-value green">+{gate.edge ?? 0}</p>
+            <p className="gate-stat-value green">
+              {gate.edge != null ? `+${gate.edge}` : "DATA UNAVAILABLE"}
+            </p>
             <p className="gate-stat-sub">{gate.regime?.replace(/-/g, " ") ?? "—"}</p>
           </div>
           {section === "replay" && backtest?.ok && backtest.backtest && (

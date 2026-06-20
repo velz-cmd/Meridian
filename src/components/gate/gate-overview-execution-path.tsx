@@ -4,6 +4,7 @@ import { ArrowUpRight, Loader2 } from "lucide-react";
 import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
 import { GateCollapsibleCard } from "@/components/gate/gate-collapsible-card";
 import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
+import { GateConnectStrip } from "@/components/gate/gate-connect-strip";
 import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
 import { effectiveGateSignal } from "@/lib/gate-effective-signal";
 import { GATE_PRODUCT } from "@/lib/gate-product-copy";
@@ -52,6 +53,7 @@ export function GateOverviewExecutionPath({
 
   return (
     <section className="space-y-3">
+      <GateConnectStrip symbol={symbol} />
       <div className="gate-execution-cta flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-black/30 px-5 py-4 sm:px-6 sm:py-5">
         <div className="min-w-0">
           <GateSectionHead

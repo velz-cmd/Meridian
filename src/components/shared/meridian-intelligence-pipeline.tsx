@@ -27,8 +27,8 @@ export function MeridianIntelligencePipeline() {
               <span className="text-white/50">MERIDIAN provides the intelligence.</span>
             </h2>
             <p className="mt-3 max-w-xl text-sm text-white/55">
-              ~{summary.coveragePct}% of the Track 2 stack is live: {summary.cmcSkillCount} deterministic CMC skills
-              feed Bull/Bear Court, Constitution, Market Twin, and counterfactual stress — not another RSI dashboard.
+              ~{summary.coveragePct}% of skills + reasoning layers are wired: {summary.cmcSkillCount} deterministic CMC skills
+              feed Bull/Bear Court and Constitution; memory analogs are reference libraries, not live forecasts.
             </p>
           </div>
           <Link

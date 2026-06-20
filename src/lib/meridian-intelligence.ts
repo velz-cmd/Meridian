@@ -165,7 +165,35 @@ function buildGenome(input: IntelligenceInput): MeridianGenome {
     relativeStrength: rs,
     volatility: vol,
     rsi: m.rsi ?? null,
-    conviction: input.conviction ?? input.gate?.confidence ?? 50,
+    conviction: input.conviction ?? input.gate?.confidence ?? 0,
+  };
+}
+
+function counterfactualBaselineReady(input: IntelligenceInput): boolean {
+  const m = input.market;
+  return (
+    m?.fearGreed != null &&
+    m?.rsi != null &&
+    m?.price != null &&
+    m.price > 0 &&
+    m?.volume24h != null &&
+    m.volume24h > 0
+  );
+}
+
+function buildCounterfactualSnapshot(input: IntelligenceInput, sym: string): Record<string, unknown> | null {
+  const m = input.market;
+  if (!counterfactualBaselineReady(input)) return null;
+  return {
+    symbol: sym,
+    fearGreed: m!.fearGreed,
+    rsi: m!.rsi,
+    change24h: m!.change24h ?? 0,
+    change7d: m!.change7d ?? 0,
+    volume24h: m!.volume24h,
+    marketCap: m!.marketCap ?? 0,
+    macdSignal: m!.macdSignal ?? "neutral",
+    price: m!.price,
   };
 }
 
@@ -201,7 +229,8 @@ function buildMarketTwin(genome: MeridianGenome, _symbol: string, change7d: numb
       d.replace("today", `F&G ${genome.fearGreed ?? "?"}`).replace("then", `F&G ${best.fearGreed}`),
     ),
     implication: best.implication,
-    disclaimer: "Historical analog — reference only, not a prediction or guarantee.",
+    disclaimer:
+      "Reference library episode — not live CMC, not a forecast, not the 90-day strategy backtest on Replay tab.",
     avgHistoricalReturnPct,
     worstHistoricalReturnPct,
     sampleSize: HISTORICAL_ANALOGS.length,
@@ -211,14 +240,14 @@ function buildMarketTwin(genome: MeridianGenome, _symbol: string, change7d: numb
 function buildCourt(consensus: GateJudgeConsensus | null | undefined, conviction: number): MeridianBullBearCourt {
   if (!consensus) {
     return {
-      bull: { score: conviction, arguments: ["Awaiting skill consensus — DATA UNAVAILABLE"], layers: [] },
-      bear: { score: 100 - conviction, arguments: ["Insufficient consensus data"], layers: [] },
-      verdict: conviction >= 55 ? "Bull wins" : "Bear wins",
-      netConviction: conviction - (100 - conviction),
-      spread: Math.abs(conviction - (100 - conviction)),
+      bull: { score: 0, arguments: ["Awaiting skill consensus — DATA UNAVAILABLE"], layers: [] },
+      bear: { score: 0, arguments: ["Insufficient consensus data — court not convened"], layers: [] },
+      verdict: "Deadlock",
+      netConviction: 0,
+      spread: 0,
       dissent: [],
       permit: "WAIT",
-      conflictNote: "Court cannot convene without live skill consensus.",
+      conflictNote: "Court not convened — WAIT until live skill consensus loads.",
     };
   }
 
@@ -503,13 +532,15 @@ function buildThesisDna(genome: MeridianGenome, topMemory: MeridianMemoryMatch |
 
 function buildTimeMachine(backtest: IntelligenceInput["backtest"]): MeridianTimeMachine | null {
   if (!backtest?.winRatePct && !backtest?.totalReturnPct) return null;
+  const trips = backtest.roundTrips ?? 0;
+  const avgDurationDays = trips > 0 ? Math.max(1, Math.round(90 / trips)) : 0;
   return {
     avgReturnPct: backtest.totalReturnPct ?? 0,
     winRatePct: backtest.winRatePct ?? 0,
-    avgDurationDays: 6,
+    avgDurationDays,
     worstDrawdownPct: backtest.maxDrawdownPct ?? 0,
-    sampleSize: backtest.roundTrips ?? 0,
-    source: "90-day strategy backtest · not the historical analog above",
+    sampleSize: trips,
+    source: "90-day strategy backtest · reproducible via /api/gate/backtest",
   };
 }
 
@@ -522,7 +553,7 @@ function buildEvolution(backtest: IntelligenceInput["backtest"]): MeridianEvolut
     sharpe: Math.round(((backtest.totalReturnPct ?? 0) / Math.max(1, Math.abs(backtest.maxDrawdownPct ?? 5))) * 10) / 10,
     weakness: (backtest.maxDrawdownPct ?? 0) < -12 ? "Fails during panic regimes" : "Moderate drawdown in chop",
     proposedMutation: "Increase volatility penalty in risk-off (suggestion only — no auto-mutation)",
-    expectedImprovement: `Sharpe +0.3 · drawdown saved ${edge.drawdownSavedPct ?? 0}% vs naive agent`,
+    expectedImprovement: `Return delta ${edge.returnDeltaPct ?? 0}% · drawdown saved ${edge.drawdownSavedPct ?? 0}% vs naive agent (from backtest)`,
   };
 }
 
@@ -609,7 +640,7 @@ function buildExplainability(input: {
 
 export function buildMeridianIntelligence(input: IntelligenceInput): MeridianIntelligencePayload {
   const sym = input.symbol.toUpperCase();
-  const conviction = input.conviction ?? input.gate?.confidence ?? 50;
+  const conviction = input.conviction ?? input.gate?.confidence ?? 0;
   const genome = buildGenome(input);
   const memory = buildMemory(genome);
   const consensus = input.consensus ?? null;
@@ -620,17 +651,19 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     input.skills?.skillEvidence ??
     extractSkillEvidenceBundle(input.skills as Record<string, unknown> | undefined);
 
-  const snapshot: Record<string, unknown> = {
-    symbol: sym,
-    fearGreed: input.market?.fearGreed ?? 50,
-    rsi: input.market?.rsi ?? 50,
-    change24h: input.market?.change24h ?? 0,
-    change7d: input.market?.change7d ?? 0,
-    volume24h: input.market?.volume24h ?? 0,
-    marketCap: input.market?.marketCap ?? 1e9,
-    macdSignal: input.market?.macdSignal ?? "neutral",
-    price: input.market?.price ?? 1,
-  };
+  const snapshot = buildCounterfactualSnapshot(input, sym);
+  const counterfactuals = snapshot
+    ? buildCounterfactuals(snapshot, conviction)
+    : [
+        {
+          scenario: "Baseline unavailable",
+          convictionBefore: conviction,
+          convictionAfter: null,
+          delta: null,
+          status: "recompute_failed" as const,
+          sensitivity: "low" as const,
+        },
+      ];
 
   const breadthInfo = computeBreadth(input.ranked);
   const arch = summarizeArchitectureCoverage();
@@ -728,7 +761,7 @@ export function buildMeridianIntelligence(input: IntelligenceInput): MeridianInt
     timeMachine: buildTimeMachine(input.backtest),
     thesisDna: buildThesisDna(genome, memory[0]),
     convictionDecay,
-    counterfactuals: buildCounterfactuals(snapshot, conviction),
+    counterfactuals,
     constitution: buildConstitution(consensus, {
       regime: genome.regime,
       breadth: genome.breadth,

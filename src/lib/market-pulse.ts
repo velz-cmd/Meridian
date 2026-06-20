@@ -78,10 +78,16 @@ export function computeMarketPulse(input: {
   gateTier?: string | null;
   symbol?: string;
 }): MarketPulse {
-  const fg = input.fearGreed ?? 50;
-  const btc24 = input.btcChange24h ?? 0;
-  const btc1 = input.btcChange1h ?? btc24 / 24;
-  const mcapCh = input.marketCapChange24h ?? 0;
+  const hasFg = input.fearGreed != null;
+  const hasBtc24 = input.btcChange24h != null;
+  const hasMcap = input.marketCapChange24h != null;
+  const inputsPresent = [hasFg, hasBtc24, hasMcap, input.macro != null].filter(Boolean).length;
+  const degraded = inputsPresent < 2;
+
+  const fg = hasFg ? input.fearGreed! : null;
+  const btc24 = hasBtc24 ? input.btcChange24h! : 0;
+  const btc1 = input.btcChange1h ?? (hasBtc24 ? btc24 / 24 : 0);
+  const mcapCh = hasMcap ? input.marketCapChange24h! : 0;
   const macro = input.macro ?? null;
 
   let stress = 0;
@@ -90,8 +96,8 @@ export function computeMarketPulse(input: {
   if (Math.abs(btc24) >= 4) stress += 15;
   if (mcapCh <= -2) stress += 18;
   if (mcapCh <= -4) stress += 12;
-  if (fg <= 30) stress += 14;
-  if (fg <= 20) stress += 10;
+  if (fg != null && fg <= 30) stress += 14;
+  if (fg != null && fg <= 20) stress += 10;
   if (macro?.label === "risk-off") stress += 12;
   if (btc1 < -2 && btc24 < 0) stress += 15;
   stress = clamp(stress, 0, 100);
@@ -114,7 +120,7 @@ export function computeMarketPulse(input: {
     agentStance = "DE_RISK";
   } else if (gateLong && cascadeLevel === "normal") {
     agentStance = "LONG";
-  } else if (gateLong && cascadeLevel === "elevated" && fg <= 85) {
+  } else if (gateLong && cascadeLevel === "elevated" && fg != null && fg <= 85) {
     agentStance = "LONG";
   } else if (cascadeLevel === "elevated" || (macro?.label === "risk-off" && !gateLong)) {
     agentStance = "DE_RISK";
@@ -138,20 +144,29 @@ export function computeMarketPulse(input: {
       ? ` · est. ${fmtUsd(flushProxyUsd60m)} leverage flush proxy (60m)`
       : "";
 
-  const headline =
-    cascadeLevel === "extreme"
+  const headline = degraded
+    ? "Macro feed degraded — agent stance withheld until live CMC data loads"
+    : cascadeLevel === "extreme"
       ? `Cascade stress extreme — de-risk longs${flushPart}`
       : cascadeLevel === "elevated"
         ? `Leverage stress elevated${flushPart}`
         : gateLong
-          ? `Tape supports selective longs · F&G ${fg}`
+          ? `Tape supports selective longs · F&G ${Math.round(fg ?? 0)}`
           : `Neutral tape · agent flat until gate clears`;
 
-  const factors: MarketPulseFactor[] = [
+  const factors: MarketPulseFactor[] = degraded
+    ? [
+        {
+          label: "Data quality",
+          value: "Degraded — missing CMC inputs",
+          impact: "neutral",
+        },
+      ]
+    : [
     {
       label: "Fear & Greed",
-      value: String(Math.round(fg)),
-      impact: fg > 70 ? "bearish" : fg < 35 ? "bearish" : fg >= 45 && fg <= 65 ? "bullish" : "neutral",
+      value: fg != null ? String(Math.round(fg)) : "DATA UNAVAILABLE",
+      impact: fg == null ? "neutral" : fg > 70 ? "bearish" : fg < 35 ? "bearish" : fg >= 45 && fg <= 65 ? "bullish" : "neutral",
     },
     {
       label: "BTC 1h",
@@ -175,12 +190,36 @@ export function computeMarketPulse(input: {
     },
   ];
 
-  if (gateSignal) {
+  if (gateSignal && !degraded) {
     factors.push({
       label: input.symbol ? `${input.symbol} gate` : "Gate",
       value: gateSignal.replace(/_/g, " "),
       impact: gateLong ? "bullish" : gateSignal === "EXIT" || gateSignal === "AVOID" ? "bearish" : "neutral",
     });
+  }
+
+  if (degraded) {
+    return {
+      ok: false,
+      generatedAt: new Date().toISOString(),
+      stressScore: 0,
+      cascadeLevel: "normal",
+      flushProxyUsd60m: null,
+      flushProxyLabel: "CMC global mcap × hourly BTC shock (heuristic proxy — not WatcherGuru)",
+      fearGreed: input.fearGreed ?? null,
+      btcChange24h: input.btcChange24h ?? null,
+      marketCapChange24h: input.marketCapChange24h ?? null,
+      btcDominance: input.btcDominance ?? null,
+      macro,
+      agentStance: "FLAT",
+      agentDirective: "DATA UNAVAILABLE — abstain until live macro feeds load.",
+      headline,
+      factors,
+      dataSources: ["degraded — verify CMC before acting"],
+      symbol: input.symbol,
+      gateSignal: gateSignal ?? undefined,
+      gateTier: input.gateTier ?? undefined,
+    };
   }
 
   return {

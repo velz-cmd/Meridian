@@ -197,7 +197,12 @@ export function GateIntelligenceDesk({
       )}
 
       {shows(view, "memory", "full") && (
-        <GateSectionCard title="Market Twin" question="Have we seen this episode before?" kicker="MERIDIAN · historical analog" icon={TrendingUp} accent="border-cyan-400/20">
+        <GateSectionCard title="Market Twin" question="Have we seen this episode before?" kicker="MERIDIAN · reference library (not live CMC)" icon={TrendingUp} accent="border-cyan-400/20">
+          {!provenance.cmcLive && (
+            <p className="mb-2 rounded-lg border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100">
+              Similarity scores use live genome inputs matched against a static reference library — not a live CMC forecast.
+            </p>
+          )}
           <p className="text-sm text-cyan-100">
             Resembles <span className="font-semibold">{marketTwin.label}</span> · {marketTwin.similarity}% similar ·{" "}
             {marketTwin.confidence} confidence
@@ -439,6 +444,9 @@ export function GateIntelligenceDesk({
 
       {shows(view, "memory", "full") && (
         <GateSectionCard title="Market Memory" question="Nearest genome relatives" icon={Brain}>
+          <p className="mb-2 text-[10px] text-white/45">
+            Reference genomes only — win rates are library metadata, not live strategy backtest results.
+          </p>
           <ul className="space-y-2">
             {marketMemory.map((m) => (
               <li key={m.genomeId} className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2 text-xs">
@@ -452,7 +460,7 @@ export function GateIntelligenceDesk({
               </li>
             ))}
           </ul>
-          {evolution && (
+          {evolution && shows(view, "replay", "full") && (
             <div className="mt-3 rounded-xl border border-violet-400/20 bg-violet-500/5 p-3 text-[11px]">
               <p className="font-semibold text-violet-200">Evolution Engine · Constitution #{evolution.constitutionId}</p>
               <p className="mt-1 text-white/55">WR {evolution.winRatePct}% · Sharpe {evolution.sharpe}</p>

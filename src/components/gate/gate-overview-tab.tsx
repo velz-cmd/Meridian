@@ -71,7 +71,9 @@ export function GateOverviewTab({
     selected,
   });
 
-  const livePrice = selected?.market.price ?? 0;
+  const livePrice = selected?.market.price;
+  const priceLabel =
+    livePrice != null && livePrice > 0 ? `$${formatGatePrice(livePrice)}` : "DATA UNAVAILABLE";
   const live24h = selected?.market.change24h;
   const cmcLive = selected?.cmcLive ?? false;
 
@@ -115,7 +117,7 @@ export function GateOverviewTab({
           <GateStatPill label="Horizon" value={`${truth.horizonHours}h`} sub={`Thesis ${intel?.convictionDecay.status ?? "—"}`} />
           <GateStatPill
             label="Price"
-            value={`$${formatGatePrice(livePrice)}`}
+            value={priceLabel}
             sub={live24h != null ? `24h ${formatPct(live24h)}` : "—"}
           />
         </div>

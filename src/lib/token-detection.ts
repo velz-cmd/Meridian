@@ -49,27 +49,7 @@ export async function fetchMergedTokenDetection(
   const paprikaIntel = paprikaToken ? paprikaIntelFromToken(paprikaToken) : null;
 
   let trades = birdeye.trades.length ? birdeye.trades : paprikaTxs;
-  if (!trades.length && dexFallback && (dexFallback.buys > 0 || dexFallback.sells > 0)) {
-    const now = new Date().toISOString();
-    if (dexFallback.buys > 0) {
-      trades.push({
-        type: "swap",
-        side: "buy",
-        amountUsd: dexFallback.volume * 0.55,
-        trader: "dex-aggregate",
-        timestamp: now,
-      });
-    }
-    if (dexFallback.sells > 0) {
-      trades.push({
-        type: "swap",
-        side: "sell",
-        amountUsd: dexFallback.volume * 0.45,
-        trader: "dex-aggregate",
-        timestamp: now,
-      });
-    }
-  }
+  // Never synthesize trades from Dex aggregate counts — show empty when no real txs.
 
   let whales = birdeye.whales.length ? birdeye.whales : paprikaWhales;
   let holders =
