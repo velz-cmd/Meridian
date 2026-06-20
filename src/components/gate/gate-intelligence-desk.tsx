@@ -210,13 +210,16 @@ export function GateIntelligenceDesk({
           <p className="mt-2 text-xs text-white/70">{marketTwin.implication}</p>
           <p className="mt-2 text-[10px] italic text-white/40">{marketTwin.disclaimer}</p>
           <p className="mt-2 text-xs text-white/55">
-            Avg historical return {marketTwin.avgHistoricalReturnPct}% · worst analog return {marketTwin.worstHistoricalReturnPct}% · n=
-            {marketTwin.sampleSize}
+            Analog episode avg {formatSignedPct(marketTwin.avgHistoricalReturnPct)} · worst episode{" "}
+            {formatSignedPct(marketTwin.worstHistoricalReturnPct)} · reference library n={marketTwin.sampleSize}
+          </p>
+          <p className="mt-1 text-[10px] text-amber-200/75">
+            Historical analog only — not the 90-day strategy backtest on Replay tab.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {marketTwin.outcomes.map((o) => (
               <span key={o.symbol} className="rounded-lg border border-white/10 bg-black/40 px-2 py-1 font-mono text-[10px]">
-                {o.symbol} +{o.returnPct}%
+                {o.symbol} {formatSignedPct(o.returnPct)}
               </span>
             ))}
           </div>
@@ -256,7 +259,7 @@ export function GateIntelligenceDesk({
         </GateSectionCard>
       )}
 
-      {shows(view, "memory", "replay", "full") && (
+      {shows(view, "memory", "full") && (
         <div className={cn("grid gap-4", view === "full" ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
           <GateSectionCard title="Narrative Flow" question="Where is capital moving?" kicker="CMC + MERIDIAN · category rotation" icon={GitBranch}>
             <div className="space-y-2">
@@ -359,20 +362,23 @@ export function GateIntelligenceDesk({
         </GateSectionCard>
       )}
 
-      {timeMachine && shows(view, "memory", "replay", "full") && (
-        <GateSectionCard title="Time Machine · forward analog" question="What did similar setups do historically?" icon={Sparkles} accent="border-emerald-400/15">
+      {timeMachine && shows(view, "replay", "full") && (
+        <GateSectionCard title="90-Day Strategy Backtest" question="How did this rule set perform on Chapel data?" kicker="Constitution replay · reproducible" icon={Sparkles} accent="border-emerald-400/15">
+          <p className="mb-3 text-[11px] text-white/50">
+            Strategy P&amp;L from live CMC bars — separate from Market Twin historical analogs on Memory tab.
+          </p>
           <div className="grid gap-2 sm:grid-cols-4">
-            <StatPill label="Avg return" value={formatSignedPct(timeMachine.avgReturnPct)} />
+            <StatPill label="Total return" value={formatSignedPct(timeMachine.avgReturnPct)} sub="90d constitution" />
             <StatPill label="Win rate" value={`${timeMachine.winRatePct}%`} />
-            <StatPill label="Duration" value={`${timeMachine.avgDurationDays}d`} />
-            <StatPill label="Worst DD" value={`${timeMachine.worstDrawdownPct}%`} sub={timeMachine.source} />
+            <StatPill label="Avg hold" value={`${timeMachine.avgDurationDays}d`} />
+            <StatPill label="Max drawdown" value={formatSignedPct(timeMachine.worstDrawdownPct)} sub={timeMachine.source} />
           </div>
         </GateSectionCard>
       )}
 
-      {shows(view, "memory", "replay", "full") && <GateMarketTimeline symbol={data.symbol} />}
+      {shows(view, "replay", "full") && <GateMarketTimeline symbol={data.symbol} />}
 
-      {shows(view, "technical", "replay", "full") && (
+      {shows(view, "replay", "full") && (
         <GateSectionCard title="Counterfactual Universe" question="What if conditions change?" icon={Zap}>
           <div className="grid gap-2 sm:grid-cols-2">
             {counterfactuals.map((c) => (
@@ -431,7 +437,7 @@ export function GateIntelligenceDesk({
         </GateSectionCard>
       )}
 
-      {shows(view, "memory", "replay", "full") && (
+      {shows(view, "memory", "full") && (
         <GateSectionCard title="Market Memory" question="Nearest genome relatives" icon={Brain}>
           <ul className="space-y-2">
             {marketMemory.map((m) => (

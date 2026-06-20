@@ -29,6 +29,7 @@ export function GateOverviewExecutionPath({
   routerDirection,
   deskLabel,
   onOpenNexus,
+  onOpenAutopilot,
 }: {
   symbol: string;
   selected?: GateBenchmarkFull;
@@ -42,6 +43,7 @@ export function GateOverviewExecutionPath({
   routerDirection: PositionDirection;
   deskLabel: string;
   onOpenNexus: () => void;
+  onOpenAutopilot?: () => void;
 }) {
   const exposureLabel =
     routerDirection === "FLAT"
@@ -63,21 +65,38 @@ export function GateOverviewExecutionPath({
             {directionLoading ? " · updating…" : ""}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onOpenNexus}
-          className={nexusGlassCta(
-            routerDirection === "LONG" && permit === "GRANT" ? "buy" : "swap",
-            "min-h-[44px] px-5 py-2.5 text-sm font-semibold",
-          )}
-        >
-          <span className="flex items-center gap-1.5">
-            {routerDirection === "FLAT" || permit === "DENY"
-              ? "Review in NEXUS"
-              : GATE_PRODUCT.continueTradable(symbol)}
-            <ArrowUpRight className="h-4 w-4" />
-          </span>
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {routerDirection === "LONG" && permit === "GRANT" && onOpenAutopilot ? (
+            <button
+              type="button"
+              onClick={onOpenAutopilot}
+              className={nexusGlassCta(
+                "autopilot",
+                "min-h-[44px] px-5 py-2.5 text-sm font-semibold border-violet-400/40 bg-violet-500/15 text-violet-50",
+              )}
+            >
+              <span className="flex items-center gap-1.5">
+                Start gate autopilot
+                <ArrowUpRight className="h-4 w-4" />
+              </span>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onOpenNexus}
+            className={nexusGlassCta(
+              routerDirection === "LONG" && permit === "GRANT" ? "buy" : "swap",
+              "min-h-[44px] px-5 py-2.5 text-sm font-semibold",
+            )}
+          >
+            <span className="flex items-center gap-1.5">
+              {routerDirection === "FLAT" || permit === "DENY"
+                ? "Review in NEXUS"
+                : GATE_PRODUCT.continueTradable(symbol)}
+              <ArrowUpRight className="h-4 w-4" />
+            </span>
+          </button>
+        </div>
       </div>
 
       <GateCollapsibleCard

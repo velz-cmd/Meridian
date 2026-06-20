@@ -43,6 +43,7 @@ export function GateOverviewTab({
   permit,
   onGoTab,
   onOpenNexus,
+  onOpenAutopilot,
 }: {
   symbol: string;
   selected?: GateBenchmarkFull;
@@ -57,6 +58,7 @@ export function GateOverviewTab({
   permit?: "GRANT" | "DENY";
   onGoTab: (tab: "memory" | "technical" | "rules" | "replay") => void;
   onOpenNexus: () => void;
+  onOpenAutopilot?: () => void;
 }) {
   const symUpper = symbol.toUpperCase();
   const intel = intelligence?.symbol?.toUpperCase() === symUpper ? intelligence : null;
@@ -328,6 +330,7 @@ export function GateOverviewTab({
         routerDirection={truth.direction}
         deskLabel={truth.deskLabel}
         onOpenNexus={onOpenNexus}
+        onOpenAutopilot={onOpenAutopilot}
       />
 
       {intelPending && (

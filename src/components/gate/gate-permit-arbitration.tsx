@@ -123,9 +123,10 @@ export function GatePermitArbitration({
             symbol,
             permit: granted ? "GRANT" : "DENY",
             permitId: arbitration.permitId,
-            action: granted ? "buy" : "agent",
+            action: granted ? "agent" : "sell",
             direction: granted ? "LONG" : "FLAT",
             leverage: 2,
+            auto: granted,
           })}
           className="inline-flex items-center gap-1 text-xs text-cyan-300/80 hover:text-cyan-200"
         >

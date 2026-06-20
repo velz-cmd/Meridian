@@ -28,6 +28,11 @@ import { trackMeridianEvent } from "@/lib/product-analytics-client";
 import { type GateSymbol } from "@/lib/gate-constants";
 import { buildGateExecutionUrl } from "@/lib/gate-nexus-bridge";
 import { effectiveCleared } from "@/lib/gate-effective-signal";
+import {
+  clampGateLeverage,
+  computeGateSpendTbnb,
+  saveGateExecutionIntent,
+} from "@/lib/gate-execution-intent";
 import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 import { useGateRoute } from "@/hooks/use-gate-route";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
@@ -112,27 +117,57 @@ export function GateConsole() {
     }
   }, []);
 
-  const openInNexus = useCallback(() => {
-    const sym = symbol;
-    const upper = sym.toUpperCase();
-    const ranked = gateRoute?.ranked.find((r) => r.symbol === upper);
-    const bench = benchmarks.find((b) => b.symbol === upper);
-    const permit = effectiveCleared(
-      { signal: bench?.gate.signal ?? "HOLD" },
-      bench?.skills as GateSkillsPayload | undefined,
-    )
-      ? "GRANT"
-      : ranked?.permit === "GRANT"
+  const openInNexus = useCallback(
+    (opts?: { autopilot?: boolean }) => {
+      const sym = symbol;
+      const upper = sym.toUpperCase();
+      const ranked = gateRoute?.ranked.find((r) => r.symbol === upper);
+      const bench = benchmarks.find((b) => b.symbol === upper);
+      const permit = effectiveCleared(
+        { signal: bench?.gate.signal ?? "HOLD" },
+        bench?.skills as GateSkillsPayload | undefined,
+      )
         ? "GRANT"
-        : "DENY";
-    const params = new URLSearchParams(
-      buildGateExecutionUrl({ symbol: upper, permit: permit as "GRANT" | "DENY", tab: "trade" }).split("?")[1],
-    );
-    if (!gateSymbolTradableOnTestnet(upper)) {
-      params.set("scroll", "constitution");
-    }
-    router.push(`/nexus?${params.toString()}`);
-  }, [gateRoute, benchmarks, router, symbol]);
+        : ranked?.permit === "GRANT"
+          ? "GRANT"
+          : "DENY";
+      const direction = positionRoute?.direction ?? "FLAT";
+      const leverage = clampGateLeverage(2);
+      const confidence = positionRoute?.confidence ?? bench?.gate.confidence ?? 50;
+      const autopilot = Boolean(opts?.autopilot ?? (permit === "GRANT" && direction === "LONG"));
+      const action = autopilot ? "agent" : permit === "GRANT" && direction === "LONG" ? "buy" : "sell";
+
+      saveGateExecutionIntent({
+        symbol: upper,
+        direction,
+        leverage,
+        action,
+        permit: permit as "GRANT" | "DENY",
+        autoStart: autopilot,
+        confidence,
+        suggestedTbnb: computeGateSpendTbnb(0.05, leverage, confidence, direction),
+      });
+
+      const url = buildGateExecutionUrl({
+        symbol: upper,
+        permit: permit as "GRANT" | "DENY",
+        tab: "trade",
+        action,
+        direction,
+        leverage,
+        auto: autopilot,
+      });
+      const params = new URLSearchParams(url.split("?")[1]);
+      if (!gateSymbolTradableOnTestnet(upper)) {
+        params.set("scroll", "constitution");
+      }
+      router.push(`/nexus?${params.toString()}`);
+    },
+    [gateRoute, benchmarks, router, symbol, positionRoute],
+  );
+
+  const openNexusManual = useCallback(() => openInNexus({ autopilot: false }), [openInNexus]);
+  const openGateAutopilot = useCallback(() => openInNexus({ autopilot: true }), [openInNexus]);
 
   useEffect(() => {
     setBacktest(null);
@@ -211,7 +246,7 @@ export function GateConsole() {
               setTab("replay");
               void runBacktest(symbol);
             }}
-            onOpenNexus={openInNexus}
+            onOpenNexus={openGateAutopilot}
           />
 
           <div className="gate-workspace min-w-0">
@@ -238,7 +273,8 @@ export function GateConsole() {
                     : "DENY"
                 }
                 onGoTab={setTab}
-                onOpenNexus={openInNexus}
+                onOpenNexus={openNexusManual}
+                onOpenAutopilot={openGateAutopilot}
               />
             )}
 
@@ -274,7 +310,7 @@ export function GateConsole() {
                   selected={selected}
                   route={gateRoute}
                   skills={skills ?? null}
-                  onOpenNexus={openInNexus}
+                  onOpenNexus={openGateAutopilot}
                 />
                 <GateIntelligenceDesk
                   data={intelligence}

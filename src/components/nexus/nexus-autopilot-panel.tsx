@@ -56,7 +56,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { useBnbSettlement } from "@/hooks/use-bnb-settlement";
 import { useBnbSpotUsd } from "@/hooks/use-bnb-spot-usd";
 import { usePancakeSwap } from "@/hooks/use-pancake-swap";
-import { BSC_CHAIN_ID, BSC_CHAIN_LABEL } from "@/lib/bsc-chain";
+import { BSC_CHAIN_ID, BSC_CHAIN_LABEL, bscExplorerTx } from "@/lib/bsc-chain";
 import { canSwapOnBscTestnet, fetchDeskTokenBalance, BSC_TESTNET_CATALOG } from "@/lib/testnet-onchain";
 import { appendMeridianActivity } from "@/lib/meridian-activity-log";
 import { pulseAdjustAgentAction, type MarketPulse } from "@/lib/market-pulse";
@@ -67,6 +67,7 @@ import { NexusExecutionPanel } from "@/components/nexus/nexus-execution-panel";
 import { NexusTokenSearchPicker } from "@/components/nexus/nexus-token-search-picker";
 import type { GateExecutionIntent } from "@/lib/gate-execution-intent";
 import type { TrendingMarketToken } from "@/components/nexus/nexus-trending-feed";
+import type { DemoTradeThesisSnapshot } from "@/lib/demo-trading";
 
 const PCT_OPTIONS = [25, 50, 75, 100] as const;
 const MARGIN_PCT_OPTIONS = [10, 25, 50, 75] as const;
@@ -79,6 +80,26 @@ const MAX_TRADE_PRESETS = [
   { value: 20, label: "20" },
   { value: -1, label: "Custom" },
 ] as const;
+
+function buildAutopilotThesisSnapshot(
+  gateIntent: GateExecutionIntent | null | undefined,
+  deskSymbol: string,
+): DemoTradeThesisSnapshot | undefined {
+  if (!gateIntent) return undefined;
+  return {
+    permitId: gateIntent.permitId,
+    expectedConviction: gateIntent.confidence,
+    gateSignal: gateIntent.permit ?? gateIntent.action,
+    verdict: gateIntent.permit,
+    source: `gate-autopilot/${deskSymbol}`,
+    capturedAt: new Date().toISOString(),
+  };
+}
+
+function tradeLogWithExplorer(summary: string, txHash: string): string {
+  return `${summary} · BscScan ${bscExplorerTx(txHash).replace("https://", "")}`;
+}
+
 const INTERVAL_KEYS = [
   "1m",
   "5m",
@@ -679,6 +700,7 @@ export function NexusAutopilotPanel({
           tbnbAmount: String(tbnbSpend),
         });
         const outAmt = parseFloat(result.amountOutFormatted) || 0;
+        const thesisSnapshot = buildAutopilotThesisSnapshot(gateIntent, deskSymbol);
         try {
           await fetch("/api/nexus/demo/trade", {
             method: "POST",
@@ -695,12 +717,13 @@ export function NexusAutopilotPanel({
               tokenAmount: outAmt,
               priceUsd: swapT.priceUsd,
               arcFeeTxHash: result.hash,
+              thesisSnapshot,
             }),
           });
         } catch {
           /* optional ledger */
         }
-        pushLog(`Buy confirmed · ${result.summary}`, "trade");
+        pushLog(tradeLogWithExplorer(`Buy confirmed · ${result.summary}`, result.hash), "trade");
         toast({ type: "success", title: "Autopilot buy", message: result.summary });
         appendMeridianActivity({
           kind: "trade",
@@ -721,7 +744,7 @@ export function NexusAutopilotPanel({
           receiveChainId: String(BSC_CHAIN_ID),
           tokenAmount: String(tokenAmount),
         });
-        pushLog(`Hedge confirmed · ${result.summary}`, "trade");
+        pushLog(tradeLogWithExplorer(`Hedge confirmed · ${result.summary}`, result.hash), "trade");
         toast({ type: "success", title: "Autopilot short hedge", message: result.summary });
         appendMeridianActivity({
           kind: "trade",
@@ -738,6 +761,7 @@ export function NexusAutopilotPanel({
           tokenAmount: String(tokenAmount),
         });
         const outAmt = parseFloat(result.amountOutFormatted) || 0;
+        const thesisSnapshot = buildAutopilotThesisSnapshot(gateIntent, deskSymbol);
         try {
           await fetch("/api/nexus/demo/trade", {
             method: "POST",
@@ -754,12 +778,13 @@ export function NexusAutopilotPanel({
               tokenAmount: tokenAmount ?? 0,
               priceUsd: swapT.priceUsd,
               arcFeeTxHash: result.hash,
+              thesisSnapshot,
             }),
           });
         } catch {
           /* optional ledger */
         }
-        pushLog(`Sell confirmed · ${result.summary}`, "trade");
+        pushLog(tradeLogWithExplorer(`Sell confirmed · ${result.summary}`, result.hash), "trade");
         toast({ type: "success", title: "Autopilot sell", message: result.summary });
         appendMeridianActivity({
           kind: "trade",
@@ -867,7 +892,7 @@ export function NexusAutopilotPanel({
         toast({
           type: "info",
           title: "Check your wallet",
-          message: `Confirm on ${BSC_CHAIN_LABEL} to start the agent.`,
+          message: `Sign session authorization on ${BSC_CHAIN_LABEL} — swaps are separate PancakeSwap txs.`,
         });
         const fee = await payArcFee("AUTOPILOT_SESSION", buildSessionPayload(cfg, address), {
           waitReceipt: false,
@@ -1491,9 +1516,9 @@ export function NexusAutopilotPanel({
                     </>
                   ) : (
                     <>
-                      You will <strong className="text-white">sign once</strong> on {BSC_CHAIN_LABEL} to unlock the
-                      session, then <strong className="text-cyan-200">confirm each cycle</strong> in your wallet via
-                      PancakeSwap — {autopilotScheduleSummary(config)}.
+                      You will <strong className="text-white">sign a wallet message once</strong> on {BSC_CHAIN_LABEL} to
+                      unlock the session (not a swap tx), then <strong className="text-cyan-200">confirm each cycle</strong>{" "}
+                      in your wallet via PancakeSwap — {autopilotScheduleSummary(config)}.
                     </>
                   )}
                 </p>

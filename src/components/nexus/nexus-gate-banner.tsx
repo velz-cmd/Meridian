@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ShieldCheck, ShieldBan } from "lucide-react";
+import { ArrowLeft, Bot, ShieldCheck, ShieldBan } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { gateSymbolTradableOnTestnet } from "@/lib/gate-product-copy";
 
@@ -19,6 +19,7 @@ export type GateHandoff = {
 export function NexusGateBanner({ handoff }: { handoff: GateHandoff }) {
   const granted = handoff.permit === "GRANT";
   const tradable = gateSymbolTradableOnTestnet(handoff.symbol);
+  const autopilot = handoff.autoStart && handoff.action === "agent";
 
   return (
     <div
@@ -39,15 +40,18 @@ export function NexusGateBanner({ handoff }: { handoff: GateHandoff }) {
           <div>
             <p className="font-semibold">
               {handoff.symbol} · {granted ? "entry cleared" : "entry blocked"}
+              {autopilot ? " · gate autopilot" : ""}
             </p>
             <p className="mt-0.5 text-xs opacity-85">
               {tradable
                 ? granted
-                  ? handoff.action === "sell"
-                    ? "Sell desk ready — wallet signs spot exit on Chapel."
-                    : handoff.action === "agent"
-                      ? "Autopilot desk — follow gate direction on BSC Testnet."
-                      : "Buy desk ready — wallet signs PancakeSwap on Chapel."
+                  ? autopilot
+                    ? "Authorize session (wallet message), then each cycle signs a real PancakeSwap tx on BSC Testnet Chapel."
+                    : handoff.action === "sell"
+                      ? "Sell desk ready — wallet signs spot exit on Chapel."
+                      : handoff.action === "agent"
+                        ? "Autopilot desk — follow gate direction on BSC Testnet."
+                        : "Buy desk ready — wallet signs PancakeSwap on Chapel."
                   : "Buy stays blocked until rules clear a long entry."
                 : `${handoff.symbol} is analysis-only here — use BNB or CAKE on testnet for signed swaps.`}
             </p>
@@ -55,6 +59,13 @@ export function NexusGateBanner({ handoff }: { handoff: GateHandoff }) {
               <p className="mt-1 font-mono text-[10px] text-white/45">
                 {handoff.direction ? `${handoff.direction} signal` : ""}
                 {handoff.leverage && handoff.leverage > 1 ? ` · ${handoff.leverage}x thesis size` : ""}
+                {autopilot ? " · auto-start from Gate" : ""}
+              </p>
+            )}
+            {autopilot && (
+              <p className="mt-1.5 flex items-center gap-1 text-[10px] text-violet-200/90">
+                <Bot className="h-3 w-3" />
+                Session auth ≠ swap tx — BscScan links appear after each Chapel trade.
               </p>
             )}
           </div>

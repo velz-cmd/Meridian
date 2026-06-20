@@ -509,7 +509,7 @@ function buildTimeMachine(backtest: IntelligenceInput["backtest"]): MeridianTime
     avgDurationDays: 6,
     worstDrawdownPct: backtest.maxDrawdownPct ?? 0,
     sampleSize: backtest.roundTrips ?? 0,
-    source: "90-day constitution backtest (reproducible via /api/gate/backtest)",
+    source: "90-day strategy backtest · not the historical analog above",
   };
 }
 
