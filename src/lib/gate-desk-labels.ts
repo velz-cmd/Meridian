@@ -2,21 +2,25 @@
  * Trader-facing labels for Gate desk — internal engine keeps LONG / SHORT / FLAT.
  * Display: LONG · HOLD · EXIT (spot exit bias, not perp short).
  */
-import type { MeridianDirectionEvidence, MeridianTimeHorizonBucket } from "@/lib/meridian-direction-engine";
+import type { MeridianDirectionEvidence } from "@/lib/meridian-direction-engine";
 import type { PositionDirection } from "@/lib/position-router";
 
-export type GateHorizonId = "scalping" | "intraday" | "swing" | "position";
+export type GateHorizonId = "intraday" | "daily" | "swing" | "position";
+
+type HorizonChangeKey = "change1h" | "change24h" | "change7d" | "change30d";
 
 export const GATE_HORIZON_OPTIONS: {
   id: GateHorizonId;
   label: string;
   sub: string;
-  buckets: MeridianTimeHorizonBucket[];
+  /** Real CMC percent-change window backing this horizon */
+  timeframe: string;
+  changeKey: HorizonChangeKey;
 }[] = [
-  { id: "scalping", label: "Scalp", sub: "3m–15m", buckets: ["scalping", "short-term"] },
-  { id: "intraday", label: "Intraday", sub: "1h–4h", buckets: ["intraday"] },
-  { id: "swing", label: "Swing", sub: "1d–3d", buckets: ["swing"] },
-  { id: "position", label: "Position", sub: "1w", buckets: ["position"] },
+  { id: "intraday", label: "Intraday", sub: "1h", timeframe: "1h", changeKey: "change1h" },
+  { id: "daily", label: "Daily", sub: "24h", timeframe: "24h", changeKey: "change24h" },
+  { id: "swing", label: "Swing", sub: "7d", timeframe: "7d", changeKey: "change7d" },
+  { id: "position", label: "Position", sub: "30d", timeframe: "30d", changeKey: "change30d" },
 ];
 
 export type DeskTraderStance = "LONG" | "HOLD" | "EXIT";
@@ -57,30 +61,25 @@ function voteToLabel(dir: string): string {
   return "—";
 }
 
-function dominantVote(votes: { direction: string }[]): string {
-  const counts = { LONG: 0, EXIT: 0, HOLD: 0 };
-  for (const v of votes) {
-    const label = voteToLabel(v.direction);
-    if (label === "LONG") counts.LONG += 1;
-    else if (label === "EXIT") counts.EXIT += 1;
-    else if (label === "HOLD") counts.HOLD += 1;
-  }
-  const max = Math.max(counts.LONG, counts.EXIT, counts.HOLD);
-  if (max === 0) return "—";
-  if (counts.LONG === max && counts.LONG >= counts.EXIT && counts.LONG >= counts.HOLD) return "LONG";
-  if (counts.EXIT === max && counts.EXIT >= counts.HOLD) return "EXIT";
-  return "HOLD";
-}
+export type HorizonMarket = {
+  change1h?: number;
+  change24h?: number;
+  change7d?: number;
+  change30d?: number;
+};
 
 export type GateHorizonContext = {
   horizonLabel: string;
+  /** Real CMC window backing this horizon, e.g. "24h" */
+  windowLabel: string;
+  /** Trend read for the window — LONG / HOLD / EXIT (stable, one real number) */
   dominantVote: DeskTraderStance | "—";
+  /** Signed % move for the window, e.g. "+2.31%" */
+  changeLabel: string;
+  changeValue: number | null;
   liveVoteSummary: string;
-  liveCount: number;
-  plannedCount: number;
+  hasLiveData: boolean;
   note: string;
-  /** Primary live bar driving the vote, e.g. "3d +5.99%" */
-  anchorBar: string | null;
   dataQuality: number | null;
 };
 
@@ -94,111 +93,100 @@ function formatChangePct(ch: number): string {
   return `${ch >= 0 ? "+" : ""}${ch.toFixed(2)}%`;
 }
 
-/** Pick dominant vote — live CMC bars first, then all bucket votes */
-function resolveDominantVote(bucketVotes: { direction: string; source: string }[]): DeskTraderStance | "—" {
-  const live = bucketVotes.filter((v) => v.source === "live-cmc" && v.direction !== "NEUTRAL");
-  if (live.length) {
-    const label = dominantVote(live);
-    return label === "—" ? "HOLD" : (label as DeskTraderStance);
-  }
-  const all = bucketVotes.filter((v) => v.direction !== "NEUTRAL");
-  if (all.length) {
-    const label = dominantVote(all);
-    return label === "—" ? "HOLD" : (label as DeskTraderStance);
-  }
-  return "—";
-}
-
-/** Timeframe context for Overview — drives hero signal for selected horizon */
+/**
+ * Trend read for ONE real CMC window. Stable across refreshes — a single live
+ * number with a meaningful neutral band, never a fabricated vote blend.
+ */
 export function resolveHorizonContext(
   evidence: MeridianDirectionEvidence | null | undefined,
   horizonId: GateHorizonId,
-  market?: { change1h?: number; change24h?: number; change7d?: number },
+  market?: HorizonMarket,
 ): GateHorizonContext {
   const opt = GATE_HORIZON_OPTIONS.find((o) => o.id === horizonId)!;
-  if (!evidence) {
+  const change = market?.[opt.changeKey];
+  const hasChange = change != null && !Number.isNaN(change);
+
+  if (!evidence && !hasChange) {
     return {
       horizonLabel: opt.label,
+      windowLabel: opt.timeframe,
       dominantVote: "—",
+      changeLabel: "DATA UNAVAILABLE",
+      changeValue: null,
       liveVoteSummary: "DATA UNAVAILABLE",
-      liveCount: 0,
-      plannedCount: 0,
-      note: "Sync intelligence API for multi-timeframe votes.",
-      anchorBar: null,
+      hasLiveData: false,
+      note: "Live CMC feed syncing for this window.",
       dataQuality: null,
     };
   }
 
-  const bucketVotes = evidence.timeframeVotes.filter((v) => opt.buckets.includes(v.bucket));
-  const liveVotes = bucketVotes.filter((v) => v.source === "live-cmc" && v.direction !== "NEUTRAL");
-  const plannedVotes = bucketVotes.filter((v) => v.source === "planned" || v.direction === "NEUTRAL");
-  const dominant = resolveDominantVote(bucketVotes);
-
-  const liveSummary =
-    liveVotes.length > 0
-      ? liveVotes.map((v) => `${v.timeframe} ${voteToLabel(v.direction)}`).join(" · ")
-      : plannedVotes.length > 0
-        ? "Awaiting live CMC micro bars — refresh intelligence feed"
-        : "No votes in this horizon bucket";
-
-  const anchorVote = liveVotes.find((v) => voteToLabel(v.direction) === dominant) ?? liveVotes[0];
-  let anchorBar: string | null = null;
-  if (anchorVote) {
-    const ch =
-      anchorVote.timeframe === "1h"
-        ? market?.change1h
-        : anchorVote.timeframe === "1d"
-          ? market?.change24h
-          : anchorVote.timeframe === "3d"
-            ? market?.change7d
-            : undefined;
-    anchorBar = ch != null ? `${anchorVote.timeframe} ${formatChangePct(ch)}` : anchorVote.timeframe;
+  const vote = evidence?.timeframeVotes.find((v) => v.timeframe === opt.timeframe);
+  let dominant: DeskTraderStance | "—";
+  if (vote && vote.direction !== "NEUTRAL") {
+    dominant = voteToLabel(vote.direction) as DeskTraderStance;
+  } else if (hasChange) {
+    dominant = "HOLD";
+  } else {
+    dominant = "—";
   }
 
+  const changeLabel = hasChange ? formatChangePct(change!) : "DATA UNAVAILABLE";
+  const liveVoteSummary = hasChange ? `${opt.timeframe} ${changeLabel} → ${dominant}` : "DATA UNAVAILABLE";
+
   const note =
-    liveVotes.length === 0
-      ? "Live CMC % change drives each horizon — select a horizon to see its read."
-      : dominant === "HOLD"
-        ? "Price change within threshold for this horizon — HOLD is the honest read."
-        : `Live CMC ${dominant} bias on ${opt.label.toLowerCase()} horizon.`;
+    !hasChange
+      ? "No live CMC value for this window yet."
+      : dominant === "LONG"
+        ? `${opt.label} window up ${changeLabel} on live CMC.`
+        : dominant === "EXIT"
+          ? `${opt.label} window down ${changeLabel} on live CMC.`
+          : `${opt.label} window flat (${changeLabel}) — inside the trend band.`;
 
   return {
     horizonLabel: opt.label,
+    windowLabel: opt.timeframe,
     dominantVote: dominant,
-    liveVoteSummary: liveSummary,
-    liveCount: liveVotes.length,
-    plannedCount: plannedVotes.length,
+    changeLabel,
+    changeValue: hasChange ? change! : null,
+    liveVoteSummary,
+    hasLiveData: hasChange,
     note,
-    anchorBar,
-    dataQuality: evidence.dataQualityScore,
+    dataQuality: evidence?.dataQualityScore ?? null,
   };
 }
 
-export function horizonDeskLabel(horizonLabel: string, stance: DeskTraderStance | "—"): string {
-  if (stance === "—") return "DESK · SYNCING";
-  if (stance === "LONG") return `${horizonLabel.toUpperCase()} · LONG BIAS`;
-  if (stance === "EXIT") return `${horizonLabel.toUpperCase()} · EXIT BIAS`;
-  return `${horizonLabel.toUpperCase()} · HOLD`;
+export function horizonDeskLabel(windowLabel: string): string {
+  return `${windowLabel.toUpperCase()} TREND`;
 }
 
+/** Single coherent sentence — trend (price) and permit (rules) as two clear axes. */
 export function buildHorizonSummary(input: {
   ctx: GateHorizonContext;
-  executionStance: DeskTraderStance;
+  symbol: string;
   permit: "GRANT" | "DENY" | "WAIT";
   checksPassed: number | null;
   checksTotal: number | null;
 }): string {
-  const { ctx, executionStance, permit, checksPassed, checksTotal } = input;
+  const { ctx, symbol, permit, checksPassed, checksTotal } = input;
   if (ctx.dominantVote === "—") {
-    return "Awaiting live CMC timeframe evidence — refresh or pick another symbol.";
+    return "Live CMC timeframe data is syncing — pick another window or refresh.";
   }
   const checks =
     checksPassed != null && checksTotal != null ? `${checksPassed}/${checksTotal} constitution checks` : "constitution pending";
-  const anchor = ctx.anchorBar ? ` · anchor ${ctx.anchorBar}` : "";
-  const bars = ctx.liveVoteSummary !== "DATA UNAVAILABLE" ? ctx.liveVoteSummary : "";
-  return (
-    `${ctx.horizonLabel} horizon: ${ctx.dominantVote} from live CMC${anchor}` +
-    (bars ? ` (${bars})` : "") +
-    `. Execution router ${executionStance} · permit ${permit} · ${checks}.`
-  );
+
+  const trend =
+    ctx.dominantVote === "LONG"
+      ? `${symbol} ${ctx.windowLabel} ${ctx.changeLabel} → trend LONG`
+      : ctx.dominantVote === "EXIT"
+        ? `${symbol} ${ctx.windowLabel} ${ctx.changeLabel} → trend EXIT`
+        : `${symbol} ${ctx.windowLabel} ${ctx.changeLabel} → trend HOLD`;
+
+  const permitLine =
+    permit === "GRANT"
+      ? `Strategy permit GRANT · ${checks} — entry cleared.`
+      : permit === "WAIT"
+        ? `Strategy permit WAIT · ${checks} — abstain until evidence clears.`
+        : `Strategy permit DENY · ${checks} — rules not cleared, this is price trend, not a buy order.`;
+
+  return `${trend} (live CMC). ${permitLine}`;
 }

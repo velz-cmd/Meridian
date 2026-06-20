@@ -35,18 +35,12 @@ export const MERIDIAN_DECISION_LAYER_WEIGHTS = {
 /** @deprecated use MERIDIAN_DECISION_LAYER_WEIGHTS */
 export const MERIDIAN_DIRECTION_LAYER_WEIGHTS = MERIDIAN_DECISION_LAYER_WEIGHTS;
 
-/** Multi-timeframe roadmap — micro cannot override swing without consensus */
+/** Real CMC percent-change windows — one stable vote per window (no fabricated sub-hour bars) */
 export const MERIDIAN_DECISION_TIMEFRAMES = [
-  { tf: "3m", bucket: "scalping" as const, source: "planned" as const },
-  { tf: "5m", bucket: "scalping" as const, source: "planned" as const },
-  { tf: "15m", bucket: "short-term" as const, source: "planned" as const },
-  { tf: "30m", bucket: "short-term" as const, source: "planned" as const },
   { tf: "1h", bucket: "intraday" as const, source: "live-cmc" as const },
-  { tf: "4h", bucket: "intraday" as const, source: "planned" as const },
-  { tf: "12h", bucket: "swing" as const, source: "planned" as const },
-  { tf: "1d", bucket: "swing" as const, source: "live-cmc" as const },
-  { tf: "3d", bucket: "position" as const, source: "planned" as const },
-  { tf: "1w", bucket: "position" as const, source: "planned" as const },
+  { tf: "24h", bucket: "intraday" as const, source: "live-cmc" as const },
+  { tf: "7d", bucket: "swing" as const, source: "live-cmc" as const },
+  { tf: "30d", bucket: "position" as const, source: "live-cmc" as const },
 ] as const;
 
 const LAYER_BUCKET: Record<string, keyof typeof MERIDIAN_DECISION_LAYER_WEIGHTS | null> = {
@@ -117,42 +111,22 @@ function voteFromChange(
   return { timeframe: tf, direction: "FLAT", bucket, source };
 }
 
-function planned(tf: string, bucket: MeridianTimeHorizonBucket): MeridianTimeframeVote {
-  return { timeframe: tf, direction: "NEUTRAL", bucket, source: "planned" };
-}
-
-/** Live CMC % changes — micro bars scaled from 1h until kline feed lands. */
+/**
+ * Real CMC percent-change windows only — each vote is ONE live number with a
+ * meaningful neutral band, so it stays stable across refreshes (no flicker, no
+ * fabricated sub-hour granularity). Missing window → NEUTRAL / DATA UNAVAILABLE.
+ */
 function buildTimeframeVotes(input: {
   change1h?: number;
   change24h?: number;
   change7d?: number;
   change30d?: number;
 }): MeridianTimeframeVote[] {
-  const ch1 = input.change1h;
-  const ch24 = input.change24h;
-  const ch7 = input.change7d;
-  const ch30 = input.change30d;
-
-  const micro =
-    ch1 != null && !Number.isNaN(ch1)
-      ? [
-          voteFromChange("3m", ch1, "scalping", "live-cmc", 0.12),
-          voteFromChange("5m", ch1, "scalping", "live-cmc", 0.18),
-          voteFromChange("15m", ch1, "short-term", "live-cmc", 0.35),
-          voteFromChange("30m", ch1, "short-term", "live-cmc", 0.45),
-          voteFromChange("4h", ch1, "intraday", "live-cmc", 0.55),
-        ]
-      : [planned("3m", "scalping"), planned("5m", "scalping"), planned("15m", "short-term"), planned("30m", "short-term"), planned("4h", "intraday")];
-
-  const ch12 = ch24 != null && !Number.isNaN(ch24) ? ch24 * 0.5 : undefined;
-
   return [
-    ...micro,
-    voteFromChange("1h", ch1, "intraday", "live-cmc", 0.5),
-    voteFromChange("12h", ch12, "swing", "live-cmc", 0.75),
-    voteFromChange("1d", ch24, "swing", "live-cmc", 1.0),
-    voteFromChange("3d", ch7, "position", "live-cmc", 1.2),
-    voteFromChange("1w", ch30, "position", "live-cmc", 1.5),
+    voteFromChange("1h", input.change1h, "intraday", "live-cmc", 1.0),
+    voteFromChange("24h", input.change24h, "intraday", "live-cmc", 2.5),
+    voteFromChange("7d", input.change7d, "swing", "live-cmc", 4.0),
+    voteFromChange("30d", input.change30d, "position", "live-cmc", 8.0),
   ];
 }
 
@@ -173,12 +147,12 @@ function inferTimeHorizon(votes: MeridianTimeframeVote[]): { label: string; buck
   }
 
   const labels: Record<MeridianTimeHorizonBucket, string> = {
-    scalping: "Scalping · 3m–5m",
-    "short-term": "Short-term · 15m–30m",
-    intraday: "Intraday · 1h–4h",
-    swing: "Swing · 12h–1d",
-    position: "Position · 3d–1w",
-    mixed: "Mixed horizon — timeframe conflict",
+    scalping: "Intraday · 1h",
+    "short-term": "Intraday · 1h",
+    intraday: "Intraday · 1h–24h",
+    swing: "Swing · 7d",
+    position: "Position · 30d",
+    mixed: "Mixed horizon — windows disagree",
   };
 
   const conflict = live.length >= 2 && new Set(live.map((v) => v.bucket)).size > 1;

@@ -67,57 +67,33 @@ function constitutionBiasLabel(judgeConsensus: GateJudgeConsensus | null | undef
 }
 
 export function resolvePrimaryAction(input: {
-  direction: PositionDirection;
   displayDirection: DeskTraderStance | "—";
-  horizonLabel: string;
+  windowLabel: string;
+  changeLabel: string;
   permit: "GRANT" | "DENY" | "WAIT";
-  executionDirection: PositionDirection;
   sizeNote?: string | null;
   reviewHours?: number;
-  anchorBar?: string | null;
 }): string {
-  const { direction, displayDirection, horizonLabel, permit, executionDirection, sizeNote, reviewHours, anchorBar } =
-    input;
-  const exec = deskDirectionLabel(executionDirection);
-  const anchor = anchorBar ? ` (${anchorBar})` : "";
+  const { displayDirection, windowLabel, changeLabel, permit, sizeNote, reviewHours } = input;
+  const window = `${windowLabel} ${changeLabel}`;
+
+  if (permit === "GRANT") {
+    if (displayDirection === "EXIT") {
+      return sizeNote ?? `Trim into strength — ${window} trend, permit GRANT. Reduce on Chapel.`;
+    }
+    return sizeNote ?? `Entry cleared — ${window} trend, permit GRANT. Size on Chapel when liquidity confirms.`;
+  }
 
   if (displayDirection === "LONG") {
-    if (permit !== "GRANT") {
-      return `${horizonLabel} horizon leans LONG from live CMC${anchor} — do not add size until constitution GRANT (router ${exec}).`;
-    }
-    return sizeNote ?? `Tactical long on ${horizonLabel.toLowerCase()} horizon when Chapel liquidity confirms.`;
+    return `${window} trend is up, but permit ${permit} — wait for constitution to clear before adding size.`;
   }
-
   if (displayDirection === "EXIT") {
-    return `${horizonLabel} horizon leans EXIT from live CMC${anchor} — reduce spot exposure; router ${exec} · permit ${permit}.`;
+    return `${window} trend is down — de-risk or stay out. Permit ${permit}, no fresh entry.`;
   }
-
   if (displayDirection === "HOLD") {
-    if (permit === "DENY") {
-      return `${horizonLabel} horizon HOLD — price within band on live CMC${anchor}. Constitution not cleared · router ${exec}.`;
-    }
-    return `No size on ${horizonLabel.toLowerCase()} horizon${anchor}. Review after ${reviewHours ?? 24}h or when permit clears.`;
+    return `${window} flat (${changeLabel}) and permit ${permit} — no edge. Review after ${reviewHours ?? 24}h.`;
   }
-
-  if (direction === "FLAT") {
-    if (permit === "DENY") {
-      return "Awaiting live CMC timeframe sync — constitution has not cleared.";
-    }
-    return `No position. Review after ${reviewHours ?? 24}h or when permit clears.`;
-  }
-
-  if (direction === "LONG") {
-    if (permit !== "GRANT") {
-      return "Do not add size — router is long-lean but permit has not cleared.";
-    }
-    return sizeNote ?? "Open tactical long on Chapel when liquidity confirms.";
-  }
-
-  if (direction === "SHORT") {
-    return sizeNote ?? "Reduce exposure or rotate to USDC. Monitor liquidity and cascade.";
-  }
-
-  return "Monitor — no action required.";
+  return "Live CMC timeframe data syncing — no action until a window prints.";
 }
 
 export function resolveGateOverviewTruth(input: {
@@ -140,24 +116,24 @@ export function resolveGateOverviewTruth(input: {
   const checksTotal = input.selected?.gate.checksTotal ?? null;
   const tier = input.selected?.gate.tier ?? input.positionRoute?.gate?.tier ?? null;
 
-  const horizonId = input.horizonId ?? "swing";
+  const horizonId = input.horizonId ?? "daily";
   const trendMetrics = (
-    input.selected?.skills as { trend?: { metrics?: { change1h?: number; change24h?: number; change7d?: number } } } | undefined
+    input.selected?.skills as
+      | { trend?: { metrics?: { change1h?: number; change24h?: number; change7d?: number; change30d?: number | null } } }
+      | undefined
   )?.trend?.metrics;
   const market = {
     change1h: trendMetrics?.change1h ?? (input.selected?.fieldSources?.change1h as number | undefined),
     change24h: trendMetrics?.change24h ?? input.selected?.market.change24h,
     change7d: trendMetrics?.change7d ?? input.selected?.market.change7d,
+    change30d: trendMetrics?.change30d ?? undefined,
   };
   const horizonCtx = resolveHorizonContext(input.intel?.directionEvidence, horizonId, market);
 
   const displayDirection: DeskTraderStance =
-    horizonCtx.dominantVote !== "—" ? horizonCtx.dominantVote : executionDisplay;
+    horizonCtx.dominantVote !== "—" ? horizonCtx.dominantVote : "HOLD";
   const direction = traderStanceToDirection(displayDirection);
-  const deskLabel =
-    horizonCtx.dominantVote !== "—"
-      ? horizonDeskLabel(horizonCtx.horizonLabel, displayDirection)
-      : routerDeskLabel(executionDirection);
+  const deskLabel = horizonDeskLabel(horizonCtx.windowLabel);
 
   const conviction =
     input.positionRoute?.confidence ??
@@ -167,7 +143,7 @@ export function resolveGateOverviewTruth(input: {
 
   const summary = buildHorizonSummary({
     ctx: horizonCtx,
-    executionStance: executionDisplay,
+    symbol: (input.selected?.symbol ?? input.intel?.symbol ?? "").toUpperCase(),
     permit,
     checksPassed,
     checksTotal,
@@ -190,14 +166,12 @@ export function resolveGateOverviewTruth(input: {
     horizonHours,
     summary,
     primaryAction: resolvePrimaryAction({
-      direction,
       displayDirection,
-      horizonLabel: horizonCtx.horizonLabel,
+      windowLabel: horizonCtx.windowLabel,
+      changeLabel: horizonCtx.changeLabel,
       permit,
-      executionDirection,
       sizeNote: input.positionRoute?.sizeNote,
       reviewHours: typeof horizonHours === "number" ? horizonHours : 24,
-      anchorBar: horizonCtx.anchorBar,
     }),
     updatedAt,
     constitutionBias: constitutionBiasLabel(input.judgeConsensus),

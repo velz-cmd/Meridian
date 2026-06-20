@@ -60,10 +60,10 @@ export function GateTimeframeDesk({
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/85">
           Timeframe desk · evidence only
         </p>
-        <h3 className="mt-1 text-base font-semibold text-white">3m → 1w horizon map</h3>
+        <h3 className="mt-1 text-base font-semibold text-white">1h → 30d trend map</h3>
         <p className="mt-1 text-xs text-white/55">
-          Each cell is an independent vote from available data. Overview router remains ONE TRUTH; this
-          grid explains timing context.
+          Each cell is one real CMC percent-change window — no fabricated sub-hour bars. Strategy permit on
+          Overview remains the entry truth; this grid is price-trend context.
         </p>
         <div className="mt-3 flex flex-wrap gap-2 text-[10px]">
           <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-200">
@@ -85,7 +85,7 @@ export function GateTimeframeDesk({
         {conflictNote ? <p className="mt-2 text-xs text-amber-100/90">{conflictNote}</p> : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3 lg:grid-cols-5 sm:p-5">
+      <div className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-4 sm:p-5">
         {MERIDIAN_DECISION_TIMEFRAMES.map(({ tf, bucket }) => {
           const vote = votes.find((v) => v.timeframe === tf);
           const dir = vote?.direction ?? "NEUTRAL";

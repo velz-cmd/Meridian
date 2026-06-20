@@ -47,51 +47,70 @@ export function GateHorizonPicker({
   );
 }
 
-/** Horizon detail grid — pairs with GateHorizonPicker in Overview hero */
-export function GateHorizonDetail({
+/** All-window strip — every real CMC window at a glance (so nothing looks hidden/contradictory) */
+export function GateHorizonAllWindows({
   evidence,
-  horizon,
-  loading,
   market,
+  active,
+  onSelect,
+  loading,
 }: {
   evidence: MeridianDirectionEvidence | null | undefined;
-  horizon: GateHorizonId;
+  market?: { change1h?: number; change24h?: number; change7d?: number; change30d?: number };
+  active: GateHorizonId;
+  onSelect: (id: GateHorizonId) => void;
   loading?: boolean;
-  market?: { change1h?: number; change24h?: number; change7d?: number };
 }) {
-  const ctx = resolveHorizonContext(evidence, horizon, market);
-
   return (
-    <div className="mt-5 grid gap-3 border-t border-white/[0.08] pt-5 sm:grid-cols-3">
-      <div className="rounded-xl border border-white/[0.08] bg-black/30 px-3 py-3">
-        <p className="text-[9px] font-bold uppercase tracking-wider text-white/35">Horizon signal</p>
-        <p className={cn("mt-1 text-3xl font-bold tabular-nums", voteTone(ctx.dominantVote))}>
-          {loading ? "…" : ctx.dominantVote}
-        </p>
-        <p className="mt-1 text-[10px] text-white/45">{ctx.horizonLabel} · live CMC</p>
-      </div>
-      <div className="rounded-xl border border-white/[0.08] bg-black/30 px-3 py-3 sm:col-span-2">
-        <p className="text-[9px] font-bold uppercase tracking-wider text-white/35">Live bars · {ctx.horizonLabel}</p>
-        <p className="mt-1 text-sm leading-relaxed text-white/75">
-          {loading ? "Syncing CMC timeframe evidence…" : ctx.liveVoteSummary}
-        </p>
-        <p className="mt-2 text-[10px] text-white/45">
-          {ctx.liveCount} live · {ctx.anchorBar ? `anchor ${ctx.anchorBar} · ` : ""}
-          {ctx.note}
-          {ctx.dataQuality != null ? ` · data quality ${ctx.dataQuality}%` : ""}
-        </p>
-      </div>
+    <div className="mt-5 grid grid-cols-2 gap-2 border-t border-white/[0.08] pt-5 sm:grid-cols-4">
+      {GATE_HORIZON_OPTIONS.map((opt) => {
+        const ctx = resolveHorizonContext(evidence, opt.id, market);
+        const isActive = opt.id === active;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onSelect(opt.id)}
+            className={cn(
+              "rounded-xl border px-3 py-3 text-left transition",
+              isActive
+                ? "border-cyan-400/40 bg-cyan-500/[0.07]"
+                : "border-white/[0.08] bg-black/30 hover:border-white/15",
+            )}
+          >
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">{opt.label}</span>
+              <span className="text-[9px] text-white/35">{opt.timeframe}</span>
+            </div>
+            <p className={cn("mt-1 text-lg font-bold", voteTone(ctx.dominantVote))}>
+              {loading ? "…" : ctx.dominantVote}
+            </p>
+            <p
+              className={cn(
+                "mt-0.5 text-[11px] tabular-nums",
+                ctx.changeValue == null
+                  ? "text-white/35"
+                  : ctx.changeValue >= 0
+                    ? "text-emerald-300/80"
+                    : "text-rose-300/80",
+              )}
+            >
+              {ctx.changeLabel}
+            </p>
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-/** Standalone horizon section */
+/** Standalone horizon section (Technical tab) */
 export function GateHorizonContext({
   evidence,
   loading,
   horizon,
   onHorizonChange,
-  defaultHorizon = "swing",
+  defaultHorizon = "daily",
   market,
 }: {
   evidence: MeridianDirectionEvidence | null | undefined;
@@ -99,7 +118,7 @@ export function GateHorizonContext({
   horizon?: GateHorizonId;
   onHorizonChange?: (id: GateHorizonId) => void;
   defaultHorizon?: GateHorizonId;
-  market?: { change1h?: number; change24h?: number; change7d?: number };
+  market?: { change1h?: number; change24h?: number; change7d?: number; change30d?: number };
 }) {
   const [internal, setInternal] = useState<GateHorizonId>(defaultHorizon);
   const active = horizon ?? internal;
@@ -108,11 +127,18 @@ export function GateHorizonContext({
   return (
     <section className="rounded-2xl border border-white/[0.08] bg-black/25 px-4 py-4 sm:px-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-        Horizon · live CMC timeframes
+        Price trend · real CMC windows
       </p>
-      <p className="mt-1 text-sm text-white/70">Pick the horizon you trade — signal updates from live CMC % moves.</p>
-      <GateHorizonPicker horizon={active} onHorizonChange={setHorizon} className="mt-4" />
-      <GateHorizonDetail evidence={evidence} horizon={active} loading={loading} market={market} />
+      <p className="mt-1 text-sm text-white/70">
+        Each window is a single live CMC % move — stable, not a fabricated micro-bar blend.
+      </p>
+      <GateHorizonAllWindows
+        evidence={evidence}
+        market={market}
+        active={active}
+        onSelect={setHorizon}
+        loading={loading}
+      />
     </section>
   );
 }

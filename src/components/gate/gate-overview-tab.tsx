@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Brain, GitBranch, Scale, Shield, Users } from "lucide-react";
-import { GateHorizonDetail, GateHorizonPicker } from "@/components/gate/gate-horizon-context";
+import { GateHorizonAllWindows } from "@/components/gate/gate-horizon-context";
 import { GateCollapsibleCard, GateStatPill } from "@/components/gate/gate-collapsible-card";
 import { GateOverviewExecutionPath } from "@/components/gate/gate-overview-execution-path";
 import { GateSectionLink } from "@/components/gate/gate-section-link";
@@ -75,28 +75,28 @@ export function GateOverviewTab({
   const intel = intelligence?.symbol?.toUpperCase() === symUpper ? intelligence : null;
   const intelPending = intelLoading && !intel;
 
-  const defaultHorizon: GateHorizonId =
-    intel?.directionEvidence?.timeHorizonBucket === "intraday"
-      ? "intraday"
-      : intel?.directionEvidence?.timeHorizonBucket === "position"
-        ? "position"
-        : intel?.directionEvidence?.timeHorizonBucket === "scalping"
-          ? "scalping"
-          : "swing";
-
-  const [horizon, setHorizon] = useState<GateHorizonId>(defaultHorizon);
+  // Default to the 24h window. Stable across refreshes — only reset when the
+  // symbol changes, so a manual horizon pick never silently flips back.
+  const [horizon, setHorizon] = useState<GateHorizonId>("daily");
 
   useEffect(() => {
-    setHorizon(defaultHorizon);
-  }, [symUpper, defaultHorizon]);
+    setHorizon("daily");
+  }, [symUpper]);
+
+  const trendMetrics = (
+    skills as
+      | { trend?: { metrics?: { change1h?: number; change24h?: number; change7d?: number; change30d?: number | null } } }
+      | undefined
+  )?.trend?.metrics;
 
   const marketCtx = useMemo(
     () => ({
-      change1h: skills?.trend?.metrics?.change1h ?? selected?.fieldSources?.change1h as number | undefined,
-      change24h: skills?.trend?.metrics?.change24h ?? selected?.market.change24h,
-      change7d: skills?.trend?.metrics?.change7d ?? selected?.market.change7d,
+      change1h: trendMetrics?.change1h ?? (selected?.fieldSources?.change1h as number | undefined),
+      change24h: trendMetrics?.change24h ?? selected?.market.change24h,
+      change7d: trendMetrics?.change7d ?? selected?.market.change7d,
+      change30d: trendMetrics?.change30d ?? undefined,
     }),
-    [skills?.trend?.metrics, selected?.fieldSources, selected?.market.change24h, selected?.market.change7d],
+    [trendMetrics, selected?.fieldSources, selected?.market.change24h, selected?.market.change7d],
   );
 
   const truth = resolveGateOverviewTruth({
@@ -151,20 +151,19 @@ export function GateOverviewTab({
           ) : null}
         </div>
 
-        <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-          Your horizon · pick how you trade
-        </p>
-        <GateHorizonPicker horizon={horizon} onHorizonChange={setHorizon} className="mt-3" />
-
         <p className="mt-6 text-sm font-medium uppercase tracking-[0.14em] text-white/55">{truth.deskLabel}</p>
         <p className="mt-1 text-5xl font-semibold tracking-tight text-white">{truth.displayDirection}</p>
         <p className="gate-body-text mt-4 max-w-3xl">{truth.summary}</p>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <GateStatPill label="Permit" value={truth.permit} sub="Execution gate · Chapel" />
+          <GateStatPill label="Permit" value={truth.permit} sub="Strategy gate · entry rules" />
           <GateStatPill label="Risk regime" value={truth.riskRegime} sub={`F&G ${intel?.genome.fearGreed ?? selected?.market.fearGreed ?? "—"}`} />
-          <GateStatPill label="Conviction" value={String(truth.conviction)} sub={`${truth.horizonLabel} horizon`} />
-          <GateStatPill label="Execution router" value={truth.executionDisplay} sub={`Permit ${truth.permit}`} />
+          <GateStatPill
+            label="Constitution"
+            value={truth.checksPassed != null && truth.checksTotal != null ? `${truth.checksPassed}/${truth.checksTotal}` : "—"}
+            sub={truth.tier ? `Tier ${truth.tier}` : "Checks"}
+          />
+          <GateStatPill label="Conviction" value={String(truth.conviction)} sub="Engine confidence" />
           <GateStatPill
             label="Price"
             value={priceLabel}
@@ -172,11 +171,15 @@ export function GateOverviewTab({
           />
         </div>
 
-        <GateHorizonDetail
+        <p className="mt-6 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+          Price trend by window · live CMC — pick the horizon you trade
+        </p>
+        <GateHorizonAllWindows
           evidence={intel?.directionEvidence}
-          horizon={horizon}
-          loading={intelPending}
           market={marketCtx}
+          active={horizon}
+          onSelect={setHorizon}
+          loading={intelPending}
         />
 
         <p className="gate-meta-text mt-4">Updated {formatUpdated(truth.updatedAt)}</p>
