@@ -74,17 +74,46 @@ function dominantVote(votes: { direction: string }[]): string {
 
 export type GateHorizonContext = {
   horizonLabel: string;
-  dominantVote: string;
+  dominantVote: DeskTraderStance | "—";
   liveVoteSummary: string;
   liveCount: number;
   plannedCount: number;
   note: string;
+  /** Primary live bar driving the vote, e.g. "3d +5.99%" */
+  anchorBar: string | null;
+  dataQuality: number | null;
 };
 
-/** Timeframe context for Overview — evidence only; router ONE TRUTH unchanged */
+export function traderStanceToDirection(stance: DeskTraderStance): PositionDirection {
+  if (stance === "LONG") return "LONG";
+  if (stance === "EXIT") return "SHORT";
+  return "FLAT";
+}
+
+function formatChangePct(ch: number): string {
+  return `${ch >= 0 ? "+" : ""}${ch.toFixed(2)}%`;
+}
+
+/** Pick dominant vote — live CMC bars first, then all bucket votes */
+function resolveDominantVote(bucketVotes: { direction: string; source: string }[]): DeskTraderStance | "—" {
+  const live = bucketVotes.filter((v) => v.source === "live-cmc" && v.direction !== "NEUTRAL");
+  if (live.length) {
+    const label = dominantVote(live);
+    return label === "—" ? "HOLD" : (label as DeskTraderStance);
+  }
+  const all = bucketVotes.filter((v) => v.direction !== "NEUTRAL");
+  if (all.length) {
+    const label = dominantVote(all);
+    return label === "—" ? "HOLD" : (label as DeskTraderStance);
+  }
+  return "—";
+}
+
+/** Timeframe context for Overview — drives hero signal for selected horizon */
 export function resolveHorizonContext(
   evidence: MeridianDirectionEvidence | null | undefined,
   horizonId: GateHorizonId,
+  market?: { change1h?: number; change24h?: number; change7d?: number },
 ): GateHorizonContext {
   const opt = GATE_HORIZON_OPTIONS.find((o) => o.id === horizonId)!;
   if (!evidence) {
@@ -95,27 +124,43 @@ export function resolveHorizonContext(
       liveCount: 0,
       plannedCount: 0,
       note: "Sync intelligence API for multi-timeframe votes.",
+      anchorBar: null,
+      dataQuality: null,
     };
   }
 
   const bucketVotes = evidence.timeframeVotes.filter((v) => opt.buckets.includes(v.bucket));
   const liveVotes = bucketVotes.filter((v) => v.source === "live-cmc" && v.direction !== "NEUTRAL");
   const plannedVotes = bucketVotes.filter((v) => v.source === "planned" || v.direction === "NEUTRAL");
-  const dominant = dominantVote(bucketVotes.length ? bucketVotes : evidence.timeframeVotes);
+  const dominant = resolveDominantVote(bucketVotes);
 
   const liveSummary =
     liveVotes.length > 0
       ? liveVotes.map((v) => `${v.timeframe} ${voteToLabel(v.direction)}`).join(" · ")
       : plannedVotes.length > 0
-        ? "Planned layers only — micro bars not on live CMC feed"
+        ? "Awaiting live CMC micro bars — refresh intelligence feed"
         : "No votes in this horizon bucket";
 
+  const anchorVote = liveVotes.find((v) => voteToLabel(v.direction) === dominant) ?? liveVotes[0];
+  let anchorBar: string | null = null;
+  if (anchorVote) {
+    const ch =
+      anchorVote.timeframe === "1h"
+        ? market?.change1h
+        : anchorVote.timeframe === "1d"
+          ? market?.change24h
+          : anchorVote.timeframe === "3d"
+            ? market?.change7d
+            : undefined;
+    anchorBar = ch != null ? `${anchorVote.timeframe} ${formatChangePct(ch)}` : anchorVote.timeframe;
+  }
+
   const note =
-    evidence.timeHorizonBucket === "mixed" && horizonId !== "swing"
-      ? "Mixed horizons — swing/position anchor unless consensus clears."
-      : liveVotes.length === 0
-        ? "Horizon context from planned skill layers until live bars arrive."
-        : "Live CMC votes for selected horizon — router verdict stays ONE TRUTH above.";
+    liveVotes.length === 0
+      ? "Live CMC % change drives each horizon — select a horizon to see its read."
+      : dominant === "HOLD"
+        ? "Price change within threshold for this horizon — HOLD is the honest read."
+        : `Live CMC ${dominant} bias on ${opt.label.toLowerCase()} horizon.`;
 
   return {
     horizonLabel: opt.label,
@@ -124,5 +169,36 @@ export function resolveHorizonContext(
     liveCount: liveVotes.length,
     plannedCount: plannedVotes.length,
     note,
+    anchorBar,
+    dataQuality: evidence.dataQualityScore,
   };
+}
+
+export function horizonDeskLabel(horizonLabel: string, stance: DeskTraderStance | "—"): string {
+  if (stance === "—") return "DESK · SYNCING";
+  if (stance === "LONG") return `${horizonLabel.toUpperCase()} · LONG BIAS`;
+  if (stance === "EXIT") return `${horizonLabel.toUpperCase()} · EXIT BIAS`;
+  return `${horizonLabel.toUpperCase()} · HOLD`;
+}
+
+export function buildHorizonSummary(input: {
+  ctx: GateHorizonContext;
+  executionStance: DeskTraderStance;
+  permit: "GRANT" | "DENY" | "WAIT";
+  checksPassed: number | null;
+  checksTotal: number | null;
+}): string {
+  const { ctx, executionStance, permit, checksPassed, checksTotal } = input;
+  if (ctx.dominantVote === "—") {
+    return "Awaiting live CMC timeframe evidence — refresh or pick another symbol.";
+  }
+  const checks =
+    checksPassed != null && checksTotal != null ? `${checksPassed}/${checksTotal} constitution checks` : "constitution pending";
+  const anchor = ctx.anchorBar ? ` · anchor ${ctx.anchorBar}` : "";
+  const bars = ctx.liveVoteSummary !== "DATA UNAVAILABLE" ? ctx.liveVoteSummary : "";
+  return (
+    `${ctx.horizonLabel} horizon: ${ctx.dominantVote} from live CMC${anchor}` +
+    (bars ? ` (${bars})` : "") +
+    `. Execution router ${executionStance} · permit ${permit} · ${checks}.`
+  );
 }

@@ -117,7 +117,7 @@ export function GateTimeframeDesk({
 
       {liveVotes.length > 0 && (
         <p className="border-t border-white/8 px-4 py-3 text-[10px] text-white/45 sm:px-5">
-          Live votes: {liveVotes.map((v) => `${v.timeframe} ${v.direction}`).join(" · ")} · horizon{" "}
+          Live votes: {liveVotes.map((v) => `${v.timeframe} ${directionLabel(v.direction)}`).join(" · ")} · horizon{" "}
           {evidence.horizon}
         </p>
       )}

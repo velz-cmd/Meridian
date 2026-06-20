@@ -1,18 +1,29 @@
 /**
- * Overview ONE TRUTH — only the position router verdict is the final signal.
- * Constitution bias, momentum, skills, and agent pulse are explanations, not competing headlines.
+ * Overview truth — hero signal follows selected horizon (live CMC).
+ * Execution permit/router stays separate for Chapel settlement honesty.
  */
 import type { GateJudgeConsensus } from "@/lib/gate-consensus-payload";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
 import type { MeridianIntelligencePayload } from "@/lib/meridian-intelligence-types";
-import { deskDirectionLabel } from "@/lib/gate-desk-labels";
+import {
+  buildHorizonSummary,
+  deskDirectionLabel,
+  horizonDeskLabel,
+  resolveHorizonContext,
+  traderStanceToDirection,
+  type DeskTraderStance,
+  type GateHorizonId,
+} from "@/lib/gate-desk-labels";
 import type { PositionDirection, PositionRoute } from "@/lib/position-router";
 
 export type GateOverviewTruth = {
   deskLabel: string;
+  /** Hero direction — horizon live CMC when available */
   direction: PositionDirection;
-  /** Trader-facing headline — LONG / HOLD / EXIT */
   displayDirection: string;
+  /** Constitution router — execution settlement only */
+  executionDirection: PositionDirection;
+  executionDisplay: DeskTraderStance;
   permit: "GRANT" | "DENY" | "WAIT";
   riskRegime: string;
   conviction: number | string;
@@ -24,6 +35,9 @@ export type GateOverviewTruth = {
   checksPassed: number | null;
   checksTotal: number | null;
   tier: string | null;
+  horizonLabel: string;
+  liveBarSummary: string;
+  horizonNote: string;
 };
 
 export function routerDeskLabel(direction: PositionDirection): string {
@@ -54,19 +68,40 @@ function constitutionBiasLabel(judgeConsensus: GateJudgeConsensus | null | undef
 
 export function resolvePrimaryAction(input: {
   direction: PositionDirection;
+  displayDirection: DeskTraderStance | "—";
+  horizonLabel: string;
   permit: "GRANT" | "DENY" | "WAIT";
+  executionDirection: PositionDirection;
   sizeNote?: string | null;
   reviewHours?: number;
-  verdict?: string;
+  anchorBar?: string | null;
 }): string {
-  const { direction, permit, sizeNote, reviewHours, verdict } = input;
+  const { direction, displayDirection, horizonLabel, permit, executionDirection, sizeNote, reviewHours, anchorBar } =
+    input;
+  const exec = deskDirectionLabel(executionDirection);
+  const anchor = anchorBar ? ` (${anchorBar})` : "";
+
+  if (displayDirection === "LONG") {
+    if (permit !== "GRANT") {
+      return `${horizonLabel} horizon leans LONG from live CMC${anchor} — do not add size until constitution GRANT (router ${exec}).`;
+    }
+    return sizeNote ?? `Tactical long on ${horizonLabel.toLowerCase()} horizon when Chapel liquidity confirms.`;
+  }
+
+  if (displayDirection === "EXIT") {
+    return `${horizonLabel} horizon leans EXIT from live CMC${anchor} — reduce spot exposure; router ${exec} · permit ${permit}.`;
+  }
+
+  if (displayDirection === "HOLD") {
+    if (permit === "DENY") {
+      return `${horizonLabel} horizon HOLD — price within band on live CMC${anchor}. Constitution not cleared · router ${exec}.`;
+    }
+    return `No size on ${horizonLabel.toLowerCase()} horizon${anchor}. Review after ${reviewHours ?? 24}h or when permit clears.`;
+  }
 
   if (direction === "FLAT") {
     if (permit === "DENY") {
-      return "No position. Constitution has not cleared — wait for alignment.";
-    }
-    if (verdict?.toLowerCase().includes("stress") || verdict?.toLowerCase().includes("elevated")) {
-      return "No position. Elevated stress — review after next 1h rollover.";
+      return "Awaiting live CMC timeframe sync — constitution has not cleared.";
     }
     return `No position. Review after ${reviewHours ?? 24}h or when permit clears.`;
   }
@@ -90,34 +125,65 @@ export function resolveGateOverviewTruth(input: {
   judgeConsensus: GateJudgeConsensus | null;
   intel: MeridianIntelligencePayload | null;
   selected?: GateBenchmarkFull;
+  horizonId?: GateHorizonId;
 }): GateOverviewTruth {
-  const direction = input.positionRoute?.direction ?? "FLAT";
+  const executionDirection = input.positionRoute?.direction ?? "FLAT";
+  const executionDisplay = deskDirectionLabel(executionDirection);
   const permit = resolvePermit(input.judgeConsensus, input.intel);
   const riskRegime =
     input.intel?.genome.regime ??
     input.selected?.gate.regime ??
     input.selected?.skills?.regime?.regime ??
     "neutral";
+  const horizonHours = input.intel?.convictionDecay.reviewAfterHours ?? 24;
+  const checksPassed = input.selected?.gate.checksPassed ?? null;
+  const checksTotal = input.selected?.gate.checksTotal ?? null;
+  const tier = input.selected?.gate.tier ?? input.positionRoute?.gate?.tier ?? null;
+
+  const horizonId = input.horizonId ?? "swing";
+  const trendMetrics = (
+    input.selected?.skills as { trend?: { metrics?: { change1h?: number; change24h?: number; change7d?: number } } } | undefined
+  )?.trend?.metrics;
+  const market = {
+    change1h: trendMetrics?.change1h ?? (input.selected?.fieldSources?.change1h as number | undefined),
+    change24h: trendMetrics?.change24h ?? input.selected?.market.change24h,
+    change7d: trendMetrics?.change7d ?? input.selected?.market.change7d,
+  };
+  const horizonCtx = resolveHorizonContext(input.intel?.directionEvidence, horizonId, market);
+
+  const displayDirection: DeskTraderStance =
+    horizonCtx.dominantVote !== "—" ? horizonCtx.dominantVote : executionDisplay;
+  const direction = traderStanceToDirection(displayDirection);
+  const deskLabel =
+    horizonCtx.dominantVote !== "—"
+      ? horizonDeskLabel(horizonCtx.horizonLabel, displayDirection)
+      : routerDeskLabel(executionDirection);
+
   const conviction =
     input.positionRoute?.confidence ??
     input.intel?.confidence.conviction ??
     input.selected?.gate.confidence ??
     "—";
-  const horizonHours = input.intel?.convictionDecay.reviewAfterHours ?? 24;
-  const summary =
-    input.positionRoute?.verdict ??
-    input.intel?.explainability.why ??
-    input.selected?.gate.thesis ??
-    "Awaiting router synthesis.";
+
+  const summary = buildHorizonSummary({
+    ctx: horizonCtx,
+    executionStance: executionDisplay,
+    permit,
+    checksPassed,
+    checksTotal,
+  });
+
   const updatedAt =
-    input.positionRoute?.generatedAt ??
     input.intel?.generatedAt ??
+    input.positionRoute?.generatedAt ??
     new Date().toISOString();
 
   return {
-    deskLabel: routerDeskLabel(direction),
+    deskLabel,
     direction,
-    displayDirection: deskDirectionLabel(direction),
+    displayDirection,
+    executionDirection,
+    executionDisplay,
     permit,
     riskRegime,
     conviction,
@@ -125,15 +191,21 @@ export function resolveGateOverviewTruth(input: {
     summary,
     primaryAction: resolvePrimaryAction({
       direction,
+      displayDirection,
+      horizonLabel: horizonCtx.horizonLabel,
       permit,
+      executionDirection,
       sizeNote: input.positionRoute?.sizeNote,
       reviewHours: typeof horizonHours === "number" ? horizonHours : 24,
-      verdict: summary,
+      anchorBar: horizonCtx.anchorBar,
     }),
     updatedAt,
     constitutionBias: constitutionBiasLabel(input.judgeConsensus),
-    checksPassed: input.selected?.gate.checksPassed ?? null,
-    checksTotal: input.selected?.gate.checksTotal ?? null,
-    tier: input.selected?.gate.tier ?? input.positionRoute?.gate?.tier ?? null,
+    checksPassed,
+    checksTotal,
+    tier,
+    horizonLabel: horizonCtx.horizonLabel,
+    liveBarSummary: horizonCtx.liveVoteSummary,
+    horizonNote: horizonCtx.note,
   };
 }

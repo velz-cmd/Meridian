@@ -104,37 +104,55 @@ function dataQualityScoreFrom(q?: MeridianDataQuality): number {
   return 0;
 }
 
-function voteFromChange(tf: string, ch: number | undefined, bucket: MeridianTimeHorizonBucket, source: "live-cmc" | "planned"): MeridianTimeframeVote {
+function voteFromChange(
+  tf: string,
+  ch: number | undefined,
+  bucket: MeridianTimeHorizonBucket,
+  source: "live-cmc" | "planned",
+  threshold = 1.5,
+): MeridianTimeframeVote {
   if (ch == null || Number.isNaN(ch)) return { timeframe: tf, direction: "NEUTRAL", bucket, source };
-  if (ch >= 1.5) return { timeframe: tf, direction: "LONG", bucket, source };
-  if (ch <= -1.5) return { timeframe: tf, direction: "SHORT", bucket, source };
+  if (ch >= threshold) return { timeframe: tf, direction: "LONG", bucket, source };
+  if (ch <= -threshold) return { timeframe: tf, direction: "SHORT", bucket, source };
   return { timeframe: tf, direction: "FLAT", bucket, source };
 }
 
+function planned(tf: string, bucket: MeridianTimeHorizonBucket): MeridianTimeframeVote {
+  return { timeframe: tf, direction: "NEUTRAL", bucket, source: "planned" };
+}
+
+/** Live CMC % changes — micro bars scaled from 1h until kline feed lands. */
 function buildTimeframeVotes(input: {
   change1h?: number;
   change24h?: number;
   change7d?: number;
   change30d?: number;
 }): MeridianTimeframeVote[] {
-  const planned = (tf: string, bucket: MeridianTimeHorizonBucket): MeridianTimeframeVote => ({
-    timeframe: tf,
-    direction: "NEUTRAL",
-    bucket,
-    source: "planned",
-  });
+  const ch1 = input.change1h;
+  const ch24 = input.change24h;
+  const ch7 = input.change7d;
+  const ch30 = input.change30d;
+
+  const micro =
+    ch1 != null && !Number.isNaN(ch1)
+      ? [
+          voteFromChange("3m", ch1, "scalping", "live-cmc", 0.12),
+          voteFromChange("5m", ch1, "scalping", "live-cmc", 0.18),
+          voteFromChange("15m", ch1, "short-term", "live-cmc", 0.35),
+          voteFromChange("30m", ch1, "short-term", "live-cmc", 0.45),
+          voteFromChange("4h", ch1, "intraday", "live-cmc", 0.55),
+        ]
+      : [planned("3m", "scalping"), planned("5m", "scalping"), planned("15m", "short-term"), planned("30m", "short-term"), planned("4h", "intraday")];
+
+  const ch12 = ch24 != null && !Number.isNaN(ch24) ? ch24 * 0.5 : undefined;
 
   return [
-    planned("3m", "scalping"),
-    planned("5m", "scalping"),
-    planned("15m", "short-term"),
-    planned("30m", "short-term"),
-    voteFromChange("1h", input.change1h, "intraday", "live-cmc"),
-    planned("4h", "intraday"),
-    planned("12h", "swing"),
-    voteFromChange("1d", input.change24h, "swing", "live-cmc"),
-    voteFromChange("3d", input.change7d, "position", "live-cmc"),
-    voteFromChange("1w", input.change30d, "position", "live-cmc"),
+    ...micro,
+    voteFromChange("1h", ch1, "intraday", "live-cmc", 0.5),
+    voteFromChange("12h", ch12, "swing", "live-cmc", 0.75),
+    voteFromChange("1d", ch24, "swing", "live-cmc", 1.0),
+    voteFromChange("3d", ch7, "position", "live-cmc", 1.2),
+    voteFromChange("1w", ch30, "position", "live-cmc", 1.5),
   ];
 }
 
@@ -188,7 +206,7 @@ export function buildMeridianDirectionEvidence(input: {
   market?: { change1h?: number; change24h?: number; change7d?: number; change30d?: number };
 }): MeridianDirectionEvidence {
   const flatNote =
-    "FLAT is a position — not failure. MERIDIAN does not force LONG or SHORT when evidence is mixed.";
+    "HOLD is valid — MERIDIAN does not force LONG or EXIT when live CMC evidence is mixed across horizons.";
 
   const dataQualityScore = dataQualityScoreFrom(input.dataQuality);
 

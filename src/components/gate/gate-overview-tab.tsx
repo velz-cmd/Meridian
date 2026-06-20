@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { Brain, GitBranch, Scale, Shield, Users } from "lucide-react";
-import { GateHorizonContext } from "@/components/gate/gate-horizon-context";
+import { GateHorizonDetail, GateHorizonPicker } from "@/components/gate/gate-horizon-context";
 import { GateCollapsibleCard, GateStatPill } from "@/components/gate/gate-collapsible-card";
 import { GateOverviewExecutionPath } from "@/components/gate/gate-overview-execution-path";
 import { GateSectionLink } from "@/components/gate/gate-section-link";
@@ -14,6 +15,7 @@ import type { PositionRoute } from "@/lib/position-router";
 import { GATE_SYMBOL_LABELS } from "@/lib/gate-constants";
 import { formatGatePrice, formatSignedPct } from "@/lib/gate-format";
 import { resolveGateOverviewTruth } from "@/lib/gate-overview-truth";
+import type { GateHorizonId } from "@/lib/gate-desk-labels";
 import { getGateDeskTabMeta } from "@/lib/gate-desk-tab-meta";
 import type { GateArbitration } from "@/hooks/use-gate-permit";
 import type { GatePermitStatus } from "@/lib/gate-permit-status";
@@ -73,11 +75,36 @@ export function GateOverviewTab({
   const intel = intelligence?.symbol?.toUpperCase() === symUpper ? intelligence : null;
   const intelPending = intelLoading && !intel;
 
+  const defaultHorizon: GateHorizonId =
+    intel?.directionEvidence?.timeHorizonBucket === "intraday"
+      ? "intraday"
+      : intel?.directionEvidence?.timeHorizonBucket === "position"
+        ? "position"
+        : intel?.directionEvidence?.timeHorizonBucket === "scalping"
+          ? "scalping"
+          : "swing";
+
+  const [horizon, setHorizon] = useState<GateHorizonId>(defaultHorizon);
+
+  useEffect(() => {
+    setHorizon(defaultHorizon);
+  }, [symUpper, defaultHorizon]);
+
+  const marketCtx = useMemo(
+    () => ({
+      change1h: skills?.trend?.metrics?.change1h ?? selected?.fieldSources?.change1h as number | undefined,
+      change24h: skills?.trend?.metrics?.change24h ?? selected?.market.change24h,
+      change7d: skills?.trend?.metrics?.change7d ?? selected?.market.change7d,
+    }),
+    [skills?.trend?.metrics, selected?.fieldSources, selected?.market.change24h, selected?.market.change7d],
+  );
+
   const truth = resolveGateOverviewTruth({
     positionRoute,
     judgeConsensus,
     intel,
     selected,
+    horizonId: horizon,
   });
 
   const livePrice = selected?.market.price;
@@ -101,51 +128,59 @@ export function GateOverviewTab({
   const migration = intel?.narrativeFlow.migration[0];
 
   const heroSurface =
-    truth.direction === "LONG"
+    truth.displayDirection === "LONG"
       ? "border-emerald-400/25 bg-emerald-500/[0.06]"
-      : truth.direction === "SHORT"
+      : truth.displayDirection === "EXIT"
         ? "border-rose-400/25 bg-rose-500/[0.06]"
         : "border-slate-400/20 bg-slate-500/[0.05]";
 
   return (
     <div className="gate-v2-stack space-y-6">
-      {/* Section 1 — Executive hero: ONE router truth only */}
+      {/* Section 1 — Horizon-driven hero (live CMC) + execution router */}
       <section className={cn("rounded-2xl border px-6 py-7 sm:px-8 sm:py-8", heroSurface)}>
-        <p className="gate-verdict-label">
-          {GATE_SYMBOL_LABELS[symUpper as keyof typeof GATE_SYMBOL_LABELS] ?? symUpper}
-          {cmcLive ? " · CMC live" : " · DATA UNAVAILABLE"}
-          {intelPending ? " · syncing…" : ""}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="gate-verdict-label">
+            {GATE_SYMBOL_LABELS[symUpper as keyof typeof GATE_SYMBOL_LABELS] ?? symUpper}
+            {cmcLive ? " · CMC live" : " · DATA UNAVAILABLE"}
+            {intelPending ? " · syncing…" : ""}
+          </p>
+          {intel?.directionEvidence ? (
+            <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-white/45">
+              Data quality {intel.directionEvidence.dataQualityScore}%
+            </span>
+          ) : null}
+        </div>
+
+        <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+          Your horizon · pick how you trade
         </p>
-        <p className="mt-3 text-sm font-medium uppercase tracking-[0.14em] text-white/55">{truth.deskLabel}</p>
+        <GateHorizonPicker horizon={horizon} onHorizonChange={setHorizon} className="mt-3" />
+
+        <p className="mt-6 text-sm font-medium uppercase tracking-[0.14em] text-white/55">{truth.deskLabel}</p>
         <p className="mt-1 text-5xl font-semibold tracking-tight text-white">{truth.displayDirection}</p>
-        <p className="gate-body-text mt-4 max-w-2xl">{truth.summary}</p>
+        <p className="gate-body-text mt-4 max-w-3xl">{truth.summary}</p>
+
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <GateStatPill label="Permit" value={truth.permit} sub="Execution gate · not bias" />
+          <GateStatPill label="Permit" value={truth.permit} sub="Execution gate · Chapel" />
           <GateStatPill label="Risk regime" value={truth.riskRegime} sub={`F&G ${intel?.genome.fearGreed ?? selected?.market.fearGreed ?? "—"}`} />
-          <GateStatPill label="Conviction" value={String(truth.conviction)} sub="Router confidence" />
-          <GateStatPill label="Horizon" value={`${truth.horizonHours}h`} sub={`Thesis ${intel?.convictionDecay.status ?? "—"}`} />
+          <GateStatPill label="Conviction" value={String(truth.conviction)} sub={`${truth.horizonLabel} horizon`} />
+          <GateStatPill label="Execution router" value={truth.executionDisplay} sub={`Permit ${truth.permit}`} />
           <GateStatPill
             label="Price"
             value={priceLabel}
             sub={live24h != null ? `24h ${formatPct(live24h)}` : "—"}
           />
         </div>
+
+        <GateHorizonDetail
+          evidence={intel?.directionEvidence}
+          horizon={horizon}
+          loading={intelPending}
+          market={marketCtx}
+        />
+
         <p className="gate-meta-text mt-4">Updated {formatUpdated(truth.updatedAt)}</p>
       </section>
-
-      <GateHorizonContext
-        evidence={intel?.directionEvidence}
-        loading={intelPending}
-        defaultHorizon={
-          intel?.directionEvidence?.timeHorizonBucket === "intraday"
-            ? "intraday"
-            : intel?.directionEvidence?.timeHorizonBucket === "position"
-              ? "position"
-              : intel?.directionEvidence?.timeHorizonBucket === "scalping"
-                ? "scalping"
-                : "swing"
-        }
-      />
 
       {/* Section 2 — Thesis */}
       <GateCollapsibleCard
@@ -365,7 +400,7 @@ export function GateOverviewTab({
         priceUsd={livePrice}
         arbitration={arbitration}
         primaryAction={truth.primaryAction}
-        routerDirection={truth.direction}
+        routerDirection={truth.executionDirection}
         deskLabel={truth.deskLabel}
         track2Priority={track2Priority}
         onOpenNexus={onOpenNexus}
