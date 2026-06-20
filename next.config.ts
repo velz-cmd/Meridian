@@ -27,6 +27,8 @@ const nextConfig: NextConfig = {
       process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
       process.env.VERCEL_DEPLOYMENT_ID?.slice(0, 7) ??
       "dev",
+    NEXT_PUBLIC_MERIDIAN_TRACK2_PRIORITY:
+      process.env.NEXT_PUBLIC_MERIDIAN_TRACK2_PRIORITY ?? "1",
   },
   images: {
     remotePatterns: [
