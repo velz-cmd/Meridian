@@ -31,6 +31,40 @@
   min-width: 0;
 }
 
+/* MERIDIAN Design V2 — spacing & calm surfaces */
+[data-gate-page] .gate-v2-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+[data-gate-page] .gate-collapsible-card summary {
+  transition: background 0.2s ease;
+}
+
+[data-gate-page] .gate-collapsible-card summary:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-gate-page] .gate-skill-layer-card summary {
+  transition: background 0.2s ease;
+}
+
+[data-gate-page] .gate-skill-layer-card summary:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-gate-page] .gate-execution-cta {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+[data-gate-page] .gate-section-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
 [data-gate-page] .gate-desk-tabs {
   scrollbar-width: thin;
 }

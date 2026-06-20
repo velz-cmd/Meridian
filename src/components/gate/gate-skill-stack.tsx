@@ -2,6 +2,8 @@
 
 import { cn } from "@/lib/utils";
 import { strategyPosition } from "@/lib/gate-strategy-copy";
+import { buildGateSkillLayers } from "@/lib/gate-skill-layers";
+import { GateSkillLayerCard } from "@/components/gate/gate-skill-layer-card";
 
 type SkillSignal = {
   id: string;
@@ -98,175 +100,61 @@ export type GateSkillsPayload = {
   };
 };
 
-function signalTone(signal: string) {
-  if (signal === "ENTER_LONG") return "text-emerald-300 border-emerald-400/35 bg-emerald-500/10";
-  if (signal === "EXIT" || signal === "AVOID") return "text-rose-300 border-rose-400/35 bg-rose-500/10";
-  return "text-white/70 border-white/10 bg-black/30";
-}
-
 export function GateSkillStack({ skills, constitutionSignal }: { skills: GateSkillsPayload; constitutionSignal: string }) {
   const compositePos = strategyPosition(skills.composite.signal);
   const rawPos = strategyPosition(constitutionSignal);
   const blocked = skills.composite.blockers.length > 0 && rawPos === "LONG" && compositePos === "FLAT";
   const splitVerdict = skills.composite.constitutionOnly;
-
-  const layers = [
-    {
-      title: "Momentum",
-      subtitle: `${skills.momentum.checksPassed}/${skills.momentum.checksTotal} checks`,
-      signal: skills.momentum.signal,
-      detail: skills.momentum.metrics
-        ? `RSI ${skills.momentum.metrics.rsi?.toFixed(1)} · MACD ${skills.momentum.metrics.macd} · F&G ${skills.momentum.metrics.fearGreed}`
-        : undefined,
-    },
-    {
-      title: "Sentiment divergence",
-      subtitle: skills.sentiment.state.replace(/_/g, " ").toLowerCase(),
-      signal: skills.sentiment.signal,
-      detail: `heat ${skills.sentiment.socialHeat} · flow ${skills.sentiment.flowScore} · turnover ${skills.sentiment.turnover}`,
-      flagged: skills.sentiment.flagged,
-    },
-    {
-      title: "Regime",
-      subtitle: `${skills.regime.regime} · ${skills.regime.positioning.replace(/-/g, " ")}`,
-      signal: skills.regime.signal,
-      detail: skills.regime.switchRule,
-    },
-    ...(skills.trend
-      ? [
-          {
-            title: "Trend alignment",
-            subtitle: `${skills.trend.checksPassed}/${skills.trend.checksTotal} TF checks`,
-            signal: skills.trend.signal,
-            detail: skills.trend.metrics
-              ? `1h ${skills.trend.metrics.change1h?.toFixed(1)}% · 24h ${skills.trend.metrics.change24h?.toFixed(1)}% · 7d ${skills.trend.metrics.change7d?.toFixed(1)}%`
-              : skills.trend.thesis,
-          },
-        ]
-      : []),
-    ...(skills.liquidity
-      ? [
-          {
-            title: "Liquidity depth",
-            subtitle: `turnover ${skills.liquidity.turnover}`,
-            signal: skills.liquidity.signal,
-            detail: skills.liquidity.thesis,
-          },
-        ]
-      : []),
-    ...(skills.structural
-      ? [
-          {
-            title: "Structural quality",
-            subtitle: skills.structural.grade,
-            signal: skills.structural.signal,
-            detail: skills.structural.thesis,
-          },
-        ]
-      : []),
-    ...(skills.relativeStrength
-      ? [
-          {
-            title: "Relative strength",
-            subtitle: `${skills.relativeStrength.role ?? "inline"} · ${skills.relativeStrength.rotationScore ?? "—"}/100`,
-            signal: skills.relativeStrength.signal,
-            detail: skills.relativeStrength.metrics
-              ? `RS 24h ${(skills.relativeStrength.metrics.rs24h ?? 0) >= 0 ? "+" : ""}${skills.relativeStrength.metrics.rs24h?.toFixed(2)}% vs ${skills.relativeStrength.metrics.benchmark}`
-              : skills.relativeStrength.thesis,
-          },
-        ]
-      : []),
-    ...(skills.volatility
-      ? [
-          {
-            title: "Volatility regime",
-            subtitle: skills.volatility.state ?? "neutral",
-            signal: skills.volatility.signal,
-            detail: skills.volatility.metrics
-              ? `ATR ${skills.volatility.metrics.atrPct}% · ${skills.volatility.metrics.compressionRatio}× compression`
-              : skills.volatility.thesis,
-          },
-        ]
-      : []),
-  ];
+  const layers = buildGateSkillLayers(skills);
 
   return (
-    <section className="rounded-2xl border border-cyan-400/15 bg-cyan-950/15">
-      <div className="space-y-4 p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="rounded-2xl border border-white/[0.08] bg-black/25">
+      <div className="space-y-5 p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/45">
-              CMC skill stack · {layers.length} layers · live
-            </p>
-            <h2 className="mt-1 text-lg font-semibold text-white">Eight skills → one consensus verdict</h2>
+            <p className="text-xs text-white/45">CMC skill stack · {layers.length} layers · live feed</p>
+            <h2 className="mt-1 text-lg font-semibold tracking-tight text-white">Eight skills → one consensus</h2>
             {splitVerdict && (
-              <p className="mt-1 text-xs text-amber-200/90">
-                Constitution says {rawPos} but only {skills.composite.votes?.long ?? 0}/{skills.composite.votes?.total ?? 8}{" "}
-                layers agree — desk holds {compositePos} until aligned.
+              <p className="mt-2 text-xs leading-relaxed text-amber-200/85">
+                Constitution says {rawPos} but only {skills.composite.votes?.long ?? 0}/
+                {skills.composite.votes?.total ?? 8} layers agree — desk holds {compositePos} until aligned.
               </p>
             )}
             {blocked && !splitVerdict && (
-              <p className="mt-1 text-xs text-amber-200/90">
+              <p className="mt-2 text-xs leading-relaxed text-amber-200/85">
                 Constitution says LONG but composite blocked: {skills.composite.blockers.join(", ")}
               </p>
             )}
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase text-white/40">Combined read</p>
-            <p className={cn("text-xl font-bold", compositePos === "LONG" ? "text-emerald-300" : "text-white/65")}>
+            <p className="text-xs text-white/40">Combined read</p>
+            <p
+              className={cn(
+                "text-3xl font-semibold tabular-nums tracking-tight",
+                compositePos === "LONG" ? "text-emerald-300" : "text-white/60",
+              )}
+            >
               {compositePos}
             </p>
-            <p className="text-[10px] text-white/40">
+            <p className="mt-0.5 text-[11px] text-white/40">
+              Alignment {skills.composite.alignmentScore}
               {skills.composite.votes
-                ? `${skills.composite.votes.long} long · ${skills.composite.votes.hold} hold · ${skills.composite.votes.bear} bear`
-                : `${skills.composite.longPct ?? "—"}% long weight`}
+                ? ` · ${skills.composite.votes.long}L ${skills.composite.votes.hold}H ${skills.composite.votes.bear}B`
+                : ""}
             </p>
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-2">
           {layers.map((layer) => (
-            <SkillCard
-              key={layer.title}
-              title={layer.title}
-              subtitle={layer.subtitle}
-              signal={layer.signal}
-              detail={layer.detail}
-              flagged={"flagged" in layer ? layer.flagged : undefined}
-            />
+            <GateSkillLayerCard key={layer.id} layer={layer} />
           ))}
         </div>
 
-        <p className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/70">
+        <p className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3 text-sm leading-relaxed text-white/70">
           {skills.composite.thesis}
         </p>
       </div>
     </section>
-  );
-}
-
-function SkillCard({
-  title,
-  subtitle,
-  signal,
-  detail,
-  flagged,
-}: {
-  title: string;
-  subtitle: string;
-  signal: string;
-  detail?: string;
-  flagged?: boolean;
-}) {
-  return (
-    <div className={cn("rounded-xl border p-3", signalTone(signal))}>
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-white">{title}</p>
-        <span className="text-[10px] font-bold uppercase">{signal.replace("_", " ")}</span>
-      </div>
-      <p className="mt-1 text-[11px] capitalize text-white/50">{subtitle}</p>
-      {detail && <p className="mt-2 text-[11px] leading-snug text-white/60">{detail}</p>}
-      {flagged && <p className="mt-2 text-[10px] font-semibold text-amber-300">Divergence flagged</p>}
-    </div>
   );
 }

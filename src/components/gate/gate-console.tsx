@@ -239,11 +239,12 @@ export function GateConsole() {
                 onQuickSelect={handleSelectSymbol}
                 onRunBacktest={() => void runBacktest(symbol)}
                 onGoTab={setTab}
+                onOpenNexus={openInNexus}
               />
             )}
 
             {tab === "memory" && (
-              <div className="space-y-4">
+              <div className="gate-v2-stack space-y-6">
                 <GateIntelligenceDesk
                   data={intelligence}
                   loading={intelLoading}
@@ -255,7 +256,7 @@ export function GateConsole() {
             )}
 
             {tab === "technical" && selected && (
-              <div className="space-y-4">
+              <div className="gate-v2-stack space-y-6">
                 {skills && <GateTechnicalChambers skills={skills} intelligence={intelligence} />}
                 <GateCollapsibleCard
                   title="Bull vs Bear debate"
@@ -286,7 +287,7 @@ export function GateConsole() {
             )}
 
             {tab === "rules" && (
-              <div className="space-y-4">
+              <div className="gate-v2-stack space-y-6">
                 <GateCmcArchitecturePanel />
                 <GateStrategySpec />
                 <GateOutputPanel
@@ -312,7 +313,7 @@ export function GateConsole() {
             )}
 
             {tab === "replay" && (
-              <div className="space-y-4">
+              <div className="gate-v2-stack space-y-6">
                 <GateOutputPanel
                   selected={selected}
                   route={gateRoute}

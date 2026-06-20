@@ -3,13 +3,13 @@
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Progressive disclosure — executive summary visible, full depth on expand. Nothing removed. */
+/** Progressive disclosure — executive summary visible, full depth on expand (Design V2). */
 export function GateCollapsibleCard({
   title,
   question,
   summary,
   icon: Icon,
-  accent = "border-white/10",
+  accent = "border-white/[0.08]",
   defaultOpen = false,
   children,
 }: {
@@ -23,35 +23,33 @@ export function GateCollapsibleCard({
 }) {
   return (
     <details
-      className={cn("group rounded-2xl border bg-black/30", accent)}
+      className={cn("gate-collapsible-card group rounded-2xl border bg-black/25 transition-colors", accent)}
       open={defaultOpen}
     >
-      <summary className="cursor-pointer list-none p-4 [&::-webkit-details-marker]:hidden">
-        <div className="flex items-start justify-between gap-3">
+      <summary className="cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              {Icon && <Icon className="h-4 w-4 shrink-0 text-violet-300" />}
-              <h3 className="text-sm font-semibold text-white">{title}</h3>
+            <div className="flex items-center gap-2.5">
+              {Icon && <Icon className="h-4 w-4 shrink-0 text-white/50" />}
+              <h3 className="text-sm font-semibold tracking-tight text-white">{title}</h3>
             </div>
-            {question && (
-              <p className="mt-0.5 font-mono text-[9px] uppercase tracking-wider text-white/35">{question}</p>
-            )}
-            <div className="mt-2 text-sm text-white/70">{summary}</div>
+            {question && <p className="mt-1 text-xs text-white/45">{question}</p>}
+            <div className="mt-3 text-sm leading-relaxed text-white/65">{summary}</div>
           </div>
-          <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-white/40 transition group-open:rotate-180" />
+          <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-white/35 transition duration-200 group-open:rotate-180" />
         </div>
       </summary>
-      <div className="border-t border-white/[0.06] px-4 pb-4 pt-2">{children}</div>
+      <div className="border-t border-white/[0.06] px-5 pb-5 pt-4">{children}</div>
     </details>
   );
 }
 
 export function GateStatPill({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-black/35 px-3 py-2">
-      <p className="text-[9px] uppercase tracking-wider text-white/35">{label}</p>
-      <p className="mt-0.5 text-lg font-bold tabular-nums text-white">{value}</p>
-      {sub && <p className="text-[10px] text-white/45">{sub}</p>}
+    <div className="gate-stat-pill rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3">
+      <p className="text-[11px] text-white/40">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-white">{value}</p>
+      {sub && <p className="mt-0.5 text-[11px] text-white/40">{sub}</p>}
     </div>
   );
 }

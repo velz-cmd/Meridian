@@ -20,3 +20,17 @@ Golden rules: never hallucinate, never fabricate missing data, cite sources, pre
 
 Full rules: `src/lib/meridian-philosophy.ts` · API: `/api/meridian/intelligence`
 <!-- END:meridian-evidence-rules -->
+
+<!-- BEGIN:meridian-design-v2 -->
+# MERIDIAN Gate UI — Design System V2
+
+When editing `/gate`, `src/components/gate/**`, or MERIDIAN desk surfaces:
+
+1. Read **`docs/MERIDIAN-DESIGN-V2.md`** first.
+2. **Never delete** skills, cards, metrics, tabs, or APIs — reorganize with progressive disclosure only.
+3. **One question per card.** Default = executive summary (score + stance + reason). Expand = full metrics.
+4. Use **`GateSkillLayerCard`** + **`buildGateSkillLayers()`** for skill UI — not dense metric grids in collapsed state.
+5. **Overview tab** = verdict, thesis, constitution, narrative, live CMC strip, one execution CTA — no indicator walls.
+6. **Data honesty:** live CMC labels, symbol-scoped intelligence, DATA UNAVAILABLE when missing, testnet execution disclosed.
+7. Typography: hero `text-4xl`, calm borders `white/[0.08]`, minimal mono — see design doc tokens.
+<!-- END:meridian-design-v2 -->

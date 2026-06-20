@@ -2,14 +2,13 @@
 
 import { Activity, Scale, GitBranch, Shield, Layers } from "lucide-react";
 import { NexusAgentPulseStrip } from "@/components/nexus/nexus-agent-pulse-strip";
-import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
-import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
 import { GateCmcSkillStrip } from "@/components/gate/gate-cmc-skill-strip";
 import { GateConsensusPanel } from "@/components/gate/gate-consensus-panel";
-import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
 import { GateOutputPanel } from "@/components/gate/gate-output-panel";
 import { GateSkillStack } from "@/components/gate/gate-skill-stack";
 import { GateCollapsibleCard, GateStatPill } from "@/components/gate/gate-collapsible-card";
+import { GateOverviewExecutionPath } from "@/components/gate/gate-overview-execution-path";
+import { GateSectionLink } from "@/components/gate/gate-section-link";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import type { GateJudgeConsensus } from "@/lib/gate-consensus-payload";
 import type { MeridianIntelligencePayload } from "@/lib/meridian-intelligence-types";
@@ -57,6 +56,7 @@ export function GateOverviewTab({
   onQuickSelect,
   onRunBacktest,
   onGoTab,
+  onOpenNexus,
 }: {
   symbol: string;
   selected?: GateBenchmarkFull;
@@ -78,6 +78,7 @@ export function GateOverviewTab({
   onQuickSelect: (sym: import("@/lib/gate-constants").GateSymbol) => void;
   onRunBacktest: () => void;
   onGoTab: (tab: "memory" | "technical" | "rules" | "replay") => void;
+  onOpenNexus: () => void;
 }) {
   const symUpper = symbol.toUpperCase();
   const intel = intelligence?.symbol?.toUpperCase() === symUpper ? intelligence : null;
@@ -110,9 +111,7 @@ export function GateOverviewTab({
   const constitutionViolated = intel?.constitution.filter((a) => a.status === "violated").length ?? 0;
 
   const narrativeLeader =
-    intel?.narrativeFlow.likelyNextLeader.narrative ??
-    intel?.genome.narrative ??
-    "—";
+    intel?.narrativeFlow.likelyNextLeader.narrative ?? intel?.genome.narrative ?? "—";
   const migration = intel?.narrativeFlow.migration[0];
 
   const livePrice = selected?.market.price ?? 0;
@@ -121,35 +120,35 @@ export function GateOverviewTab({
   const cmcLive = selected?.cmcLive ?? false;
   const asOf = new Date().toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
-  const verdictColor =
+  const verdictSurface =
     verdict === "GRANT"
-      ? "border-emerald-400/40 bg-emerald-500/10"
+      ? "border-emerald-400/25 bg-emerald-500/[0.06]"
       : verdict === "DENY"
-        ? "border-rose-400/40 bg-rose-500/10"
+        ? "border-rose-400/25 bg-rose-500/[0.06]"
         : verdict === "WAIT"
-          ? "border-amber-400/40 bg-amber-500/10"
-          : "border-white/20 bg-white/5";
+          ? "border-amber-400/25 bg-amber-500/[0.06]"
+          : "border-white/[0.08] bg-black/25";
 
   return (
-    <div className="space-y-4">
-      {/* Live market strip — symbol-scoped CMC snapshot */}
-      <section className="rounded-2xl border border-cyan-400/25 bg-cyan-500/5 px-4 py-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-2.5">
-            <Activity className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
+    <div className="gate-v2-stack space-y-6">
+      {/* Live CMC strip — should I care? (price context only) */}
+      <section className="rounded-2xl border border-white/[0.08] bg-black/25 px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <Activity className="mt-0.5 h-4 w-4 shrink-0 text-white/45" />
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-200/80">
+              <p className="text-xs text-white/45">
                 Live market · {GATE_SYMBOL_LABELS[symUpper as keyof typeof GATE_SYMBOL_LABELS] ?? symUpper}
               </p>
-              <p className="mt-1 text-lg font-semibold tabular-nums text-white">
+              <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-white">
                 ${formatGatePrice(livePrice)}
-                <span className="ml-3 text-sm font-normal text-white/55">
+                <span className="ml-3 text-sm font-normal text-white/50">
                   24h {formatPct(live24h)}
                   {live7d != null && <> · 7d {formatPct(live7d)}</>}
                 </span>
               </p>
-              <p className="mt-1 text-[11px] text-white/45">
-                {cmcLive ? "CMC live feed" : "CMC unavailable — venue fallback"}
+              <p className="mt-1.5 text-[11px] text-white/40">
+                {cmcLive ? "CMC live feed" : "DATA UNAVAILABLE — venue fallback"}
                 {intelPending ? " · refreshing intelligence…" : intel ? " · intelligence synced" : ""}
                 {" · "}
                 As of {asOf}
@@ -157,33 +156,29 @@ export function GateOverviewTab({
             </div>
           </div>
           {selected?.gate && (
-            <div className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-right">
-              <p className="font-mono text-[9px] uppercase text-white/40">Gate signal</p>
+            <div className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-2.5 text-right">
+              <p className="text-[11px] text-white/40">Gate signal</p>
               <p className="text-sm font-semibold text-white">{selected.gate.signal.replace(/_/g, " ")}</p>
-              <p className="font-mono text-[10px] text-white/45">
+              <p className="text-[11px] tabular-nums text-white/45">
                 {selected.gate.checksPassed}/{selected.gate.checksTotal} checks
               </p>
             </div>
           )}
         </div>
-        <p className="mt-2 font-mono text-[9px] text-white/35">
-          Analysis uses live CMC quotes for all four BSC benchmarks (BNB · CAKE · FLOKI · XVS Venus). Swaps settle on
-          BSC Testnet (Chapel) — not mainnet paper trading.
-        </p>
       </section>
 
-      {/* 1. Verdict — answer first */}
-      <section className={cn("rounded-2xl border px-5 py-5", verdictColor)}>
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/60">Hero verdict</p>
-        <p className="mt-2 text-3xl font-bold text-white">{verdict}</p>
-        <p className="mt-2 max-w-2xl text-sm text-white/80">
+      {/* 1. Verdict */}
+      <section className={cn("rounded-2xl border px-6 py-6", verdictSurface)}>
+        <p className="text-xs text-white/45">Verdict</p>
+        <p className="mt-2 text-4xl font-semibold tracking-tight text-white">{verdict}</p>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/70">
           {intel?.verdictReason ?? judgeConsensus?.permit.reason ?? selected?.gate.thesis ?? "Live constitution + skill consensus."}
         </p>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <GateStatPill label="Conviction" value={String(conviction)} sub="Evidence-derived" />
-          <GateStatPill label="Bull–Bear spread" value={String(spread)} sub="Not probability" />
+          <GateStatPill label="Bull–bear spread" value={String(spread)} sub="Not probability" />
           <GateStatPill label="Risk regime" value={riskRegime} sub={`F&G ${intel?.genome.fearGreed ?? selected?.market.fearGreed ?? "—"}`} />
-          <GateStatPill label="Expected horizon" value={`${horizon}h`} sub={`Thesis ${intel?.convictionDecay.status ?? "—"}`} />
+          <GateStatPill label="Horizon" value={`${horizon}h`} sub={`Thesis ${intel?.convictionDecay.status ?? "—"}`} />
           <GateStatPill
             label="Permit"
             value={judgeConsensus?.permit.status ?? "—"}
@@ -198,15 +193,15 @@ export function GateOverviewTab({
         question="Why should I care?"
         summary={<p className="line-clamp-3">{thesis}</p>}
         icon={Scale}
-        accent="border-violet-400/20"
+        defaultOpen={false}
       >
         <p className="text-sm leading-relaxed text-white/75">{thesis}</p>
         {intel?.explainability.whyNow && (
-          <p className="mt-3 text-xs text-white/50">{intel.explainability.whyNow}</p>
+          <p className="mt-3 text-xs leading-relaxed text-white/50">{intel.explainability.whyNow}</p>
         )}
-        <button type="button" className="mt-3 text-xs text-cyan-300 hover:underline" onClick={() => onGoTab("technical")}>
-          Full debate & evidence → Technical tab
-        </button>
+        <div className="mt-4">
+          <GateSectionLink onClick={() => onGoTab("technical")}>Full debate and evidence</GateSectionLink>
+        </div>
       </GateCollapsibleCard>
 
       {/* 3. Constitution summary */}
@@ -220,21 +215,24 @@ export function GateOverviewTab({
           </span>
         }
         icon={Shield}
-        accent="border-amber-400/15"
+        defaultOpen={false}
       >
-        <ul className="space-y-2 text-[11px]">
+        <ul className="space-y-2">
           {(intel?.constitution ?? []).map((a) => (
-            <li key={a.id} className="flex justify-between gap-2 rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2">
+            <li
+              key={a.id}
+              className="flex justify-between gap-2 rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2.5 text-[12px]"
+            >
               <span className="text-white/80">
                 Article {a.id} · {a.title}
               </span>
-              <span className="font-mono uppercase text-white/45">{a.status}</span>
+              <span className="font-mono text-[10px] uppercase text-white/45">{a.status}</span>
             </li>
           ))}
         </ul>
-        <button type="button" className="mt-3 text-xs text-cyan-300 hover:underline" onClick={() => onGoTab("rules")}>
-          Full rules & spec → Rules tab
-        </button>
+        <div className="mt-4">
+          <GateSectionLink onClick={() => onGoTab("rules")}>Full rules and spec</GateSectionLink>
+        </div>
       </GateCollapsibleCard>
 
       {/* 4. Narrative summary */}
@@ -248,46 +246,48 @@ export function GateOverviewTab({
           </span>
         }
         icon={GitBranch}
-        accent="border-cyan-400/15"
+        defaultOpen={false}
       >
         {intel?.narrativeFlow.radar.slice(0, 4).map((n) => (
           <div key={n.id} className="mb-2 flex items-center gap-2 text-xs">
             <span className="w-14 text-white/50">{n.label}</span>
             <div className="h-1.5 flex-1 rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-violet-500/60" style={{ width: `${n.strength}%` }} />
+              <div className="h-full rounded-full bg-violet-500/50" style={{ width: `${n.strength}%` }} />
             </div>
             <span className="w-8 text-right tabular-nums text-white/40">{n.strength}</span>
           </div>
         ))}
-        <button type="button" className="mt-2 text-xs text-cyan-300 hover:underline" onClick={() => onGoTab("memory")}>
-          Market memory & analogs → Memory tab
-        </button>
+        <div className="mt-3">
+          <GateSectionLink onClick={() => onGoTab("memory")}>Market memory and analogs</GateSectionLink>
+        </div>
       </GateCollapsibleCard>
 
-      {/* Operational — execution path */}
-      <GateExecutionDesk
+      {/* Execution — primary CTA visible, full desk collapsed (V2) */}
+      <GateOverviewExecutionPath
         symbol={symbol}
-        route={positionRoute}
-        loading={directionLoading}
-        deskSignal={selected ? effectiveGateSignal(selected.gate, skills) : undefined}
+        selected={selected}
+        skills={skills}
+        positionRoute={positionRoute}
+        directionLoading={directionLoading}
+        gateRoute={gateRoute}
+        benchmarks={benchmarks}
         permit={judgeConsensus?.permit.status === "GRANT" ? "GRANT" : "DENY"}
+        onOpenNexus={onOpenNexus}
       />
-      <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact strategyOnly />
-      <GateCapitalRotation benchmarks={benchmarks} route={gateRoute} />
 
-      {intelLoading && !intelligence && (
-        <p className="text-center text-xs text-white/40">Loading intelligence summaries…</p>
+      {intelPending && (
+        <p className="text-center text-xs text-white/40">Refreshing intelligence for {symUpper}…</p>
       )}
 
-      {/* Progressive disclosure — ALL former overview modules preserved */}
+      {/* Deep research — all former overview modules preserved */}
       <GateCollapsibleCard
-        title="Full gate analysis modules"
+        title="Full gate analysis"
         question="Deep research · nothing removed"
-        summary="Consensus, skill strip, live output, agent pulse — expand for complete desk view."
+        summary="Consensus, skill strip, agent pulse, output panels — expand for complete desk view."
         icon={Layers}
         defaultOpen={false}
       >
-        <div className="space-y-3">
+        <div className="space-y-4">
           <NexusAgentPulseStrip pulse={marketPulse} loading={pulseLoading} symbol={symbol} compact />
           {judgeConsensus && <GateConsensusPanel consensus={judgeConsensus} />}
           {selected && (

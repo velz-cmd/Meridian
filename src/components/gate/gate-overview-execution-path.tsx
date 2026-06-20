@@ -1,0 +1,99 @@
+"use client";
+
+import { ArrowUpRight, Loader2 } from "lucide-react";
+import { GateCapitalRotation } from "@/components/gate/gate-capital-rotation";
+import { GateCollapsibleCard } from "@/components/gate/gate-collapsible-card";
+import { GateExecutionDesk } from "@/components/gate/gate-execution-desk";
+import { NexusDirectionDesk } from "@/components/nexus/nexus-direction-desk";
+import { effectiveGateSignal } from "@/lib/gate-effective-signal";
+import { GATE_PRODUCT } from "@/lib/gate-product-copy";
+import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
+import type { GateBenchmarkFull, GateRoutePayload } from "@/lib/gate-route-types";
+import type { PositionRoute } from "@/lib/position-router";
+import { positionExposureLabel } from "@/lib/position-router";
+import { nexusGlassCta } from "@/lib/nexus-action-glass";
+import { Sparkles } from "lucide-react";
+
+/** Overview execution — primary CTA visible; full desk progressively disclosed (V2). */
+export function GateOverviewExecutionPath({
+  symbol,
+  selected,
+  skills,
+  positionRoute,
+  directionLoading,
+  gateRoute,
+  benchmarks,
+  permit,
+  onOpenNexus,
+}: {
+  symbol: string;
+  selected?: GateBenchmarkFull;
+  skills?: GateSkillsPayload;
+  positionRoute: PositionRoute | null;
+  directionLoading: boolean;
+  gateRoute: GateRoutePayload | null;
+  benchmarks: GateBenchmarkFull[];
+  permit?: "GRANT" | "DENY";
+  onOpenNexus: () => void;
+}) {
+  const deskSignal = selected ? effectiveGateSignal(selected.gate, skills) : undefined;
+  const direction = positionRoute?.direction ?? "FLAT";
+  const signalLabel = (deskSignal ?? selected?.gate.signal ?? "HOLD").replace(/_/g, " ");
+
+  return (
+    <section className="space-y-3">
+      <div className="gate-execution-cta flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-black/30 px-5 py-4">
+        <div className="min-w-0">
+          <p className="text-xs text-white/45">Execution path · live analysis · testnet settlement</p>
+          <p className="mt-1 text-base font-semibold text-white">
+            {symbol} · {positionExposureLabel(direction)}
+          </p>
+          <p className="mt-0.5 text-sm text-white/55">
+            Desk {signalLabel}
+            {permit ? ` · permit ${permit}` : ""}
+            {directionLoading ? " · updating…" : ""}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenNexus}
+          className={nexusGlassCta("buy", "min-h-[44px] px-5 py-2.5 text-sm font-semibold")}
+        >
+          <span className="flex items-center gap-1.5">
+            {GATE_PRODUCT.continueTradable(symbol)}
+            <ArrowUpRight className="h-4 w-4" />
+          </span>
+        </button>
+      </div>
+
+      <GateCollapsibleCard
+        title="Full execution desk"
+        question="Lanes · leverage · buy / sell / autopilot"
+        icon={Sparkles}
+        accent="border-violet-400/15"
+        summary="Expand for position targets, thesis leverage, and NEXUS Chapel settlement — all features preserved."
+        defaultOpen={false}
+      >
+        {directionLoading && !positionRoute ? (
+          <div className="flex items-center gap-2 py-4 text-xs text-white/50">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
+            Loading position signal…
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <GateExecutionDesk
+              symbol={symbol}
+              route={positionRoute}
+              loading={directionLoading}
+              deskSignal={deskSignal}
+              permit={permit}
+              compact
+            />
+            <NexusDirectionDesk route={positionRoute} loading={directionLoading} compact strategyOnly />
+            <GateCapitalRotation benchmarks={benchmarks} route={gateRoute} />
+          </div>
+        )}
+      </GateCollapsibleCard>
+    </section>
+  );
+}
