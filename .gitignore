@@ -28,6 +28,11 @@ scripts/dune-env.generated.json
 MERIDIAN-Grant-Deck.html
 docs/MERIDIAN-Grant-Deck.html
 
+# local X/social posting assets (not for trader-arc deploy)
+docs/BASE-ARTICLE-X-POST.md
+docs/WINGSTON-WHITELIST-PLAYBOOK.md
+/public/x-article/
+
 # CyOps hackathon (local only — submit via Gateway / separate repo, not trader-arc)
 /cyops/
 
