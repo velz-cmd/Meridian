@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Brain, GitBranch, Scale, Shield, Users } from "lucide-react";
+import { Brain, GitBranch, Scale, Shield, Terminal, Users } from "lucide-react";
+import { formatSpecHash, SKILL_VERSION } from "@/lib/meridian-math";
+import { MERIDIAN_PROD_URL } from "@/lib/meridian-brand";
+import { GATE_SKILL_REPO } from "@/lib/gate-constants";
 import { GateHorizonAllWindows } from "@/components/gate/gate-horizon-context";
 import { GateCollapsibleCard, GateStatPill } from "@/components/gate/gate-collapsible-card";
 import { GateOverviewExecutionPath } from "@/components/gate/gate-overview-execution-path";
@@ -402,7 +405,53 @@ export function GateOverviewTab({
         </div>
       </GateCollapsibleCard>
 
-      {/* Section 7 — Primary action (aligned with router) */}
+      {/* Section 7 — Reproduce this verdict (same engine everywhere) */}
+      <GateCollapsibleCard
+        title="Reproduce this verdict"
+        question="Can a judge verify it?"
+        summary={
+          <span className="font-mono text-[11px]">
+            {formatSpecHash()} · skill v{SKILL_VERSION} · curl /api/gate/evaluate?symbol={symUpper}
+          </span>
+        }
+        icon={Terminal}
+        defaultOpen={false}
+      >
+        <p className="gate-body-text mb-3 text-white/55">
+          The same deterministic engine powers this desk, the REST API, the CLI backtest, and the
+          90-day replay. Run it yourself — no login, no key for the skills view.
+        </p>
+        <ul className="space-y-2 font-mono text-[11px] text-white/60">
+          <li className="rounded-lg border border-white/[0.06] bg-black/30 px-3 py-2">
+            curl {MERIDIAN_PROD_URL}/api/gate/evaluate?symbol={symUpper}
+          </li>
+          <li className="rounded-lg border border-white/[0.06] bg-black/30 px-3 py-2">
+            curl {MERIDIAN_PROD_URL}/api/gate/skills?symbol={symUpper}
+          </li>
+          <li className="rounded-lg border border-white/[0.06] bg-black/30 px-3 py-2">
+            npm run bnb:backtest -- --symbol {symUpper} --days 90
+          </li>
+        </ul>
+        <p className="gate-meta-text mt-3">
+          Spec identity {formatSpecHash()} · {GATE_SYMBOL_LABELS[symUpper as keyof typeof GATE_SYMBOL_LABELS] ?? symUpper} ·
+          live CMC → 8 skills → court → constitution → replay
+        </p>
+        <div className="mt-4 flex flex-wrap gap-4">
+          <a
+            href={GATE_SKILL_REPO}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-cyan-300 hover:underline"
+          >
+            SKILL.md + STRATEGY_SPEC ↗
+          </a>
+          <GateSectionLink onClick={() => onGoTab("replay")} features={["Same rules", "90-day proof", "Equity curve"]}>
+            Open 90-day replay
+          </GateSectionLink>
+        </div>
+      </GateCollapsibleCard>
+
+      {/* Section 8 — Primary action (aligned with router) */}
       <GateOverviewExecutionPath
         symbol={symbol}
         selected={selected}
