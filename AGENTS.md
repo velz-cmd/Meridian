@@ -105,3 +105,16 @@ When `NEXT_PUBLIC_MERIDIAN_TRACK2_PRIORITY=1`:
 
 Full roadmap: `docs/MERIDIAN-ROADMAP-2026.md` · constants: `src/lib/meridian-track2-mode.ts`
 <!-- END:meridian-track2-priority -->
+
+## Cursor Cloud specific instructions
+
+Single Next.js 16 (Turbopack) + React 19 app; package manager is **npm** (`package-lock.json`). Dependencies are refreshed automatically on startup (`npm install`).
+
+- **Run dev server:** `npm run dev` (Next.js on `http://localhost:3000`). Standard scripts in `package.json`: `npm run lint`, `npm run build`, `npm run start`.
+- **Runs without secrets:** the app boots and degrades gracefully with **no API keys**. Copy `.env.example` to `.env.local` if you want to add keys, but it is optional for local dev/testing.
+- **Live data without a key:** `/gate` and `/api/gate/skills` render real data via public Binance/DexScreener fallbacks in "degraded" mode. `DATA UNAVAILABLE` and `WAIT`/`UNKNOWN` verdicts are intentional honest states, not bugs.
+- **CMC_API_KEY caveat:** only `/api/gate/evaluate` hard-requires `CMC_API_KEY` (returns `{"error":"Set CMC_API_KEY..."}` without it). Everything else, including the `/gate` UI and `/api/gate/skills`, works without it.
+- **Lint is pre-existing-dirty:** `npm run lint` currently reports pre-existing errors/warnings in `src/lib/**` unrelated to environment setup — do not treat a non-zero lint exit as a broken environment.
+- **Persistence is optional:** without Supabase env vars, storage falls back to in-memory/`/tmp` JSON (`src/lib/storage.ts`); no database needs to run for local dev.
+- **Windows-only scripts:** several `scripts/*.ps1` (and the `finish`/`sync:*` npm scripts) are PowerShell deploy helpers — ignore them on Linux. Use the `*.mjs` Node scripts and `bnb:*` engine scripts (`npm run bnb:smoke` is a no-key engine sanity check).
+- **Sub-projects:** `contracts/` is a Foundry/Solidity project (needs `forge`, not required for the web app); `bnb-hack/` holds Node CLI engines referenced by some API routes.
