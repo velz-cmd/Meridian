@@ -7,6 +7,8 @@ import { GateDataProvenance } from "@/components/gate/gate-data-provenance";
 import type { GateBenchmarkFull } from "@/lib/gate-route-types";
 import type { GateSkillsPayload } from "@/components/gate/gate-skill-stack";
 import { extractJudgeConsensus } from "@/lib/gate-consensus-payload";
+import { formatSpecHash, relativeTime, SKILL_VERSION } from "@/lib/meridian-math";
+import { MERIDIAN_PROD_URL } from "@/lib/meridian-brand";
 import { cn } from "@/lib/utils";
 
 export function GateCmcSkillStrip({
@@ -21,10 +23,33 @@ export function GateCmcSkillStrip({
   const sym = selected.symbol;
   const skillsApi = `/api/gate/skills?symbol=${sym}`;
   const backtestApi = `/api/gate/backtest?symbol=${sym}&days=90`;
+  const evaluateApi = `/api/gate/evaluate?symbol=${sym}`;
   const consensus = extractJudgeConsensus(skills ?? (selected.skills as GateSkillsPayload | undefined));
+  const oracleUpdated = selected.oracle?.updatedAt;
+  const lastSync =
+    typeof oracleUpdated === "number"
+      ? relativeTime(new Date(oracleUpdated).toISOString())
+      : cmcLive
+        ? "live"
+        : "—";
 
   return (
     <section className="rounded-2xl border border-violet-400/20 bg-violet-950/20 overflow-hidden">
+      {/* Evidence ledger — Stripe-style receipt: one engine, sourced + timestamped. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/8 bg-black/30 px-4 py-2 font-mono text-[10px] text-white/55 sm:px-5">
+        <span className="font-semibold uppercase tracking-[0.18em] text-violet-200/80">Evidence ledger</span>
+        <span className={cn(cmcLive ? "text-emerald-300" : "text-amber-300")}>
+          CMC {cmcLive ? "live" : "cached"}
+        </span>
+        <span aria-hidden className="text-white/20">·</span>
+        <span>sync {lastSync}</span>
+        <span aria-hidden className="text-white/20">·</span>
+        <span>skill v{SKILL_VERSION}</span>
+        <span aria-hidden className="text-white/20">·</span>
+        <span className="text-cyan-200/80">{formatSpecHash()}</span>
+        <span aria-hidden className="text-white/20">·</span>
+        <span>last eval {sym}</span>
+      </div>
       <div className="border-b border-white/8 px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -88,6 +113,9 @@ export function GateCmcSkillStrip({
               npm run bnb:backtest -- --symbol {sym} --days 90
             </li>
             <li className="font-mono text-[10px] text-white/35">{backtestApi}</li>
+            <li className="font-mono text-[10px] text-white/30">
+              curl {MERIDIAN_PROD_URL}{evaluateApi}
+            </li>
           </ul>
         </div>
       </div>

@@ -2,6 +2,9 @@
 
 export const MERIDIAN_NAME = "MERIDIAN";
 export const MERIDIAN_TAGLINE = "Market intelligence";
+
+/** Canonical production URL — used for judge-facing reproduce commands. */
+export const MERIDIAN_PROD_URL = "https://trader-arc.vercel.app";
 export const MERIDIAN_MODULES = "Strategy · NEXUS · PRISM";
 export const MERIDIAN_BUILT_FOR = "Live data · Auditable rules · Testnet execution";
 

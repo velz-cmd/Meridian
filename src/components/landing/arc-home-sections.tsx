@@ -11,7 +11,10 @@ import {
   MERIDIAN_HOME_HEADLINE,
   MERIDIAN_HOME_SUBLINE,
   MERIDIAN_NAME,
+  MERIDIAN_PROD_URL,
 } from "@/lib/meridian-brand";
+import { formatSpecHash, SKILL_VERSION } from "@/lib/meridian-math";
+import { GATE_SKILL_REPO } from "@/lib/gate-constants";
 
 export function ArcEcosystemHero() {
   return (
@@ -50,6 +53,27 @@ export function ArcEcosystemHero() {
             <li>Constitution permit gates every trade before wallet settlement</li>
             <li>Historical replay uses the same rules as the live desk</li>
           </ul>
+
+          {/* Proof + reproduce — same engine in UI, API, CLI, and replay. */}
+          <div className="mt-6 max-w-lg rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-white/50">
+              <span className="font-semibold uppercase tracking-[0.18em] text-cyan-300/75">Reproduce</span>
+              <span className="text-cyan-200/70">{formatSpecHash()}</span>
+              <span aria-hidden className="text-white/20">·</span>
+              <span>skill v{SKILL_VERSION}</span>
+            </p>
+            <p className="mt-1.5 break-all font-mono text-[11px] text-white/65">
+              curl {MERIDIAN_PROD_URL}/api/gate/evaluate?symbol=BNB
+            </p>
+            <a
+              href={GATE_SKILL_REPO}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1.5 inline-block font-mono text-[10px] text-white/40 transition hover:text-cyan-300"
+            >
+              SKILL.md + STRATEGY_SPEC ↗
+            </a>
+          </div>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link href="/gate" className="w-full sm:w-auto">
