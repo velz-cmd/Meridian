@@ -12,7 +12,7 @@ async function main() {
   const res = await fetch(url, { cache: "no-store" });
   const data = await res.json();
 
-  console.log(`\nARC CIRCLE health — ${base}\n`);
+  console.log(`\nMERIDIAN health — ${base}\n`);
   console.log(`HTTP ${res.status}`);
   console.log(`Arc:        ${data.arc?.connected ? "ok" : "fail"} (${data.arc?.network})`);
   console.log(`Supabase:   ${data.supabase ? "configured" : "missing"}`);
