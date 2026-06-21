@@ -9,8 +9,6 @@ export const GATE_PRODUCT = {
   title: "Strategy skill desk",
   subtitle:
     "Live CMC market data → explainable intelligence → historical context → disciplined testnet execution when cleared.",
-  trustHorizon:
-    "Trust over 1,000 trades — not excitement on the next trade. WAIT and UNKNOWN are valid answers.",
   rankingTitle: "Today's ranking",
   rankingFlat: "No symbol clears entry rules — wait for edge.",
   rankingActive: (primary: string, pct: number, secondary?: string, secPct?: number) =>

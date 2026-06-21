@@ -66,9 +66,6 @@ export function GateDeskHero({
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[var(--arc-text-muted)] sm:text-sm">
             {GATE_PRODUCT.subtitle} Use tabs for overview, technical RSI/reasoning, rules, and replay.
           </p>
-          <p className="mt-1.5 max-w-2xl text-[11px] leading-relaxed text-white/40">
-            {GATE_PRODUCT.trustHorizon}
-          </p>
 
           {!compact && route && (
             <p className="mt-3 font-mono text-[11px] text-white/45">
