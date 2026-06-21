@@ -20,6 +20,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: MERIDIAN_PAGE_TITLE,
   description: MERIDIAN_META_DESCRIPTION,
+  icons: {
+    icon: "/meridian-logo-mark.svg",
+    apple: "/meridian-logo-480.png",
+  },
   openGraph: {
     title: MERIDIAN_PAGE_TITLE,
     description: MERIDIAN_META_DESCRIPTION,

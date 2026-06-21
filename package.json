@@ -1,6 +1,6 @@
 {
   "name": "cursor-arc-circle",
-  "description": "MERIDIAN — NEXUS trading agent + PRISM macro oracle (built for ARC Circle)",
+  "description": "MERIDIAN — CMC Strategy Skill desk for BNB Hackathon Track 2",
   "version": "0.1.0",
   "private": true,
   "scripts": {
