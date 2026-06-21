@@ -1,45 +1,59 @@
-# ARC CIRCLE — Agent Intelligence Suite
+# MERIDIAN — Market Intelligence OS
 
-Two production-grade AI agents for the **Agora Agents Hackathon** (Circle × Arc):
+**Turn market data into backtestable strategy.**
 
-| Product | Purpose | Stack |
-|---------|---------|-------|
-| **NEXUS** | Autonomous trading agent | DexScreener · OpenAI · Circle Wallets · Arc anchoring |
-| **PRISM** | Macro & geopolitical oracle | GDELT · NewsAPI · Claude · Arc anchoring |
+MERIDIAN is a CoinMarketCap-powered market intelligence desk for **BNB Hackathon Track 2 (Strategy Skills)**. Eight deterministic CMC skills feed Bull/Bear Court and Constitution — producing auditable verdicts, historical replay, and optional BSC testnet execution.
+
+| Module | Purpose |
+|--------|---------|
+| **Strategy** (`/gate`) | CMC Strategy Skill desk — live evaluation, rules, 90-day replay |
+| **NEXUS** (`/nexus`) | Trading terminal — wallet, swaps, agent console |
+| **PRISM** (`/prism`) | Macro intelligence — under development |
 
 ## Live
 
 - **Production:** https://trader-arc.vercel.app
-- **Arc Testnet:** chain `5042002` · Circle RPC `https://rpc.testnet.arc.network` · node **[v0.7.1](https://github.com/circlefin/arc-node/releases/tag/v0.7.1)**
+- **Strategy desk:** https://trader-arc.vercel.app/gate
+- **Analytics:** https://trader-arc.vercel.app/analytics
 
-## Live routes
-
-- `/` — Landing hub
-- `/nexus` — Trading agent console
-- `/prism` — Forecasting oracle
-- `/arc` — Counter deploy / increment (wallet on Arc testnet)
-- `/bnb` — **BNB Hack Track 2** — NEXUS Momentum Gate demo (CMC Strategy Skill)
-- `/analytics` — **BNB Hack traction** — live stats, Dune, Chapel swaps
-
-## BNB Hack — Strategy Skills (Track 2)
-
-**MERIDIAN Gate** — CoinMarketCap Strategy Skill with live evaluation and real historical backtest.
+## Track 2 deliverables
 
 | Layer | Location |
 |-------|----------|
-| **Product** | [/gate](https://trader-arc.vercel.app/gate) |
-| **Live API** | `GET /api/gate/evaluate?symbol=BNB` |
-| **Backtest API** | `GET /api/gate/backtest?symbol=BNB&days=90` |
+| **Product UI** | [/gate](https://trader-arc.vercel.app/gate) |
+| **Live evaluation** | `GET /api/gate/evaluate?symbol=BNB` |
+| **Skills API** | `GET /api/gate/skills?symbol=CAKE` |
+| **90-day backtest** | `GET /api/gate/backtest?symbol=BNB&days=90` |
+| **Intelligence API** | `GET /api/meridian/intelligence?symbol=CAKE` |
 | **CMC Skill** | [`bnb-hack/skills/nexus-momentum-gate/SKILL.md`](bnb-hack/skills/nexus-momentum-gate/SKILL.md) |
-| **Submission** | [`bnb-hack/SUBMIT.md`](bnb-hack/SUBMIT.md) |
+| **Strategy spec** | [`bnb-hack/skills/nexus-momentum-gate/STRATEGY_SPEC.md`](bnb-hack/skills/nexus-momentum-gate/STRATEGY_SPEC.md) |
+| **Submission guide** | [`bnb-hack/SUBMIT.md`](bnb-hack/SUBMIT.md) |
+| **Judge one-pager** | [`bnb-hack/JUDGE-ONE-PAGER.md`](bnb-hack/JUDGE-ONE-PAGER.md) |
 
-**Judge demo:** Open `/gate` → BNB live gate → 90-day backtest → reproduce via curl.
+**Judge demo path:** Open `/gate` → Overview + Rules → 90-day Replay → reproduce via curl.
+
+```bash
+curl "https://trader-arc.vercel.app/api/gate/evaluate?symbol=BNB"
+curl "https://trader-arc.vercel.app/api/gate/skills?symbol=CAKE"
+npm run bnb:backtest -- --symbol BNB --days 90
+```
+
+## Intelligence stack
+
+```
+CMC APIs → 8 Skills (evidence) → Bull/Bear Court → Constitution → Memory → Verdict
+```
+
+Golden rules: never hallucinate, prefer WAIT over fake certainty, skills provide evidence only — never BUY/SELL.
+
+Full architecture: [`docs/MERIDIAN-TRACK2.md`](docs/MERIDIAN-TRACK2.md)
 
 ## Quick start
 
 ```bash
 npm install
 cp .env.example .env.local
+# Add CMC_API_KEY (required for live Gate data)
 npm run dev
 ```
 
@@ -47,66 +61,60 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ## Environment
 
-Copy `.env.example` to `.env.local` and add:
+Copy `.env.example` to `.env.local`. **Required for Strategy desk:**
 
-- `OPENAI_API_KEY` — NEXUS decision engine
-- `ANTHROPIC_API_KEY` — PRISM forecasting engine
-- `NEWS_API_KEY` — NewsAPI headlines (optional but recommended)
-- `CIRCLE_API_KEY` — `ENTITY_ID:API_KEY:SECRET` from Circle sandbox
-- `CIRCLE_KIT_KEY` — Circle App Kit key
-- `ARC_AGENT_PRIVATE_KEY` — optional funded Arc testnet key for on-chain anchors
+| Variable | Purpose |
+|----------|---------|
+| `CMC_API_KEY` | CoinMarketCap quotes, fear/greed, global metrics |
+| `CMC_MCP_API_KEY` | CMC MCP tools (optional, same key often works) |
 
-Without API keys, both agents still run in **heuristic demo mode** using live DexScreener + GDELT data.
+**Optional — NEXUS / PRISM / execution:**
 
-## Hackathon alignment
+| Variable | Purpose |
+|----------|---------|
+| `OPENAI_API_KEY` | NEXUS decision engine |
+| `ANTHROPIC_API_KEY` | PRISM forecasting |
+| `NEWS_API_KEY` | NewsAPI headlines |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Wallet connect |
 
-- **Agentic sophistication** — autonomous BUY/SELL/HOLD and probability forecasts
-- **Circle usage** — sandbox wallet provisioning + USDC-native agent treasury
-- **Arc settlement** — decision payloads anchored on Arc testnet (**v0.7.1**, Circle RPC for reviewable on-chain activity)
-- **Traction-ready UI** — premium glass interface built for demo video + live users
+Without API keys, Gate shows honest DATA UNAVAILABLE states. NEXUS runs in heuristic demo mode using DexScreener + GDELT.
 
-**Circle grant referral** (paste into Discord `#circle-grant-referral-requests`): [docs/CIRCLE-GRANT-REFERRAL.md](docs/CIRCLE-GRANT-REFERRAL.md) — formatted like AUREUS / DealARC / AuraPredict submissions
+## Scripts
 
-## NEXUS v2 features
-
-- **Contract address** on every token (copy button)
-- **Live DexScreener chart** embed per token
-- **Birdeye intel**: market cap, snipers, holders, concentration risk
-- **Reasoning breakdown**: factor-by-factor why BUY / SELL / HOLD
-- **Wallet connect** (MetaMask / injected wallet)
-- **Swap panel**: 0x quotes on Base/Ethereum, Jupiter link for Solana
+```bash
+npm run dev              # Local dev server
+npm run build            # Production build
+npm run health           # Health check (production)
+npm run health:local     # Health check (localhost)
+npm run bnb:backtest     # 90-day constitution backtest
+npm run bnb:smoke        # Engine smoke test (no API key)
+npm run bnb:evaluate     # CLI evaluation
+```
 
 ## Deploy to Vercel
 
-1. Push this repo to [github.com/ibrahim0-cursor/cursor-arc-circle](https://github.com/ibrahim0-cursor/cursor-arc-circle)
-2. Go to [vercel.com/new](https://vercel.com/new) → Import GitHub repo
-3. Add environment variables from `.env.example`
-4. Deploy — root directory is `/`, framework Next.js auto-detected
+1. Push to [github.com/ibrahim0-cursor/cursor-arc-circle](https://github.com/ibrahim0-cursor/cursor-arc-circle)
+2. Import at [vercel.com/new](https://vercel.com/new)
+3. Add environment variables from `.env.example` — **`CMC_API_KEY` is required**
+4. Deploy — Next.js auto-detected, root `/`
 
-Required env vars for full NEXUS: `OPENAI_API_KEY`, `BIRDEYE_API_KEY`, `NEWS_API_KEY`, `CIRCLE_API_KEY`, `ALCHEMY_API_KEY`, `NEXT_PUBLIC_ALCHEMY_BASE_RPC`
+### Supabase (optional persistence)
 
-Optional: `ZEROX_API_KEY` for on-chain EVM swap execution
+1. Run SQL in `supabase/schema.sql`
+2. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`
+3. Verify: `npm run health` — `demoPortfolio.tableOk` should be `true`
 
-### Supabase setup (required for Vercel persistence)
+## Submission checklist (BNB Hack Track 2)
 
-1. Open [Supabase SQL Editor](https://supabase.com/dashboard/project/pjtkiktpdvhghkqwqpok/sql)
-2. Run the SQL in `supabase/schema.sql` (includes `demo_portfolios` for mobile demo trades)
-3. In Vercel, set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SECRET_KEY`
-4. Verify: `npm run health` — `demoPortfolio.tableOk` should be `true`
-
-### No OpenAI / Claude?
-
-The app runs fully in **heuristic mode** using DexScreener, Birdeye, GDELT, and NewsAPI — no paid AI keys needed.
+- [ ] Public GitHub repo with `SKILL.md` + `STRATEGY_SPEC.md`
+- [ ] Live `/gate` loads; Rules + Replay work
+- [ ] Demo video follows judge path (Strategy-first, not NEXUS-first)
+- [ ] Vision text says backtestable spec, not "AI trading agent"
+- [ ] Category = No for AI Agent
+- [ ] Logo uploaded (480×480) — `public/meridian-logo-480.png`
 
 ## Repository
 
 [github.com/ibrahim0-cursor/cursor-arc-circle](https://github.com/ibrahim0-cursor/cursor-arc-circle)
 
-## Submission checklist
-
-- [ ] Public GitHub repo
-- [ ] 3-minute Loom demo covering NEXUS + PRISM
-- [ ] Live deployed URL
-- [ ] Report traction in submission form
-
-Built for Agora · Canteen × Circle · 2026 · **Arc Testnet v0.7.1**
+Built for **BNB Hackathon · Strategy Skills (CoinMarketCap) · 2026**
