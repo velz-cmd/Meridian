@@ -26,12 +26,16 @@ export function GateCmcSkillStrip({
   const evaluateApi = `/api/gate/evaluate?symbol=${sym}`;
   const consensus = extractJudgeConsensus(skills ?? (selected.skills as GateSkillsPayload | undefined));
   const oracleUpdated = selected.oracle?.updatedAt;
+  // Only trust a plausible recent ms timestamp (post-2020). Degraded/placeholder
+  // feeds report 0/epoch — fall back to an honest live/cached label instead of
+  // a nonsense "20605d ago".
+  const PLAUSIBLE_MIN_MS = 1_577_836_800_000; // 2020-01-01
   const lastSync =
-    typeof oracleUpdated === "number"
+    typeof oracleUpdated === "number" && oracleUpdated > PLAUSIBLE_MIN_MS
       ? relativeTime(new Date(oracleUpdated).toISOString())
       : cmcLive
         ? "live"
-        : "—";
+        : "cached";
 
   return (
     <section className="rounded-2xl border border-violet-400/20 bg-violet-950/20 overflow-hidden">
